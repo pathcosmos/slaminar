@@ -1,4 +1,4 @@
-import type { ProjectSnapshot, ConventionProfile } from '../types/index.js';
+import type { ProjectSnapshot, ConventionProfile, FileNode } from '../types/index.js';
 
 const TEST_FRAMEWORKS = ['vitest', 'jest', 'mocha', 'ava', 'jasmine', 'tap'];
 const LINTERS = ['eslint', 'biome', 'oxlint', 'tslint'];
@@ -9,13 +9,44 @@ const LANG_RE = /\.(ko|ja|zh|es|fr|de|pt|ru|it|ar|hi|th|vi|nl|pl|sv|tr)\./i;
 
 export function extractConventions(snapshot: ProjectSnapshot): ConventionProfile {
   return {
-    naming: 'unknown',
+    naming: detectNaming(snapshot),
     testFramework: detectTestFramework(snapshot),
     linter: detectLinter(snapshot),
     formatter: detectFormatter(snapshot),
     commitStyle: detectCommitStyle(snapshot),
     docLanguage: detectDocLanguage(snapshot),
   };
+}
+
+function detectNaming(snapshot: ProjectSnapshot): ConventionProfile['naming'] {
+  const names: string[] = [];
+  collectFileNames(snapshot.fileTree, names);
+
+  let camelCount = 0;
+  let kebabCount = 0;
+  let snakeCount = 0;
+
+  for (const name of names) {
+    if (/[a-z][A-Z]/.test(name)) camelCount++;
+    else if (name.includes('-')) kebabCount++;
+    else if (name.includes('_')) snakeCount++;
+  }
+
+  const total = camelCount + kebabCount + snakeCount;
+  if (total === 0) return 'unknown';
+  if (camelCount >= kebabCount && camelCount >= snakeCount) return 'camelCase';
+  if (kebabCount >= camelCount && kebabCount >= snakeCount) return 'kebab-case';
+  return 'snake_case';
+}
+
+function collectFileNames(nodes: FileNode[], names: string[]): void {
+  for (const node of nodes) {
+    if (node.type === 'file' && node.extension) {
+      const nameWithoutExt = node.name.replace(node.extension, '');
+      if (nameWithoutExt.length > 1) names.push(nameWithoutExt);
+    }
+    if (node.children) collectFileNames(node.children, names);
+  }
 }
 
 function detectTestFramework(snapshot: ProjectSnapshot): string | null {
