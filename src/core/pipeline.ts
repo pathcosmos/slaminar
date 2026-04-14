@@ -6,7 +6,11 @@ import { mapStructure } from '../analyzer/structure-mapper.js';
 import { extractConventions } from '../analyzer/convention-extractor.js';
 import { analyzeDependencies } from '../analyzer/dependency-analyzer.js';
 import { detectMaturity } from '../analyzer/maturity-detector.js';
-import type { ProjectSnapshot, ProjectProfile, AiContextSummary } from '../types/index.js';
+import { recommend } from '../recommender/recommender.js';
+import { buildPlan } from '../planner/planner.js';
+import { backupFile, readManifest, writeManifest } from '../placer/backup.js';
+import { writeTargets } from '../placer/writer.js';
+import type { ProjectSnapshot, ProjectProfile, AiContextSummary, GenerationPlan, RecommendationPlan } from '../types/index.js';
 
 function extractDescription(snapshot: ProjectSnapshot): string {
   for (const pkg of snapshot.packages) {
@@ -48,4 +52,37 @@ export function analyze(targetPath: string): { snapshot: ProjectSnapshot; profil
     existingAiContext: summarizeAiContext(snapshot),
   };
   return { snapshot, profile };
+}
+
+export interface InitResult {
+  profile: ProjectProfile;
+  recommendation: RecommendationPlan;
+  plan: GenerationPlan;
+  writtenFiles: string[];
+  backedUpFiles: string[];
+}
+
+export function init(targetPath: string): InitResult {
+  const { snapshot, profile } = analyze(targetPath);
+  const recommendation = recommend(profile);
+  const plan = buildPlan(profile, snapshot, recommendation);
+
+  // Backup existing files that will be overwritten
+  const backedUpFiles: string[] = [];
+  const existingManifest = readManifest(snapshot.root);
+  for (const target of plan.targets) {
+    if (target.mode === 'merge') {
+      const record = backupFile(snapshot.root, target.path);
+      existingManifest.push(record);
+      backedUpFiles.push(target.path);
+    }
+  }
+  if (backedUpFiles.length > 0) {
+    writeManifest(snapshot.root, existingManifest);
+  }
+
+  // Write generated files
+  const writtenFiles = writeTargets(snapshot.root, plan.targets);
+
+  return { profile, recommendation, plan, writtenFiles, backedUpFiles };
 }
