@@ -33,8 +33,13 @@ function readJson<T>(filePath: string, defaults: T): T {
   if (!existsSync(filePath)) {
     return { ...defaults };
   }
-  const raw = readFileSync(filePath, 'utf-8');
-  return { ...defaults, ...JSON.parse(raw) };
+  try {
+    const raw = readFileSync(filePath, 'utf-8');
+    return { ...defaults, ...JSON.parse(raw) };
+  } catch {
+    // Corrupted config — return defaults, don't crash
+    return { ...defaults };
+  }
 }
 
 function writeJson<T>(filePath: string, data: T): void {

@@ -11,6 +11,11 @@ function ensureBkDir(root: string): void {
 }
 
 export function backupFile(root: string, relativePath: string): BackupRecord {
+  const sourcePath = join(root, relativePath);
+  if (!existsSync(sourcePath)) {
+    throw new Error(`Cannot backup: file does not exist: ${relativePath}`);
+  }
+
   ensureBkDir(root);
 
   const hex = randomBytes(3).toString('hex');
@@ -18,7 +23,7 @@ export function backupFile(root: string, relativePath: string): BackupRecord {
   const backupName = `${hex}_${timestamp}.dat`;
   const backupPath = `${BK_DIR}/${backupName}`;
 
-  copyFileSync(join(root, relativePath), join(root, backupPath));
+  copyFileSync(sourcePath, join(root, backupPath));
 
   return {
     originalPath: relativePath,
@@ -27,10 +32,17 @@ export function backupFile(root: string, relativePath: string): BackupRecord {
   };
 }
 
-export function restoreFile(root: string, record: BackupRecord): void {
-  const destDir = dirname(join(root, record.originalPath));
+export function restoreFile(root: string, record: BackupRecord): boolean {
+  const backupFullPath = join(root, record.backupPath);
+  const originalFullPath = join(root, record.originalPath);
+  if (!existsSync(backupFullPath)) {
+    // Backup file missing — cannot restore
+    return false;
+  }
+  const destDir = dirname(originalFullPath);
   mkdirSync(destDir, { recursive: true });
-  copyFileSync(join(root, record.backupPath), join(root, record.originalPath));
+  copyFileSync(backupFullPath, originalFullPath);
+  return true;
 }
 
 export function readManifest(root: string): BackupRecord[] {
@@ -38,8 +50,15 @@ export function readManifest(root: string): BackupRecord[] {
   if (!existsSync(manifestPath)) {
     return [];
   }
-  const data = readFileSync(manifestPath, 'utf-8');
-  return JSON.parse(data) as BackupRecord[];
+  try {
+    const data = readFileSync(manifestPath, 'utf-8');
+    const parsed = JSON.parse(data);
+    if (!Array.isArray(parsed)) return [];
+    return parsed;
+  } catch {
+    // Corrupted manifest — return empty, don't crash
+    return [];
+  }
 }
 
 export function writeManifest(root: string, records: BackupRecord[]): void {
