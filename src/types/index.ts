@@ -166,3 +166,23 @@ export interface RecommendationPlan {
   conflicts: ToolConflict[];
   maxTools: number;
 }
+
+// ─── Generation types ──────────────────────────────────────
+
+export interface GenerationTarget {
+  path: string;
+  content: string;
+  mode: 'create' | 'merge';
+}
+
+export interface BackupRecord {
+  originalPath: string;
+  backupPath: string;
+  timestamp: number;
+}
+
+export interface GenerationPlan {
+  targets: GenerationTarget[];
+  backups: BackupRecord[];
+  toolInstalls: { tool: string; commands: string[] }[];
+}
