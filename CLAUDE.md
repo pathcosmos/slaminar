@@ -27,14 +27,16 @@ Each phase produces a JSON-serializable IR passed to the next.
 
 - `src/scanner/` — 4 modules: file-tree, git-info, ai-files, package-info
 - `src/analyzer/` — 5 modules: language-detector, structure-mapper, convention-extractor, dependency-analyzer, maturity-detector
-- `src/recommender/` — 4 modules: catalog (14 tools), scorer, conflict-detector, recommender
-- `src/generator/` — claude-md (with ownership markers), claude-plugin
+- `src/recommender/` — 5 modules: catalog (14 tools), scorer, conflict-detector, recommender, installer
+- `src/generator/` — claude-md (with ownership markers), claude-plugin, ai-provider (Claude API fallback)
 - `src/placer/` — backup (obfuscated .dat), markers (section merge), writer
 - `src/validator/` — claude-md validator, plugin-schema validator
 - `src/reporter/` — terminal (chalk tables), markdown reports
 - `src/team/` — config split (team/local)
 - `src/rollback/` — uninstaller, removeTool
 - `src/ci/` — check with exit codes
+- `src/runtime/` — prerequisite checker, runtime detector (Node/Python/uv/volta)
+- `src/skill/` — SKILL.md (Claude Code `/slaminar` skill definition)
 
 ### Key Patterns
 

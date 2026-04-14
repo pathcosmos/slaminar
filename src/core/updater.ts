@@ -13,7 +13,7 @@ export interface UpdateResult {
   newFiles: string[];
 }
 
-export function update(targetPath: string): UpdateResult {
+export function update(targetPath: string, options: { dryRun?: boolean } = {}): UpdateResult {
   const { snapshot, profile } = analyze(targetPath);
   const recommendation = recommend(profile);
   const plan = buildPlan(profile, snapshot, recommendation);
@@ -21,6 +21,27 @@ export function update(targetPath: string): UpdateResult {
   const updatedFiles: string[] = [];
   const unchangedFiles: string[] = [];
   const newFiles: string[] = [];
+
+  if (options.dryRun) {
+    for (const target of plan.targets) {
+      const fullPath = join(snapshot.root, target.path);
+
+      if (!existsSync(fullPath)) {
+        newFiles.push(target.path);
+      } else {
+        const existing = readFileSync(fullPath, 'utf-8');
+        const newContent = target.mode === 'merge'
+          ? mergeWithMarkers(existing, target.content)
+          : target.content;
+        if (existing === newContent) {
+          unchangedFiles.push(target.path);
+        } else {
+          updatedFiles.push(target.path);
+        }
+      }
+    }
+    return { updatedFiles, unchangedFiles, newFiles };
+  }
 
   const manifest = readManifest(snapshot.root);
   let manifestDirty = false;

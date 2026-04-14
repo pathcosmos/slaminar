@@ -67,10 +67,26 @@ export interface InitResult {
   reportPath: string;
 }
 
-export function init(targetPath: string): InitResult {
+export interface InitOptions {
+  dryRun?: boolean;
+}
+
+export function init(targetPath: string, options: InitOptions = {}): InitResult {
   const { snapshot, profile } = analyze(targetPath);
   const recommendation = recommend(profile);
   const plan = buildPlan(profile, snapshot, recommendation);
+
+  if (options.dryRun) {
+    return {
+      profile,
+      recommendation,
+      plan,
+      writtenFiles: plan.targets.map(t => t.path),
+      backedUpFiles: plan.targets.filter(t => t.mode === 'merge').map(t => t.path),
+      verification: { checks: [], passCount: 0, failCount: 0, warnCount: 0 },
+      reportPath: '',
+    };
+  }
 
   // Ensure .slaminar/.gitignore exists
   ensureGitignore(snapshot.root);
