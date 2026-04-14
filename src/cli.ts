@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { Command } from 'commander';
+import { scan } from './core/scanner.js';
 
 const program = new Command();
 
@@ -13,7 +14,8 @@ program
   .description('Scan project and output ProjectSnapshot JSON')
   .action(async (path?: string) => {
     const targetPath = path ?? process.cwd();
-    console.log(JSON.stringify({ status: 'not yet implemented', targetPath }, null, 2));
+    const snapshot = scan(targetPath);
+    console.log(JSON.stringify(snapshot, null, 2));
   });
 
 program
