@@ -1,0 +1,32 @@
+{
+  "name": "slaminar",
+  "version": "0.1.0",
+  "description": "Claude Code 전용 프로젝트 분석 및 지능형 세팅 도구",
+  "type": "module",
+  "main": "dist/index.js",
+  "bin": {
+    "slaminar": "dist/cli.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx src/cli.ts",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "files": ["dist"],
+  "engines": { "node": ">=18.0.0" },
+  "keywords": ["claude-code", "project-analyzer", "plugin-generator"],
+  "license": "MIT",
+  "author": "pathcosmos",
+  "dependencies": {
+    "chalk": "^5.4.0",
+    "cli-table3": "^0.6.5",
+    "commander": "^13.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0",
+    "vitest": "^3.0.0"
+  }
+}
