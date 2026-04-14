@@ -25,7 +25,7 @@ function generatePluginJson(profile: ProjectProfile): string {
     name: 'slaminar-generated',
     description: `Auto-generated Claude Code plugin for ${profile.name}`,
     version: '1.0.0',
-    skills: `./${PLUGIN_DIR}/skills`,
+    skills: './skills',
   };
   return JSON.stringify(manifest, null, 2) + '\n';
 }
