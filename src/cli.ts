@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { Command } from 'commander';
 import { scan } from './core/scanner.js';
+import { analyze } from './core/pipeline.js';
 
 const program = new Command();
 
@@ -23,7 +24,8 @@ program
   .description('Scan + analyze project and output ProjectProfile JSON')
   .action(async (path?: string) => {
     const targetPath = path ?? process.cwd();
-    console.log(JSON.stringify({ status: 'not yet implemented', targetPath }, null, 2));
+    const { profile } = analyze(targetPath);
+    console.log(JSON.stringify(profile, null, 2));
   });
 
 program.parse();
