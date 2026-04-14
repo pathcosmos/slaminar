@@ -6,7 +6,7 @@ import type {
   GenerationPlan,
 } from '../types/index.js';
 
-export interface InitResult {
+export interface ReportInput {
   profile: ProjectProfile;
   recommendation: RecommendationPlan;
   plan: GenerationPlan;
@@ -14,7 +14,7 @@ export interface InitResult {
   backedUpFiles: string[];
 }
 
-export function generateReport(result: InitResult): string {
+export function generateReport(result: ReportInput): string {
   const { profile, recommendation, plan, writtenFiles, backedUpFiles } = result;
   const lang = profile.language;
   const parts: string[] = [];

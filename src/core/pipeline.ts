@@ -10,7 +10,9 @@ import { recommend } from '../recommender/recommender.js';
 import { buildPlan } from '../planner/planner.js';
 import { backupFile, readManifest, writeManifest } from '../placer/backup.js';
 import { writeTargets } from '../placer/writer.js';
-import type { ProjectSnapshot, ProjectProfile, AiContextSummary, GenerationPlan, RecommendationPlan } from '../types/index.js';
+import { verify } from './verifier.js';
+import { generateReport, saveReport } from '../reporter/markdown.js';
+import type { ProjectSnapshot, ProjectProfile, AiContextSummary, GenerationPlan, RecommendationPlan, ValidationResult } from '../types/index.js';
 
 function extractDescription(snapshot: ProjectSnapshot): string {
   for (const pkg of snapshot.packages) {
@@ -60,6 +62,8 @@ export interface InitResult {
   plan: GenerationPlan;
   writtenFiles: string[];
   backedUpFiles: string[];
+  verification: ValidationResult;
+  reportPath: string;
 }
 
 export function init(targetPath: string): InitResult {
@@ -84,5 +88,10 @@ export function init(targetPath: string): InitResult {
   // Write generated files
   const writtenFiles = writeTargets(snapshot.root, plan.targets);
 
-  return { profile, recommendation, plan, writtenFiles, backedUpFiles };
+  // Verify and generate reports
+  const verification = verify(snapshot.root);
+  const reportContent = generateReport({ profile, recommendation, plan, writtenFiles, backedUpFiles });
+  const reportPath = saveReport(snapshot.root, reportContent);
+
+  return { profile, recommendation, plan, writtenFiles, backedUpFiles, verification, reportPath };
 }

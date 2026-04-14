@@ -3,6 +3,8 @@ import { Command } from 'commander';
 import { scan } from './core/scanner.js';
 import { analyze, init } from './core/pipeline.js';
 import { recommend } from './recommender/recommender.js';
+import { formatInitReport } from './reporter/terminal.js';
+import { verify } from './core/verifier.js';
 
 const program = new Command();
 
@@ -17,23 +19,16 @@ program
   .action(async (path?: string) => {
     const targetPath = path ?? process.cwd();
     const result = init(targetPath);
+    console.log(formatInitReport(result));
 
-    console.log(`\nslaminar init complete for: ${result.profile.name}\n`);
-    console.log(`Profile: ${result.profile.language.primary} ${result.profile.structure.pattern} (${result.profile.maturity})`);
-    console.log(`\nGenerated files:`);
-    for (const f of result.writtenFiles) {
-      console.log(`  ✅ ${f}`);
+    // Show verification
+    console.log('\nVerification:');
+    for (const check of result.verification.checks) {
+      const icon = check.status === 'pass' ? '✅' : check.status === 'warn' ? '⚠️' : '❌';
+      console.log(`  ${icon} ${check.name} — ${check.detail}`);
     }
-    if (result.backedUpFiles.length > 0) {
-      console.log(`\nBacked up:`);
-      for (const f of result.backedUpFiles) {
-        console.log(`  📦 ${f}`);
-      }
-    }
-    console.log(`\nRecommended tools (${result.recommendation.recommended.length}):`);
-    for (const r of result.recommendation.recommended) {
-      console.log(`  📦 ${r.tool.name} (score: ${r.score}) — ${r.tool.installCommands[0]}`);
-    }
+
+    console.log(`\nReport saved: ${result.reportPath}`);
   });
 
 program
@@ -62,6 +57,20 @@ program
     const { profile } = analyze(targetPath);
     const plan = recommend(profile);
     console.log(JSON.stringify(plan, null, 2));
+  });
+
+program
+  .command('status [path]')
+  .description('Check current slaminar setup health')
+  .action(async (path?: string) => {
+    const targetPath = path ?? process.cwd();
+    const result = verify(targetPath);
+    for (const check of result.checks) {
+      const icon = check.status === 'pass' ? '✅' : check.status === 'warn' ? '⚠️' : '❌';
+      console.log(`${icon} ${check.name} — ${check.detail}`);
+    }
+    console.log(`\n${result.passCount} pass, ${result.failCount} fail, ${result.warnCount} warn`);
+    process.exitCode = result.failCount > 0 ? 2 : result.warnCount > 0 ? 1 : 0;
   });
 
 program.parse();

@@ -22,6 +22,8 @@ describe('formatInitReport', () => {
     plan: { targets: [], backups: [], toolInstalls: [] },
     writtenFiles: ['CLAUDE.md', '.claude/plugins/slaminar-generated/plugin.json'],
     backedUpFiles: [],
+    verification: { checks: [], passCount: 0, failCount: 0, warnCount: 0 },
+    reportPath: '.slaminar/reports/2026-04-14-init.md',
   };
 
   it('includes project name', () => {
