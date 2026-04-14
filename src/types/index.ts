@@ -1,3 +1,18 @@
+// ─── Team config types ─────────────────────────────────────
+
+export interface TeamConfig {
+  slaminarVersion: string;
+  excludeAuthTools: boolean;
+  fileCountCap: number;
+  approvedTools: string[];
+  catalogVersion: string;
+}
+
+export interface LocalConfig {
+  aiMode: 'local' | 'ai' | 'auto';
+  personalTools: string[];
+}
+
 // ─── File Tree ─────────────────────────────────────────────
 
 export interface FileNode {
