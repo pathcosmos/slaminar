@@ -2,6 +2,7 @@
 import { Command } from 'commander';
 import { scan } from './core/scanner.js';
 import { analyze } from './core/pipeline.js';
+import { recommend } from './recommender/recommender.js';
 
 const program = new Command();
 
@@ -26,6 +27,16 @@ program
     const targetPath = path ?? process.cwd();
     const { profile } = analyze(targetPath);
     console.log(JSON.stringify(profile, null, 2));
+  });
+
+program
+  .command('recommend [path]')
+  .description('Analyze project and recommend Claude Code tools')
+  .action(async (path?: string) => {
+    const targetPath = path ?? process.cwd();
+    const { profile } = analyze(targetPath);
+    const plan = recommend(profile);
+    console.log(JSON.stringify(plan, null, 2));
   });
 
 program.parse();
