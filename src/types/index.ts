@@ -186,3 +186,18 @@ export interface GenerationPlan {
   backups: BackupRecord[];
   toolInstalls: { tool: string; commands: string[] }[];
 }
+
+// ─── Validation types ──────────────────────────────────────
+
+export interface ValidationCheck {
+  name: string;
+  status: 'pass' | 'fail' | 'warn';
+  detail: string;
+}
+
+export interface ValidationResult {
+  checks: ValidationCheck[];
+  passCount: number;
+  failCount: number;
+  warnCount: number;
+}
