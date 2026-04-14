@@ -130,3 +130,39 @@ export interface ProjectProfile {
   maturity: ProjectMaturity;
   existingAiContext: AiContextSummary;
 }
+
+// ─── Recommender types ─────────────────────────────────────
+
+export interface CatalogTool {
+  name: string;
+  repo: string;
+  category: 'plugin' | 'skill' | 'hook' | 'agent' | 'workflow';
+  description: string;
+  authRequired: boolean;
+  networkRequired: 'none' | 'partial' | 'full';
+  installMethod: 'marketplace' | 'npx' | 'git-clone' | 'pip';
+  installCommands: string[];
+  prerequisites: string[];
+  tags: string[];
+  maturityFit: ProjectMaturity[];
+}
+
+export interface ScoredTool {
+  tool: CatalogTool;
+  score: number;
+  reasons: string[];
+}
+
+export interface ToolConflict {
+  tools: [string, string];
+  relation: 'synergy' | 'overlap' | 'conflict';
+  resolution: string;
+  winner?: string;
+}
+
+export interface RecommendationPlan {
+  recommended: ScoredTool[];
+  excluded: { tool: CatalogTool; reason: string }[];
+  conflicts: ToolConflict[];
+  maxTools: number;
+}
