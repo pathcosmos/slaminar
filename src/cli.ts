@@ -5,6 +5,9 @@ import { analyze, init } from './core/pipeline.js';
 import { recommend } from './recommender/recommender.js';
 import { formatInitReport } from './reporter/terminal.js';
 import { verify } from './core/verifier.js';
+import { update } from './core/updater.js';
+import { uninstall, removeTool } from './rollback/uninstaller.js';
+import { runCheck } from './ci/check.js';
 
 const program = new Command();
 
@@ -71,6 +74,77 @@ program
     }
     console.log(`\n${result.passCount} pass, ${result.failCount} fail, ${result.warnCount} warn`);
     process.exitCode = result.failCount > 0 ? 2 : result.warnCount > 0 ? 1 : 0;
+  });
+
+program
+  .command('update [path]')
+  .description('Incremental update — only regenerate changed sections')
+  .action(async (path?: string) => {
+    const targetPath = path ?? process.cwd();
+    const result = update(targetPath);
+    console.log('\nslaminar update complete\n');
+    if (result.newFiles.length > 0) {
+      console.log('New files:');
+      for (const f of result.newFiles) console.log(`  ✅ ${f}`);
+    }
+    if (result.updatedFiles.length > 0) {
+      console.log('Updated files:');
+      for (const f of result.updatedFiles) console.log(`  🔄 ${f}`);
+    }
+    if (result.unchangedFiles.length > 0) {
+      console.log('Unchanged:');
+      for (const f of result.unchangedFiles) console.log(`  ⏭️  ${f}`);
+    }
+  });
+
+program
+  .command('uninstall [path]')
+  .description('Remove all slaminar-generated files and restore backups')
+  .action(async (path?: string) => {
+    const targetPath = path ?? process.cwd();
+    const result = uninstall(targetPath);
+    console.log('\nslaminar uninstall complete\n');
+    if (result.restoredFiles.length > 0) {
+      console.log('Restored:');
+      for (const f of result.restoredFiles) console.log(`  ↩️  ${f}`);
+    }
+    if (result.deletedFiles.length > 0) {
+      console.log('Deleted:');
+      for (const f of result.deletedFiles) console.log(`  🗑️  ${f}`);
+    }
+    if (result.deletedDirs.length > 0) {
+      console.log('Removed directories:');
+      for (const f of result.deletedDirs) console.log(`  🗑️  ${f}`);
+    }
+  });
+
+program
+  .command('remove <tool>')
+  .description('Remove a specific tool from team config')
+  .action(async (tool: string) => {
+    const targetPath = process.cwd();
+    removeTool(targetPath, tool);
+    console.log(`Removed ${tool} from team config`);
+  });
+
+program
+  .command('check [path]')
+  .description('CI validation — non-interactive with exit codes')
+  .option('--ci', 'Machine-readable output')
+  .option('--json', 'JSON output')
+  .action(async (path: string | undefined, options: { ci?: boolean; json?: boolean }) => {
+    const targetPath = path ?? process.cwd();
+    const result = runCheck(targetPath);
+    if (options.json) {
+      console.log(JSON.stringify(result, null, 2));
+    } else {
+      for (const check of result.verification.checks) {
+        const icon = check.status === 'pass' ? '✅' : check.status === 'warn' ? '⚠️' : '❌';
+        console.log(`${icon} ${check.name} — ${check.detail}`);
+      }
+      console.log(`\n${result.summary}`);
+    }
+    process.exitCode = result.exitCode;
   });
 
 program.parse();
