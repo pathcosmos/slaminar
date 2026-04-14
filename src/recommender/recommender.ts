@@ -34,17 +34,18 @@ export function recommend(profile: ProjectProfile): RecommendationPlan {
   const conflicts = detectConflicts(scored.map(s => s.tool));
 
   // Resolve overlaps: remove losers
-  const toRemove = new Set<string>();
+  const toRemove = new Map<string, string>();
   for (const conflict of conflicts) {
     if (conflict.relation === 'overlap' && conflict.winner) {
       const loser = conflict.tools.find(t => t !== conflict.winner);
-      if (loser) toRemove.add(loser);
+      if (loser) toRemove.set(loser, conflict.winner);
     }
   }
 
   const afterConflicts = scored.filter(s => {
     if (toRemove.has(s.tool.name)) {
-      excluded.push({ tool: s.tool, reason: `overlap with ${[...toRemove].find(n => n !== s.tool.name) ?? 'another tool'} — removed` });
+      const winner = toRemove.get(s.tool.name);
+      excluded.push({ tool: s.tool, reason: `overlap with ${winner} — removed` });
       return false;
     }
     return true;

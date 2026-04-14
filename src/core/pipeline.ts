@@ -100,6 +100,9 @@ export function init(targetPath: string): InitResult {
     writeManifest(snapshot.root, existingManifest);
   }
 
+  // Populate plan.backups so the report can reference backup paths
+  plan.backups = sessionBackups;
+
   // Write generated files with rollback on failure
   let writtenFiles: string[] = [];
   try {

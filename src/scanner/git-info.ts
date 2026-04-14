@@ -9,6 +9,7 @@ function git(args: string[], cwd: string): string | null {
       cwd,
       stdio: ['pipe', 'pipe', 'pipe'],
       encoding: 'utf-8',
+      timeout: 10_000,
     }).trim();
   } catch {
     return null;
@@ -34,7 +35,7 @@ export function scanGitInfo(root: string): GitInfo | null {
   const branchRaw = git(['branch', '--format=%(refname:short)'], root);
   const branches = branchRaw ? branchRaw.split('\n').filter(Boolean) : [];
 
-  const contributorRaw = git(['log', '--format=%an'], root);
+  const contributorRaw = git(['log', '--format=%an', '-1000'], root);
   const contributors = contributorRaw
     ? [...new Set(contributorRaw.split('\n').filter(Boolean))]
     : [];

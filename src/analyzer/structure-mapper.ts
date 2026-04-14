@@ -36,7 +36,7 @@ function detectPattern(snap: ProjectSnapshot): StructureProfile['pattern'] {
   return 'unknown';
 }
 
-function detectEntryPoints(snap: ProjectSnapshot): string[] {
+function detectEntryPoints(snap: ProjectSnapshot, flatNodes: { path: string }[]): string[] {
   const entries: string[] = [];
 
   for (const pkg of snap.packages) {
@@ -48,7 +48,7 @@ function detectEntryPoints(snap: ProjectSnapshot): string[] {
 
   // Check for common entry point files in the file tree
   const commonEntries = ['src/index.ts', 'src/main.ts', 'src/app.ts', 'src/cli.ts', 'index.ts', 'main.ts'];
-  for (const node of flattenTree(snap.fileTree)) {
+  for (const node of flatNodes) {
     if (commonEntries.includes(node.path)) {
       entries.push(node.path);
     }
@@ -84,8 +84,8 @@ function detectTestPattern(snap: ProjectSnapshot): string | null {
   return null;
 }
 
-function detectSrcLayout(snap: ProjectSnapshot): StructureProfile['srcLayout'] {
-  const dirs = flattenTree(snap.fileTree)
+function detectSrcLayout(snap: ProjectSnapshot, flatNodes: { path: string }[]): StructureProfile['srcLayout'] {
+  const dirs = flatNodes
     .map((n) => n.path)
     .filter((p) => p.startsWith('src/'));
 
@@ -112,10 +112,11 @@ function detectSrcLayout(snap: ProjectSnapshot): StructureProfile['srcLayout'] {
 }
 
 export function mapStructure(snap: ProjectSnapshot): StructureProfile {
+  const flatNodes = flattenTree(snap.fileTree);
   return {
     pattern: detectPattern(snap),
-    entryPoints: detectEntryPoints(snap),
+    entryPoints: detectEntryPoints(snap, flatNodes),
     testPattern: detectTestPattern(snap),
-    srcLayout: detectSrcLayout(snap),
+    srcLayout: detectSrcLayout(snap, flatNodes),
   };
 }

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { backupFile, restoreFile, readManifest, writeManifest } from '../../src/placer/backup.js';
-import { mkdtempSync, writeFileSync, readFileSync, rmSync, existsSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 
@@ -9,7 +9,6 @@ describe('backup', () => {
     const dir = mkdtempSync(join(tmpdir(), 'slaminar-bk-test-'));
     for (const [p, c] of Object.entries(files)) {
       const fp = join(dir, p);
-      const { mkdirSync } = require('node:fs');
       mkdirSync(join(fp, '..'), { recursive: true });
       writeFileSync(fp, c);
     }
