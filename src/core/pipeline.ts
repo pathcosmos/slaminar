@@ -8,10 +8,11 @@ import { analyzeDependencies } from '../analyzer/dependency-analyzer.js';
 import { detectMaturity } from '../analyzer/maturity-detector.js';
 import { recommend } from '../recommender/recommender.js';
 import { buildPlan } from '../planner/planner.js';
-import { backupFile, readManifest, writeManifest } from '../placer/backup.js';
+import { backupFile, restoreFile, readManifest, writeManifest } from '../placer/backup.js';
 import { writeTargets } from '../placer/writer.js';
 import { verify } from './verifier.js';
 import { generateReport, saveReport } from '../reporter/markdown.js';
+import { ensureGitignore, saveTeamConfig, loadTeamConfig } from '../team/config.js';
 import type { ProjectSnapshot, ProjectProfile, AiContextSummary, GenerationPlan, RecommendationPlan, ValidationResult } from '../types/index.js';
 
 function extractDescription(snapshot: ProjectSnapshot): string {
@@ -71,27 +72,61 @@ export function init(targetPath: string): InitResult {
   const recommendation = recommend(profile);
   const plan = buildPlan(profile, snapshot, recommendation);
 
+  // Ensure .slaminar/.gitignore exists
+  ensureGitignore(snapshot.root);
+
+  // Save team config with approved tools
+  const teamConfig = loadTeamConfig(snapshot.root);
+  teamConfig.approvedTools = recommendation.recommended.map(r => r.tool.name);
+  saveTeamConfig(snapshot.root, teamConfig);
+
   // Backup existing files that will be overwritten
   const backedUpFiles: string[] = [];
   const existingManifest = readManifest(snapshot.root);
   for (const target of plan.targets) {
     if (target.mode === 'merge') {
-      const record = backupFile(snapshot.root, target.path);
-      existingManifest.push(record);
-      backedUpFiles.push(target.path);
+      try {
+        const record = backupFile(snapshot.root, target.path);
+        existingManifest.push(record);
+        backedUpFiles.push(target.path);
+      } catch {
+        // File may not exist yet, skip backup
+      }
     }
   }
   if (backedUpFiles.length > 0) {
     writeManifest(snapshot.root, existingManifest);
   }
 
-  // Write generated files
-  const writtenFiles = writeTargets(snapshot.root, plan.targets);
+  // Write generated files with rollback on failure
+  let writtenFiles: string[] = [];
+  try {
+    writtenFiles = writeTargets(snapshot.root, plan.targets);
+  } catch (err) {
+    // Rollback: restore backed-up files
+    for (const record of existingManifest) {
+      try {
+        restoreFile(snapshot.root, record);
+      } catch { /* best effort */ }
+    }
+    throw new Error(`Failed to write generated files: ${err instanceof Error ? err.message : String(err)}. Backed-up files have been restored.`);
+  }
 
-  // Verify and generate reports
-  const verification = verify(snapshot.root);
-  const reportContent = generateReport({ profile, recommendation, plan, writtenFiles, backedUpFiles });
-  const reportPath = saveReport(snapshot.root, reportContent);
+  // Verify and report (non-critical — don't fail init if these fail)
+  let verification;
+  try {
+    verification = verify(snapshot.root);
+  } catch {
+    verification = { checks: [], passCount: 0, failCount: 0, warnCount: 0 };
+  }
+
+  let reportPath = '';
+  try {
+    const reportContent = generateReport({ profile, recommendation, plan, writtenFiles, backedUpFiles });
+    reportPath = saveReport(snapshot.root, reportContent);
+  } catch {
+    // Report saving is non-critical
+  }
 
   return { profile, recommendation, plan, writtenFiles, backedUpFiles, verification, reportPath };
 }

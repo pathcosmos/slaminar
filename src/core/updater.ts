@@ -23,38 +23,42 @@ export function update(targetPath: string): UpdateResult {
   const newFiles: string[] = [];
 
   const manifest = readManifest(snapshot.root);
+  let manifestDirty = false;
 
-  for (const target of plan.targets) {
-    const fullPath = join(snapshot.root, target.path);
+  try {
+    for (const target of plan.targets) {
+      const fullPath = join(snapshot.root, target.path);
 
-    if (!existsSync(fullPath)) {
-      // New file
-      writeTargets(snapshot.root, [target]);
-      newFiles.push(target.path);
-      continue;
+      if (!existsSync(fullPath)) {
+        // New file
+        writeTargets(snapshot.root, [target]);
+        newFiles.push(target.path);
+        continue;
+      }
+
+      const existing = readFileSync(fullPath, 'utf-8');
+      let newContent: string;
+
+      if (target.mode === 'merge') {
+        newContent = mergeWithMarkers(existing, target.content);
+      } else {
+        newContent = target.content;
+      }
+
+      if (existing === newContent) {
+        unchangedFiles.push(target.path);
+      } else {
+        const record = backupFile(snapshot.root, target.path);
+        manifest.push(record);
+        manifestDirty = true;
+        writeTargets(snapshot.root, [{ ...target, content: newContent, mode: 'create' }]);
+        updatedFiles.push(target.path);
+      }
     }
-
-    const existing = readFileSync(fullPath, 'utf-8');
-    let newContent: string;
-
-    if (target.mode === 'merge') {
-      newContent = mergeWithMarkers(existing, target.content);
-    } else {
-      newContent = target.content;
+  } finally {
+    if (manifestDirty) {
+      writeManifest(snapshot.root, manifest);
     }
-
-    if (existing === newContent) {
-      unchangedFiles.push(target.path);
-    } else {
-      const record = backupFile(snapshot.root, target.path);
-      manifest.push(record);
-      writeTargets(snapshot.root, [{ ...target, content: newContent, mode: 'create' }]);
-      updatedFiles.push(target.path);
-    }
-  }
-
-  if (updatedFiles.length > 0) {
-    writeManifest(snapshot.root, manifest);
   }
 
   return { updatedFiles, unchangedFiles, newFiles };

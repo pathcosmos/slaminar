@@ -1,5 +1,5 @@
 import { resolve } from 'node:path';
-import { existsSync, readFileSync, readdirSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { scanFileTree } from '../scanner/file-tree.js';
 import { scanGitInfo } from '../scanner/git-info.js';
@@ -62,6 +62,20 @@ function scanDocs(root: string): DocFile[] {
 
 export function scan(targetPath: string): ProjectSnapshot {
   const root = resolve(targetPath);
+
+  // Validate root exists and is a directory
+  try {
+    const stat = statSync(root);
+    if (!stat.isDirectory()) {
+      throw new Error(`Path is not a directory: ${root}`);
+    }
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+      throw new Error(`Path does not exist: ${root}`);
+    }
+    throw err;
+  }
+
   const { tree, stats } = scanFileTree(root);
   return {
     root, fileTree: tree, fileStats: stats,
