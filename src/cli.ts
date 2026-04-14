@@ -32,7 +32,9 @@ program
         console.log(`  ${icon} ${check.name} — ${check.detail}`);
       }
 
-      console.log(`\nReport saved: ${result.reportPath}`);
+      if (result.reportPath) {
+        console.log(`\nReport saved: ${result.reportPath}`);
+      }
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       console.error(`\nError: ${message}\n`);

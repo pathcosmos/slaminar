@@ -2,7 +2,7 @@ import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { generateClaudeMd } from '../generator/claude-md.js';
 import { generatePlugin } from '../generator/claude-plugin.js';
-import type { ProjectProfile, ProjectSnapshot, RecommendationPlan, GenerationPlan, GenerationTarget, BackupRecord } from '../types/index.js';
+import type { ProjectProfile, ProjectSnapshot, RecommendationPlan, GenerationPlan, GenerationTarget } from '../types/index.js';
 
 export function buildPlan(
   profile: ProjectProfile,
@@ -10,7 +10,7 @@ export function buildPlan(
   recommendation: RecommendationPlan
 ): GenerationPlan {
   const targets: GenerationTarget[] = [];
-  const backups: BackupRecord[] = [];
+  const backups: GenerationPlan['backups'] = [];
 
   // CLAUDE.md
   const claudeMdContent = generateClaudeMd(profile, snapshot);

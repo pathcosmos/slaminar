@@ -13,7 +13,7 @@ import { writeTargets } from '../placer/writer.js';
 import { verify } from './verifier.js';
 import { generateReport, saveReport } from '../reporter/markdown.js';
 import { ensureGitignore, saveTeamConfig, loadTeamConfig } from '../team/config.js';
-import type { ProjectSnapshot, ProjectProfile, AiContextSummary, GenerationPlan, RecommendationPlan, ValidationResult } from '../types/index.js';
+import type { ProjectSnapshot, ProjectProfile, AiContextSummary, GenerationPlan, RecommendationPlan, ValidationResult, BackupRecord } from '../types/index.js';
 
 function extractDescription(snapshot: ProjectSnapshot): string {
   for (const pkg of snapshot.packages) {
@@ -82,11 +82,13 @@ export function init(targetPath: string): InitResult {
 
   // Backup existing files that will be overwritten
   const backedUpFiles: string[] = [];
+  const sessionBackups: BackupRecord[] = [];
   const existingManifest = readManifest(snapshot.root);
   for (const target of plan.targets) {
     if (target.mode === 'merge') {
       try {
         const record = backupFile(snapshot.root, target.path);
+        sessionBackups.push(record);
         existingManifest.push(record);
         backedUpFiles.push(target.path);
       } catch {
@@ -103,8 +105,8 @@ export function init(targetPath: string): InitResult {
   try {
     writtenFiles = writeTargets(snapshot.root, plan.targets);
   } catch (err) {
-    // Rollback: restore backed-up files
-    for (const record of existingManifest) {
+    // Rollback: only restore THIS session's backups, not old ones
+    for (const record of sessionBackups) {
       try {
         restoreFile(snapshot.root, record);
       } catch { /* best effort */ }
