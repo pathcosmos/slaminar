@@ -48,4 +48,15 @@ describe('generatePlugin', () => {
     const targets = generatePlugin(makeProfile(), makeSnapshot());
     expect(targets.every(t => t.mode === 'create')).toBe(true);
   });
+
+  it('shows fallback when scripts are empty', () => {
+    const emptySnap: ProjectSnapshot = {
+      root: '/tmp/test', fileTree: [], fileStats: {}, git: null,
+      existingAiFiles: [], configs: [], ci: [], docs: [], scannedAt: '',
+      packages: [{ manager: 'npm', name: 'test-app', version: '1.0.0', description: null, scripts: {}, dependencies: [], devDependencies: [], filePath: 'package.json' }],
+    };
+    const targets = generatePlugin(makeProfile(), emptySnap);
+    const devSkill = targets.find(t => t.path.endsWith('dev.md'))!;
+    expect(devSkill.content).toContain('No commands detected.');
+  });
 });

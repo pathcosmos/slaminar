@@ -25,6 +25,15 @@ middle
   it('returns empty for no markers', () => {
     expect(extractMarkedSections('plain text')).toEqual(new Map());
   });
+
+  it('supports hyphenated section names', () => {
+    const content = `<!-- slaminar:begin:build-commands -->
+commands here
+<!-- slaminar:end:build-commands -->`;
+    const sections = extractMarkedSections(content);
+    expect(sections.size).toBe(1);
+    expect(sections.get('build-commands')).toContain('commands here');
+  });
 });
 
 describe('mergeWithMarkers', () => {

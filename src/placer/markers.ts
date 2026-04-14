@@ -1,7 +1,7 @@
 const MARKER_BEGIN_FN = (name: string) => `<!-- slaminar:begin:${name} -->`;
 const MARKER_END_FN = (name: string) => `<!-- slaminar:end:${name} -->`;
 
-const SECTION_REGEX = /<!-- slaminar:begin:(\w+) -->([\s\S]*?)<!-- slaminar:end:\1 -->/g;
+const SECTION_REGEX = /<!-- slaminar:begin:([\w-]+) -->([\s\S]*?)<!-- slaminar:end:\1 -->/g;
 
 /**
  * Extracts all slaminar-marked sections from content.

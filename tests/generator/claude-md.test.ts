@@ -66,4 +66,28 @@ describe('generateClaudeMd', () => {
     const md = generateClaudeMd(makeProfile(), snap);
     expect(md).toContain('CLAUDE.md');  // should not crash
   });
+
+  it('omits dash when description is empty', () => {
+    const md = generateClaudeMd(makeProfile({ description: '' }), makeSnapshot());
+    expect(md).toContain('test-app');
+    expect(md).not.toContain('test-app — ');
+  });
+
+  it('shows "Not detected" for unknown language', () => {
+    const md = generateClaudeMd(makeProfile({ language: { primary: 'unknown', secondary: [], framework: null, runtime: null, buildTool: null } }), makeSnapshot());
+    expect(md).toContain('**Language:** Not detected');
+    expect(md).not.toContain('**Language:** unknown');
+  });
+
+  it('shows "General-purpose" for unknown pattern', () => {
+    const md = generateClaudeMd(makeProfile({ structure: { pattern: 'unknown', entryPoints: [], testPattern: null, srcLayout: 'flat' } }), makeSnapshot());
+    expect(md).toContain('**Pattern:** General-purpose');
+    expect(md).not.toContain('**Pattern:** unknown');
+  });
+
+  it('omits layout line when srcLayout is unknown', () => {
+    const md = generateClaudeMd(makeProfile({ structure: { pattern: 'spa', entryPoints: [], testPattern: null, srcLayout: 'unknown' } }), makeSnapshot());
+    expect(md).toContain('spa project.');
+    expect(md).not.toContain('unknown layout');
+  });
 });

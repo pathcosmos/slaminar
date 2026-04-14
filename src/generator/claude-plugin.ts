@@ -38,9 +38,10 @@ function generateDevSkill(
   const lang = profile.language;
   const conv = profile.conventions;
 
-  const commandLines = Object.keys(scripts)
-    .map(name => `- \`npm run ${name}\` — ${scripts[name]}`)
-    .join('\n');
+  const scriptKeys = Object.keys(scripts);
+  const commandLines = scriptKeys.length > 0
+    ? scriptKeys.map(name => `- \`npm run ${name}\` — ${scripts[name]}`).join('\n')
+    : 'No commands detected.';
 
   const stackLines: string[] = [];
   stackLines.push(`- Language: ${lang.primary}`);

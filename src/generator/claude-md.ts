@@ -31,10 +31,11 @@ function renderOverview(profile: ProjectProfile): string {
   lines.push('<!-- slaminar:begin:overview -->');
   lines.push('## Overview');
   lines.push('');
-  lines.push(`${profile.name} — ${profile.description}`);
+  lines.push(profile.description ? `${profile.name} — ${profile.description}` : profile.name);
   lines.push('');
 
-  let langLine = `- **Language:** ${profile.language.primary}`;
+  const langDisplay = profile.language.primary === 'unknown' ? 'Not detected' : profile.language.primary;
+  let langLine = `- **Language:** ${langDisplay}`;
   if (profile.language.framework) {
     langLine += ` (${profile.language.framework})`;
   }
@@ -42,7 +43,8 @@ function renderOverview(profile: ProjectProfile): string {
     langLine += `, build: ${profile.language.buildTool}`;
   }
   lines.push(langLine);
-  lines.push(`- **Pattern:** ${profile.structure.pattern}`);
+  const patternDisplay = profile.structure.pattern === 'unknown' ? 'General-purpose' : profile.structure.pattern;
+  lines.push(`- **Pattern:** ${patternDisplay}`);
   lines.push(`- **Maturity:** ${profile.maturity}`);
   lines.push('<!-- slaminar:end:overview -->');
 
@@ -73,7 +75,12 @@ function renderArchitecture(profile: ProjectProfile): string {
   lines.push('<!-- slaminar:begin:architecture -->');
   lines.push('## Architecture');
   lines.push('');
-  lines.push(`${profile.structure.pattern} project with ${profile.structure.srcLayout} layout.`);
+  const archPattern = profile.structure.pattern === 'unknown' ? 'General-purpose' : profile.structure.pattern;
+  if (profile.structure.srcLayout && profile.structure.srcLayout !== 'unknown') {
+    lines.push(`${archPattern} project with ${profile.structure.srcLayout} layout.`);
+  } else {
+    lines.push(`${archPattern} project.`);
+  }
 
   if (profile.structure.entryPoints.length > 0) {
     lines.push('');
