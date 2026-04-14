@@ -1,4 +1,4 @@
-import { resolve } from 'node:path';
+import { resolve, relative } from 'node:path';
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { scanFileTree } from '../scanner/file-tree.js';
@@ -44,6 +44,23 @@ function scanCi(root: string): CiConfig[] {
   return ci;
 }
 
+function scanDocsRecursive(dir: string, root: string, docs: DocFile[], depth: number): void {
+  if (depth > 3) return; // prevent deep recursion
+  try {
+    for (const entry of readdirSync(dir)) {
+      const fullPath = join(dir, entry);
+      const stat = statSync(fullPath);
+      if (stat.isDirectory()) {
+        scanDocsRecursive(fullPath, root, docs, depth + 1);
+      } else if (entry.endsWith('.md')) {
+        const relPath = relative(root, fullPath);
+        const lineCount = readFileSync(fullPath, 'utf-8').split('\n').length;
+        docs.push({ type: 'other', path: relPath, lineCount });
+      }
+    }
+  } catch { /* skip unreadable dirs */ }
+}
+
 function scanDocs(root: string): DocFile[] {
   const docs: DocFile[] = [];
   const docFiles: Record<string, 'readme' | 'setup' | 'contributing' | 'other'> = {
@@ -57,6 +74,15 @@ function scanDocs(root: string): DocFile[] {
       docs.push({ type, path: file, lineCount });
     }
   }
+
+  // Scan docs/ directory
+  const docsDir = join(root, 'docs');
+  if (existsSync(docsDir)) {
+    try {
+      scanDocsRecursive(docsDir, root, docs, 0);
+    } catch { /* skip unreadable dirs */ }
+  }
+
   return docs;
 }
 
