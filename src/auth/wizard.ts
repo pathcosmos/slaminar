@@ -6,10 +6,12 @@ import { select, password, confirm } from '@inquirer/prompts';
 import open from 'open';
 import chalk from 'chalk';
 import { CLOUDFLARE_MODELS, ANTHROPIC_MODELS, getDefaultModel } from './models.js';
+import { input } from '@inquirer/prompts';
 import {
   runCloudflareDiagnostics,
   runAnthropicDiagnostics,
   fetchCloudflareAccounts,
+  fetchCloudflareUser,
   verifyCloudflareToken,
 } from './diagnostics.js';
 import { loadAuthConfig, saveAuthConfig, getAuthFilePath } from './config.js';
@@ -52,7 +54,7 @@ async function setupCloudflare(): Promise<boolean> {
     validate: (v: string) => v.length > 10 || '토큰이 너무 짧습니다',
   });
 
-  // Verify token + fetch accounts
+  // Verify token + fetch user info
   console.log('\n' + chalk.dim('인증 확인 중...'));
   const tokenCheck = await verifyCloudflareToken(apiToken);
   printDiagnostics([tokenCheck]);
@@ -62,25 +64,43 @@ async function setupCloudflare(): Promise<boolean> {
     return false;
   }
 
-  const accounts = await fetchCloudflareAccounts(apiToken);
-  if (!accounts || accounts.length === 0) {
-    console.log(chalk.red('\n계정 접근 권한이 없습니다. 토큰 권한을 확인해 주세요.\n'));
-    return false;
+  // Fetch user email if User:Read permission present (optional)
+  const userInfo = await fetchCloudflareUser(apiToken);
+  if (userInfo) {
+    console.log(`  ${chalk.green('✓')} Signed in as ${chalk.bold(userInfo.email)}`);
   }
 
-  // Select account
+  // Auto-detect accounts
+  const accounts = await fetchCloudflareAccounts(apiToken);
+
   let accountId: string;
-  let accountName: string;
-  if (accounts.length === 1) {
-    accountId = accounts[0].id;
-    accountName = accounts[0].name;
-    console.log(`  ${chalk.green('✓')} 계정 자동 감지: ${accountName}`);
+  let accountName: string | undefined;
+
+  if (accounts && accounts.length > 0) {
+    // Auto-detection succeeded
+    if (accounts.length === 1) {
+      accountId = accounts[0].id;
+      accountName = accounts[0].name;
+      console.log(`  ${chalk.green('✓')} 계정 자동 감지: ${chalk.bold(accountName)}`);
+    } else {
+      accountId = await select({
+        message: '사용할 Cloudflare 계정:',
+        choices: accounts.map(a => ({ name: a.name, value: a.id })),
+      });
+      accountName = accounts.find(a => a.id === accountId)!.name;
+    }
   } else {
-    accountId = await select({
-      message: '사용할 Cloudflare 계정:',
-      choices: accounts.map(a => ({ name: a.name, value: a.id })),
+    // Fallback: manual entry
+    console.log(chalk.yellow('\n  ! 계정을 자동 감지할 수 없습니다.'));
+    console.log(chalk.dim('    자동 감지를 원하면 토큰에 "User → Memberships → Read" 권한을 추가하세요.'));
+    console.log(chalk.dim('    Account ID는 Cloudflare 대시보드 오른쪽 사이드바에서 확인할 수 있습니다.\n'));
+
+    accountId = await input({
+      message: 'Cloudflare Account ID:',
+      validate: (v: string) =>
+        /^[a-f0-9]{32}$/i.test(v.trim()) || 'Account ID는 32자리 hex 문자열입니다',
     });
-    accountName = accounts.find(a => a.id === accountId)!.name;
+    accountId = accountId.trim();
   }
 
   // Select model

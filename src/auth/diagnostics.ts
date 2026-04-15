@@ -40,13 +40,48 @@ export async function verifyCloudflareToken(apiToken: string): Promise<Diagnosti
 }
 
 export async function fetchCloudflareAccounts(apiToken: string): Promise<{ id: string; name: string }[] | null> {
+  // Try /accounts first (needs "Account: Read" or similar)
   try {
     const res = await fetch('https://api.cloudflare.com/client/v4/accounts', {
       headers: { Authorization: `Bearer ${apiToken}` },
     });
     const data = (await res.json()) as { success: boolean; result: { id: string; name: string }[] };
-    if (!data.success) return null;
-    return data.result;
+    if (data.success && data.result.length > 0) return data.result;
+  } catch { /* fallthrough */ }
+
+  // Fallback: /memberships (needs "User: Memberships: Read")
+  try {
+    const res = await fetch('https://api.cloudflare.com/client/v4/memberships', {
+      headers: { Authorization: `Bearer ${apiToken}` },
+    });
+    const data = (await res.json()) as {
+      success: boolean;
+      result: { account: { id: string; name: string } }[];
+    };
+    if (data.success && data.result.length > 0) {
+      return data.result.map(m => ({ id: m.account.id, name: m.account.name }));
+    }
+  } catch { /* fallthrough */ }
+
+  return null;
+}
+
+export interface CloudflareUserInfo {
+  email: string;
+  id: string;
+}
+
+export async function fetchCloudflareUser(apiToken: string): Promise<CloudflareUserInfo | null> {
+  try {
+    const res = await fetch('https://api.cloudflare.com/client/v4/user', {
+      headers: { Authorization: `Bearer ${apiToken}` },
+    });
+    const data = (await res.json()) as {
+      success: boolean;
+      result?: { email?: string; id?: string };
+    };
+    if (!data.success || !data.result?.email) return null;
+    return { email: data.result.email, id: data.result.id ?? '' };
   } catch {
     return null;
   }
