@@ -1,8 +1,34 @@
 # slaminar
 
+[![Tests](https://img.shields.io/badge/tests-157%20passing-brightgreen)](https://github.com/pathcosmos/slaminar)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.7-blue)](https://www.typescriptlang.org/)
+[![Node](https://img.shields.io/badge/Node-%3E%3D18-green)](https://nodejs.org/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
+
 **Claude Code 전용 프로젝트 분석 및 지능형 세팅 도구**
 
 아무 코드베이스에 `slaminar init`을 실행하면, 프로젝트를 자동 분석하고 맞춤형 CLAUDE.md, Claude Code 플러그인, 그리고 생태계 도구 추천을 생성합니다.
+
+---
+
+## 목차
+
+- [데모](#slaminar)
+- [주요 기능](#주요-기능)
+- [설치](#설치)
+- [사용법](#사용법)
+- [프로젝트 분석 능력](#프로젝트-분석-능력)
+- [생성물](#생성물)
+- [검증 시스템](#검증-시스템)
+- [에러 처리 및 안전장치](#에러-처리-및-안전장치)
+- [기술 스택](#기술-스택)
+- [아키텍처](#아키텍처)
+- [개발](#개발)
+- [구현 과정](#구현-과정)
+- [프로젝트 통계](#프로젝트-통계)
+- [FAQ](#faq)
+- [기여](#기여)
+- [라이선스](#라이선스)
 
 ```
 $ slaminar init /path/to/your-project
@@ -551,6 +577,58 @@ CLAUDE.md 유효성 검증, plugin.json 스키마 검증, 터미널 컬러 테�
 
 ---
 
+## FAQ
+
+### Q. 기존 CLAUDE.md가 덮어써질까 걱정됩니다.
+A. 모든 기존 파일은 `.slaminar/.bk/` 아래 난독 파일명으로 먼저 백업됩니다. 또한 slaminar가 생성한 섹션은 `<!-- slaminar:begin/end -->` 마커로 감싸지며, 사용자가 직접 작성한 콘텐츠는 절대 건드리지 않습니다. `slaminar uninstall`로 언제든 원상복구 가능합니다.
+
+### Q. 추천된 도구를 실제로 설치하나요?
+A. `slaminar init`은 파일 생성까지만 합니다. 도구 설치는 `installer` 모듈을 통해 별도 지원됩니다. 각 도구의 설치 명령어는 추천 결과에 포함되므로 사용자가 직접 확인 후 설치할 수 있습니다.
+
+### Q. 외부 서버 인증이 필요한가요?
+A. 아니요. slaminar 자체는 완전히 로컬에서 동작합니다. 카탈로그에 포함된 14개 도구 중 인증이 필요한 것은 자동 제외됩니다. AI 모드는 선택적이며 `ANTHROPIC_API_KEY` 없이도 로컬 규칙 기반으로 동작합니다.
+
+### Q. 팀에서 함께 사용할 수 있나요?
+A. `.slaminar/config.json`은 커밋하고, `.slaminar/config.local.json`과 `.slaminar/.bk/`는 gitignore 처리됩니다. 팀원은 `slaminar update`로 설정을 동기화할 수 있고, `.slaminar/reports/*.md` 보고서를 PR 리뷰 근거로 사용할 수 있습니다.
+
+### Q. CI에서 검증할 수 있나요?
+A. `slaminar check --ci`를 사용하세요. 종료 코드 0(정상), 1(경고), 2(오류)로 CI 파이프라인에 통합할 수 있습니다.
+
+### Q. 어떤 프로젝트에 사용할 수 있나요?
+A. TypeScript/JavaScript, Python, Rust, Go, Java/Kotlin/Scala, Elixir 프로젝트에 적용 가능합니다. 새 프로젝트(greenfield)부터 200+ 커밋의 성숙한 프로젝트까지 성숙도에 따라 다른 전략으로 추천합니다.
+
+---
+
+## 기여
+
+Issues와 Pull Requests를 환영합니다.
+
+### 기여 절차
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Write tests first (TDD 권장)
+4. Commit your changes (`git commit -m 'feat: add amazing feature'`)
+5. Push to the branch (`git push origin feature/amazing-feature`)
+6. Open a Pull Request
+
+### 개발 원칙
+
+- **TDD**: 모든 기능은 테스트 먼저 작성
+- **작은 커밋**: 하나의 관심사에 하나의 커밋
+- **Conventional Commits**: `feat:`, `fix:`, `docs:`, `test:`, `refactor:` 등
+- **보안**: 쉘 실행은 항상 `execFileSync` (arguments as array)
+- **한국어 문서**: 코드 주석은 영어, 사용자 문서는 한국어 우선
+
+### 새 도구 카탈로그에 추가하기
+
+1. `src/recommender/catalog.ts`에 `CatalogTool` 엔트리 추가
+2. 필수 정보: name, repo, category, installMethod, installCommands, tags, maturityFit
+3. 인증 필요 여부 (`authRequired`), 네트워크 필요 여부 (`networkRequired`) 정확히 기재
+4. `tests/recommender/catalog.test.ts` 업데이트
+
+---
+
 ## 라이선스
 
 MIT
@@ -559,4 +637,18 @@ MIT
 
 ## 작성자
 
-pathcosmos
+**pathcosmos** ([@pathcosmos](https://github.com/pathcosmos))
+
+## 관련 프로젝트
+
+- [sincenety](https://github.com/pathcosmos/sincenety) — Claude Code 작업 세션 자동 기록 도구 (같은 작성자)
+- [mdmizer](https://github.com/pathcosmos/mdmizer) — 마크다운 저장소 뷰어 SPA (같은 작성자)
+
+## 감사
+
+Claude Code 생태계의 다양한 도구 제작자들에게 감사드립니다:
+- [caveman](https://github.com/JuliusBrussee/caveman) — 토큰 절약
+- [planning-with-files](https://github.com/OthmanAdi/planning-with-files) — 마크다운 계획 수립
+- [impeccable](https://github.com/pbakaus/impeccable) — 프론트엔드 디자인
+- [graphify](https://github.com/safishamsi/graphify) — 지식 그래프
+- 기타 카탈로그에 포함된 14개 도구

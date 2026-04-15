@@ -15,9 +15,17 @@
   },
   "files": ["dist"],
   "engines": { "node": ">=18.0.0" },
-  "keywords": ["claude-code", "project-analyzer", "plugin-generator"],
+  "keywords": ["claude-code", "project-analyzer", "plugin-generator", "claude", "ai-tooling", "cli", "scaffolding"],
   "license": "MIT",
   "author": "pathcosmos",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/pathcosmos/slaminar.git"
+  },
+  "homepage": "https://github.com/pathcosmos/slaminar#readme",
+  "bugs": {
+    "url": "https://github.com/pathcosmos/slaminar/issues"
+  },
   "dependencies": {
     "chalk": "^5.4.0",
     "cli-table3": "^0.6.5",

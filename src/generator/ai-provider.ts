@@ -29,8 +29,12 @@ export async function enhanceWithAI(
   }
 
   try {
-    // Dynamic import to avoid requiring the SDK at module load time
-    const { default: Anthropic } = await import('@anthropic-ai/sdk');
+    // Dynamic import via variable to avoid TypeScript static resolution.
+    // The SDK is intentionally NOT a dependency — it's optional.
+    const sdkName = '@anthropic-ai/sdk';
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const sdkModule: any = await import(/* @vite-ignore */ sdkName);
+    const Anthropic = sdkModule.default ?? sdkModule;
     const client = new Anthropic();
 
     const message = await client.messages.create({
@@ -55,7 +59,7 @@ Improve this CLAUDE.md to be more specific and helpful. Keep the slaminar owners
     });
 
     const textBlock = message.content.find((b: { type: string }) => b.type === 'text');
-    return (textBlock as { type: 'text'; text: string } | undefined)?.text ?? localDraft;
+    return textBlock?.text ?? localDraft;
   } catch {
     // API call failed or SDK not installed — return local draft as fallback
     return localDraft;
