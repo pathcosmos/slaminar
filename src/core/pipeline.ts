@@ -13,6 +13,8 @@ import { writeTargets } from '../placer/writer.js';
 import { verify } from './verifier.js';
 import { generateReport, saveReport } from '../reporter/markdown.js';
 import { ensureGitignore, saveTeamConfig, loadTeamConfig } from '../team/config.js';
+import { detectAiProvider, enhanceWithAI } from '../generator/ai-provider.js';
+import type { AiProviderStatus } from '../generator/ai-provider.js';
 import type { ProjectSnapshot, ProjectProfile, AiContextSummary, GenerationPlan, RecommendationPlan, ValidationResult, BackupRecord } from '../types/index.js';
 
 function extractDescription(snapshot: ProjectSnapshot): string {
@@ -65,16 +67,37 @@ export interface InitResult {
   backedUpFiles: string[];
   verification: ValidationResult;
   reportPath: string;
+  aiProvider: AiProviderStatus;
 }
 
 export interface InitOptions {
   dryRun?: boolean;
+  /** Use AI to enhance generated CLAUDE.md when a provider is configured. Default: true */
+  useAi?: boolean;
 }
 
-export function init(targetPath: string, options: InitOptions = {}): InitResult {
+export async function init(targetPath: string, options: InitOptions = {}): Promise<InitResult> {
+  const useAi = options.useAi ?? true;
   const { snapshot, profile } = analyze(targetPath);
   const recommendation = recommend(profile);
   const plan = buildPlan(profile, snapshot, recommendation);
+  const aiProvider = detectAiProvider();
+
+  // Optionally enhance CLAUDE.md content with AI
+  if (useAi && aiProvider.available) {
+    for (const target of plan.targets) {
+      if (target.path === 'CLAUDE.md') {
+        try {
+          const enhanced = await enhanceWithAI(target.content, profile, '');
+          if (enhanced && enhanced.length > 50) {
+            target.content = enhanced;
+          }
+        } catch {
+          // graceful fallback — keep local draft
+        }
+      }
+    }
+  }
 
   if (options.dryRun) {
     return {
@@ -85,6 +108,7 @@ export function init(targetPath: string, options: InitOptions = {}): InitResult 
       backedUpFiles: plan.targets.filter(t => t.mode === 'merge').map(t => t.path),
       verification: { checks: [], passCount: 0, failCount: 0, warnCount: 0 },
       reportPath: '',
+      aiProvider,
     };
   }
 
@@ -149,5 +173,5 @@ export function init(targetPath: string, options: InitOptions = {}): InitResult 
     // Report saving is non-critical
   }
 
-  return { profile, recommendation, plan, writtenFiles, backedUpFiles, verification, reportPath };
+  return { profile, recommendation, plan, writtenFiles, backedUpFiles, verification, reportPath, aiProvider };
 }

@@ -22,7 +22,8 @@ program
   .command('init [path]')
   .description('Full pipeline: scan → analyze → recommend → generate → place')
   .option('--dry-run', 'Preview changes without writing')
-  .action(async (path: string | undefined, options: { dryRun?: boolean }) => {
+  .option('--no-ai', 'Disable AI enhancement (use local rules only)')
+  .action(async (path: string | undefined, options: { dryRun?: boolean; ai?: boolean }) => {
     try {
       const verbose = program.opts().verbose || false;
       const timer = new PhaseTimer(verbose);
@@ -31,8 +32,12 @@ program
       if (verbose) console.log('\nslaminar init — verbose mode\n');
 
       timer.start('Initializing');
-      const result = init(targetPath, { dryRun: options.dryRun });
-      timer.end(`${result.writtenFiles.length} files written`);
+      const result = await init(targetPath, { dryRun: options.dryRun, useAi: options.ai });
+      timer.end(`${result.writtenFiles.length} files written (${result.aiProvider.provider})`);
+
+      if (result.aiProvider.available && options.ai !== false) {
+        console.log(`\n✨ AI provider: ${result.aiProvider.provider}${result.aiProvider.model ? ` (${result.aiProvider.model})` : ''}`);
+      }
 
       if (options.dryRun) {
         console.log('\n🔍 DRY RUN — no files will be written\n');

@@ -163,7 +163,54 @@ slaminar init .
 
 # 상세 출력
 slaminar init --verbose .
+
+# AI 개선 비활성화 (로컬 규칙만 사용)
+slaminar init --no-ai .
 ```
+
+### AI 개선 (선택적)
+
+slaminar는 생성된 CLAUDE.md를 AI로 더 정교하게 개선할 수 있습니다. 두 가지 AI 프로바이더를 지원합니다:
+
+#### 옵션 1: Cloudflare Workers AI (추천 — 무료 한도 제공)
+
+```bash
+export CLOUDFLARE_ACCOUNT_ID=your-account-id
+export CLOUDFLARE_API_TOKEN=your-api-token
+slaminar init .
+```
+
+- **무료 한도**: 10,000 Neurons/day
+- **기본 모델**: `@cf/meta/llama-3.3-70b-instruct-fp8-fast` (24K context)
+- **모델 변경**: `export SLAMINAR_CF_MODEL=@cf/meta/llama-3.1-8b-instruct`
+- **권한**: API 토큰에 `Workers AI: Read` 권한 필요
+- **토큰 발급**: https://dash.cloudflare.com/profile/api-tokens
+
+#### 옵션 2: Anthropic Claude API
+
+```bash
+export ANTHROPIC_API_KEY=sk-ant-...
+npm install @anthropic-ai/sdk  # 선택적 peer dep
+slaminar init .
+```
+
+- **모델**: `claude-sonnet-4` (최고 품질)
+- **비용**: Cloudflare 대비 약 10배 비싸지만 품질 우수
+
+#### 프로바이더 강제 선택
+
+```bash
+# Cloudflare 강제
+export SLAMINAR_AI_PROVIDER=cloudflare
+
+# Anthropic 강제
+export SLAMINAR_AI_PROVIDER=anthropic
+
+# 로컬 규칙만 (AI 안 씀)
+export SLAMINAR_AI_PROVIDER=local
+```
+
+기본 동작: 둘 다 설정되어 있으면 **Cloudflare 우선** (무료 한도). 아무것도 없으면 로컬 규칙 기반으로 동작.
 
 ### 개별 명령어
 

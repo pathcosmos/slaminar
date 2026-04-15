@@ -53,65 +53,65 @@ describe('analyze', () => {
 });
 
 describe('init', () => {
-  it('creates CLAUDE.md', () => {
+  it('creates CLAUDE.md', async () => {
     const dir = createProject({
       'package.json': JSON.stringify({ name: 'test', scripts: { build: 'tsc' } }),
     });
     try {
-      init(dir);
+      await init(dir, { useAi: false });
       expect(existsSync(join(dir, 'CLAUDE.md'))).toBe(true);
     } finally { rmSync(dir, { recursive: true }); }
   });
 
-  it('creates plugin.json', () => {
+  it('creates plugin.json', async () => {
     const dir = createProject({
       'package.json': JSON.stringify({ name: 'test', scripts: {} }),
     });
     try {
-      init(dir);
+      await init(dir, { useAi: false });
       expect(existsSync(join(dir, '.claude/plugins/slaminar-generated/plugin.json'))).toBe(true);
     } finally { rmSync(dir, { recursive: true }); }
   });
 
-  it('creates .slaminar/.gitignore', () => {
+  it('creates .slaminar/.gitignore', async () => {
     const dir = createProject({
       'package.json': JSON.stringify({ name: 'test', scripts: {} }),
     });
     try {
-      init(dir);
+      await init(dir, { useAi: false });
       const gi = readFileSync(join(dir, '.slaminar/.gitignore'), 'utf-8');
       expect(gi).toContain('config.local.json');
     } finally { rmSync(dir, { recursive: true }); }
   });
 
-  it('saves team config with approvedTools', () => {
+  it('saves team config with approvedTools', async () => {
     const dir = createProject({
       'package.json': JSON.stringify({ name: 'test', scripts: {} }),
     });
     try {
-      init(dir);
+      await init(dir, { useAi: false });
       const cfg = JSON.parse(readFileSync(join(dir, '.slaminar/config.json'), 'utf-8'));
       expect(Array.isArray(cfg.approvedTools)).toBe(true);
     } finally { rmSync(dir, { recursive: true }); }
   });
 
-  it('backs up existing CLAUDE.md', () => {
+  it('backs up existing CLAUDE.md', async () => {
     const dir = createProject({
       'package.json': JSON.stringify({ name: 'test', scripts: {} }),
       'CLAUDE.md': '# Original content',
     });
     try {
-      init(dir);
+      await init(dir, { useAi: false });
       expect(existsSync(join(dir, '.slaminar/.bk/manifest.json'))).toBe(true);
     } finally { rmSync(dir, { recursive: true }); }
   });
 
-  it('dry-run does not write files', () => {
+  it('dry-run does not write files', async () => {
     const dir = createProject({
       'package.json': JSON.stringify({ name: 'test', scripts: {} }),
     });
     try {
-      const result = init(dir, { dryRun: true });
+      const result = await init(dir, { dryRun: true, useAi: false });
       expect(result.writtenFiles.length).toBeGreaterThan(0);
       expect(existsSync(join(dir, 'CLAUDE.md'))).toBe(false);
       expect(existsSync(join(dir, '.slaminar'))).toBe(false);

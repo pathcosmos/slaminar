@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { detectAiProvider, enhanceWithAI } from '../../src/generator/ai-provider.js';
 import type { ProjectProfile } from '../../src/types/index.js';
 
@@ -15,69 +15,94 @@ function makeProfile(overrides: Partial<ProjectProfile> = {}): ProjectProfile {
 }
 
 describe('ai-provider', () => {
-  it('detects local mode when no API key', () => {
-    const original = process.env.ANTHROPIC_API_KEY;
-    delete process.env.ANTHROPIC_API_KEY;
-    try {
-      const status = detectAiProvider();
-      expect(status.mode).toBe('local');
-      expect(status.available).toBe(false);
-      expect(status.reason).toBe('ANTHROPIC_API_KEY not set');
-    } finally {
-      if (original) process.env.ANTHROPIC_API_KEY = original;
+  const saved: Record<string, string | undefined> = {};
+
+  beforeEach(() => {
+    // Save + clear AI-related env vars for deterministic tests
+    for (const key of ['ANTHROPIC_API_KEY', 'CLOUDFLARE_ACCOUNT_ID', 'CLOUDFLARE_API_TOKEN', 'SLAMINAR_AI_PROVIDER']) {
+      saved[key] = process.env[key];
+      delete process.env[key];
     }
   });
 
-  it('detects ai mode when API key is set', () => {
-    const original = process.env.ANTHROPIC_API_KEY;
-    process.env.ANTHROPIC_API_KEY = 'sk-ant-test-key';
-    try {
-      const status = detectAiProvider();
-      expect(status.mode).toBe('ai');
-      expect(status.available).toBe(true);
-      expect(status.reason).toBe('API key configured');
-    } finally {
-      if (original) {
-        process.env.ANTHROPIC_API_KEY = original;
-      } else {
-        delete process.env.ANTHROPIC_API_KEY;
-      }
+  afterEach(() => {
+    // Restore
+    for (const [key, value] of Object.entries(saved)) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
     }
   });
 
-  it('enhanceWithAI returns local draft when AI unavailable', async () => {
-    const original = process.env.ANTHROPIC_API_KEY;
-    delete process.env.ANTHROPIC_API_KEY;
-    try {
-      const draft = '# CLAUDE.md\n\nTest content';
-      const result = await enhanceWithAI(draft, makeProfile(), '');
-      expect(result).toBe(draft);
-    } finally {
-      if (original) process.env.ANTHROPIC_API_KEY = original;
-    }
-  });
-
-  it('detectAiProvider returns structured status', () => {
+  it('detects local mode when no provider configured', () => {
     const status = detectAiProvider();
-    expect(typeof status.available).toBe('boolean');
-    expect(['ai', 'local']).toContain(status.mode);
-    expect(status.reason).toBeTruthy();
+    expect(status.mode).toBe('local');
+    expect(status.provider).toBe('local');
+    expect(status.available).toBe(false);
   });
 
-  it('enhanceWithAI returns local draft when SDK not installed', async () => {
-    const original = process.env.ANTHROPIC_API_KEY;
-    process.env.ANTHROPIC_API_KEY = 'sk-ant-test-key';
-    try {
-      const draft = '# CLAUDE.md\n\nFallback content';
-      const result = await enhanceWithAI(draft, makeProfile(), 'some context');
-      // SDK is not installed, so it should fall back to local draft
-      expect(result).toBe(draft);
-    } finally {
-      if (original) {
-        process.env.ANTHROPIC_API_KEY = original;
-      } else {
-        delete process.env.ANTHROPIC_API_KEY;
-      }
-    }
+  it('detects cloudflare when CF env vars are set', () => {
+    process.env.CLOUDFLARE_ACCOUNT_ID = 'test-account';
+    process.env.CLOUDFLARE_API_TOKEN = 'test-token';
+    const status = detectAiProvider();
+    expect(status.mode).toBe('ai');
+    expect(status.provider).toBe('cloudflare');
+    expect(status.available).toBe(true);
+    expect(status.model).toBeTruthy();
+  });
+
+  it('detects anthropic when only ANTHROPIC_API_KEY is set', () => {
+    process.env.ANTHROPIC_API_KEY = 'sk-ant-test';
+    const status = detectAiProvider();
+    expect(status.mode).toBe('ai');
+    expect(status.provider).toBe('anthropic');
+    expect(status.available).toBe(true);
+  });
+
+  it('prefers cloudflare over anthropic in auto mode', () => {
+    process.env.CLOUDFLARE_ACCOUNT_ID = 'test-account';
+    process.env.CLOUDFLARE_API_TOKEN = 'test-token';
+    process.env.ANTHROPIC_API_KEY = 'sk-ant-test';
+    const status = detectAiProvider();
+    expect(status.provider).toBe('cloudflare');
+  });
+
+  it('respects SLAMINAR_AI_PROVIDER=anthropic override', () => {
+    process.env.CLOUDFLARE_ACCOUNT_ID = 'test-account';
+    process.env.CLOUDFLARE_API_TOKEN = 'test-token';
+    process.env.ANTHROPIC_API_KEY = 'sk-ant-test';
+    process.env.SLAMINAR_AI_PROVIDER = 'anthropic';
+    const status = detectAiProvider();
+    expect(status.provider).toBe('anthropic');
+  });
+
+  it('respects SLAMINAR_AI_PROVIDER=local override', () => {
+    process.env.CLOUDFLARE_ACCOUNT_ID = 'test-account';
+    process.env.CLOUDFLARE_API_TOKEN = 'test-token';
+    process.env.SLAMINAR_AI_PROVIDER = 'local';
+    const status = detectAiProvider();
+    expect(status.provider).toBe('local');
+    expect(status.available).toBe(false);
+  });
+
+  it('reports error when explicit provider selected but env missing', () => {
+    process.env.SLAMINAR_AI_PROVIDER = 'cloudflare';
+    const status = detectAiProvider();
+    expect(status.provider).toBe('local');
+    expect(status.available).toBe(false);
+    expect(status.reason).toContain('Cloudflare selected');
+  });
+
+  it('enhanceWithAI returns local draft when no provider', async () => {
+    const draft = '# CLAUDE.md\n\nTest content';
+    const result = await enhanceWithAI(draft, makeProfile(), '');
+    expect(result).toBe(draft);
+  });
+
+  it('enhanceWithAI returns local draft when anthropic SDK unavailable', async () => {
+    process.env.ANTHROPIC_API_KEY = 'sk-ant-test';
+    const draft = '# CLAUDE.md\n\nFallback content';
+    const result = await enhanceWithAI(draft, makeProfile(), '');
+    // SDK is not installed, so it should fall back
+    expect(result).toBe(draft);
   });
 });
