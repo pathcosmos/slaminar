@@ -13,9 +13,21 @@
     "test:watch": "vitest",
     "prepare": "npm run build"
   },
-  "files": ["dist"],
-  "engines": { "node": ">=18.0.0" },
-  "keywords": ["claude-code", "project-analyzer", "plugin-generator", "claude", "ai-tooling", "cli", "scaffolding"],
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "keywords": [
+    "claude-code",
+    "project-analyzer",
+    "plugin-generator",
+    "claude",
+    "ai-tooling",
+    "cli",
+    "scaffolding"
+  ],
   "license": "MIT",
   "author": "pathcosmos",
   "repository": {
@@ -27,9 +39,11 @@
     "url": "https://github.com/pathcosmos/slaminar/issues"
   },
   "dependencies": {
+    "@inquirer/prompts": "^8.4.1",
     "chalk": "^5.4.0",
     "cli-table3": "^0.6.5",
-    "commander": "^13.0.0"
+    "commander": "^13.0.0",
+    "open": "^11.0.0"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

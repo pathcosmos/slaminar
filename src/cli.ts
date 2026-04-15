@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { Command } from 'commander';
+import chalk from 'chalk';
 import { scan } from './core/scanner.js';
 import { analyze, init, type InitOptions } from './core/pipeline.js';
 import { recommend } from './recommender/recommender.js';
@@ -9,6 +10,10 @@ import { verify } from './core/verifier.js';
 import { update } from './core/updater.js';
 import { uninstall, removeTool } from './rollback/uninstaller.js';
 import { runCheck } from './ci/check.js';
+import { runLoginWizard } from './auth/wizard.js';
+import { loadAuthConfig, clearAuthConfig, getAuthFilePath } from './auth/config.js';
+import { runCloudflareDiagnostics, runAnthropicDiagnostics } from './auth/diagnostics.js';
+import { detectAiProvider } from './generator/ai-provider.js';
 
 const program = new Command();
 
@@ -30,6 +35,26 @@ program
       const targetPath = path ?? process.cwd();
 
       if (verbose) console.log('\nslaminar init — verbose mode\n');
+
+      // Inline prompt if AI not configured and user hasn't opted out
+      if (options.ai !== false && process.stdin.isTTY) {
+        const aiStatus = detectAiProvider();
+        if (!aiStatus.available) {
+          console.log(chalk.yellow('\n⚠  AI 프로바이더가 설정되지 않았습니다.'));
+          console.log(chalk.dim('   설정하면 CLAUDE.md가 AI로 자동 개선됩니다 (Cloudflare 무료 옵션 제공).\n'));
+          const { confirm } = await import('@inquirer/prompts');
+          const wantSetup = await confirm({
+            message: '지금 설정할까요? (건너뛰면 로컬 규칙으로 진행)',
+            default: true,
+          });
+          if (wantSetup) {
+            const loginOk = await runLoginWizard();
+            if (!loginOk) {
+              console.log(chalk.yellow('\n설정을 완료하지 못했습니다. 로컬 모드로 계속 진행합니다.\n'));
+            }
+          }
+        }
+      }
 
       timer.start('Initializing');
       const result = await init(targetPath, { dryRun: options.dryRun, useAi: options.ai });
@@ -303,6 +328,199 @@ program
         console.log(`\n${result.summary}`);
       }
       process.exitCode = result.exitCode;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      console.error(`\nError: ${message}\n`);
+      process.exitCode = 1;
+    }
+  });
+
+// ─── Auth commands (login/whoami/logout) ──────────────────
+
+program
+  .command('login')
+  .description('Set up AI provider (Cloudflare Workers AI or Anthropic Claude)')
+  .action(async () => {
+    try {
+      const ok = await runLoginWizard();
+      if (!ok) process.exitCode = 1;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      if (!message.includes('User force closed')) {
+        console.error(`\nError: ${message}\n`);
+      }
+      process.exitCode = 1;
+    }
+  });
+
+program
+  .command('whoami')
+  .description('Show current AI provider authentication status')
+  .action(async () => {
+    try {
+      const status = detectAiProvider();
+      const config = loadAuthConfig();
+
+      if (!status.available) {
+        console.log(chalk.yellow('\nNot logged in. Run `slaminar login` to set up AI enhancement.\n'));
+        return;
+      }
+
+      console.log('');
+      console.log(chalk.green('✓') + ` Logged in to ${chalk.bold(status.provider)}`);
+
+      if (status.provider === 'cloudflare' && config?.providers.cloudflare) {
+        const cf = config.providers.cloudflare;
+        if (cf.accountName) console.log(`  Account:  ${cf.accountName}`);
+        console.log(`  Model:    ${cf.model}`);
+      } else if (status.provider === 'anthropic' && config?.providers.anthropic) {
+        console.log(`  Model:    ${config.providers.anthropic.model}`);
+      }
+      if (status.source === 'env') {
+        console.log(`  Source:   environment variable`);
+      } else {
+        console.log(`  Config:   ${getAuthFilePath()}`);
+      }
+      console.log('');
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      console.error(`\nError: ${message}\n`);
+      process.exitCode = 1;
+    }
+  });
+
+program
+  .command('logout')
+  .description('Remove stored AI provider credentials')
+  .action(async () => {
+    try {
+      const removed = clearAuthConfig();
+      if (removed) {
+        console.log(chalk.green('\n✓') + ' Logged out. Auth config removed.\n');
+      } else {
+        console.log(chalk.dim('\nNo auth config to remove.\n'));
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      console.error(`\nError: ${message}\n`);
+      process.exitCode = 1;
+    }
+  });
+
+const authCmd = program.command('auth').description('AI provider authentication management');
+
+authCmd
+  .command('status')
+  .description('Detailed authentication status')
+  .action(async () => {
+    try {
+      const status = detectAiProvider();
+      const config = loadAuthConfig();
+
+      console.log('\n' + chalk.bold('━━━ slaminar Authentication Status ━━━━━━━━━━━━━━━━'));
+      console.log('');
+      if (!status.available) {
+        console.log(chalk.yellow('  No AI provider configured.'));
+        console.log(chalk.dim('  Run `slaminar login` to set one up.\n'));
+        return;
+      }
+      console.log(`  Active provider: ${chalk.green(status.provider)} ✓`);
+      console.log(`  Source: ${status.source}`);
+      console.log(`  Model:  ${status.model}`);
+
+      if (config) {
+        if (config.providers.cloudflare) {
+          const cf = config.providers.cloudflare;
+          console.log('');
+          console.log('  Cloudflare Workers AI');
+          if (cf.accountName) console.log(`    Account:    ${cf.accountName}`);
+          console.log(`    Account ID: ${cf.accountId}`);
+          console.log(`    Model:      ${cf.model}`);
+        }
+        if (config.providers.anthropic) {
+          console.log('');
+          console.log('  Anthropic Claude');
+          console.log(`    Model: ${config.providers.anthropic.model}`);
+        }
+        console.log('');
+        console.log(`  Config file: ${getAuthFilePath()}`);
+      }
+      console.log('');
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      console.error(`\nError: ${message}\n`);
+      process.exitCode = 1;
+    }
+  });
+
+authCmd
+  .command('test')
+  .description('Run diagnostic tests on configured AI provider')
+  .action(async () => {
+    try {
+      const config = loadAuthConfig();
+      if (!config?.active) {
+        console.log(chalk.yellow('\nNo AI provider configured. Run `slaminar login` first.\n'));
+        process.exitCode = 1;
+        return;
+      }
+
+      console.log('\n' + chalk.bold('━━━ AI Provider Diagnostics ━━━━━━━━━━━━━━━━━━━━━━'));
+      console.log(`  Provider: ${config.active}\n`);
+
+      let result;
+      if (config.active === 'cloudflare' && config.providers.cloudflare) {
+        const cf = config.providers.cloudflare;
+        result = await runCloudflareDiagnostics(cf.apiToken, cf.accountId, cf.model);
+      } else if (config.active === 'anthropic' && config.providers.anthropic) {
+        result = await runAnthropicDiagnostics(config.providers.anthropic.apiKey);
+      } else {
+        console.log(chalk.red('\nConfig is in an invalid state.\n'));
+        process.exitCode = 1;
+        return;
+      }
+
+      for (const c of result.checks) {
+        const icon =
+          c.status === 'pass' ? chalk.green('✓')
+          : c.status === 'skip' ? chalk.yellow('○')
+          : chalk.red('✗');
+        const elapsed = c.elapsedMs ? chalk.dim(` (${c.elapsedMs}ms)`) : '';
+        console.log(`  ${icon} ${c.name}: ${c.detail}${elapsed}`);
+      }
+      console.log('');
+      if (!result.overallPass) process.exitCode = 2;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      console.error(`\nError: ${message}\n`);
+      process.exitCode = 1;
+    }
+  });
+
+authCmd
+  .command('switch <provider>')
+  .description('Switch active AI provider (cloudflare|anthropic)')
+  .action(async (provider: string) => {
+    try {
+      const config = loadAuthConfig();
+      if (!config) {
+        console.log(chalk.yellow('\nNo auth config found. Run `slaminar login` first.\n'));
+        process.exitCode = 1;
+        return;
+      }
+      if (provider !== 'cloudflare' && provider !== 'anthropic') {
+        console.log(chalk.red(`\nInvalid provider: ${provider}. Use cloudflare or anthropic.\n`));
+        process.exitCode = 1;
+        return;
+      }
+      if (!config.providers[provider]) {
+        console.log(chalk.yellow(`\n${provider} is not configured. Run \`slaminar login\` to add it.\n`));
+        process.exitCode = 1;
+        return;
+      }
+      const { saveAuthConfig } = await import('./auth/config.js');
+      saveAuthConfig({ ...config, active: provider, savedAt: new Date().toISOString() });
+      console.log(chalk.green(`\n✓ Switched to ${provider}\n`));
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       console.error(`\nError: ${message}\n`);

@@ -170,47 +170,87 @@ slaminar init --no-ai .
 
 ### AI 개선 (선택적)
 
-slaminar는 생성된 CLAUDE.md를 AI로 더 정교하게 개선할 수 있습니다. 두 가지 AI 프로바이더를 지원합니다:
-
-#### 옵션 1: Cloudflare Workers AI (추천 — 무료 한도 제공)
+`slaminar login`을 한 번만 실행하면 모든 프로젝트에서 AI 기반 CLAUDE.md 개선이 자동 적용됩니다.
 
 ```bash
-export CLOUDFLARE_ACCOUNT_ID=your-account-id
-export CLOUDFLARE_API_TOKEN=your-api-token
-slaminar init .
+slaminar login       # 인터랙티브 설정 (최초 1회)
+slaminar whoami      # 현재 로그인 상태 확인
+slaminar auth test   # 토큰 및 API 호출 진단
+slaminar auth switch cloudflare   # 프로바이더 전환
+slaminar logout      # 자격 증명 제거
 ```
 
-- **무료 한도**: 10,000 Neurons/day
-- **기본 모델**: `@cf/meta/llama-3.3-70b-instruct-fp8-fast` (24K context)
-- **모델 변경**: `export SLAMINAR_CF_MODEL=@cf/meta/llama-3.1-8b-instruct`
-- **권한**: API 토큰에 `Workers AI: Read` 권한 필요
-- **토큰 발급**: https://dash.cloudflare.com/profile/api-tokens
+#### `slaminar login` 플로우
 
-#### 옵션 2: Anthropic Claude API
+```
+? 어떤 AI 프로바이더를 사용하시겠어요?
+❯ Cloudflare Workers AI  (무료 10K/일 · 추천)
+  Anthropic Claude API   (유료 · 최고 품질)
+
+→ 브라우저가 토큰 발급 페이지로 열림
+? 토큰 붙여넣기: *****
+  ✓ Token valid
+  ○ Account access: Workers AI-only 토큰 정상
+  ✓ Workers AI inference: 17 tokens used (956ms)
+
+? 사용할 모델:
+❯ Llama 3.3 70B ★  (추천)
+  Llama 3.1 8B
+  Mistral Small 3.1 24B
+  Gemma 3 12B
+
+✓ ~/.config/slaminar/auth.json 저장 완료 (권한 0600)
+```
+
+#### 설정 저장 위치
+
+| 위치 | 우선순위 | 용도 |
+|------|---------|------|
+| CLI 플래그 (`--no-ai`) | 1 (최고) | 일회성 비활성 |
+| 환경변수 (`CLOUDFLARE_*`, `ANTHROPIC_API_KEY`) | 2 | CI/일회성 |
+| `~/.config/slaminar/auth.json` (0600) | 3 | `slaminar login`으로 저장 |
+| (없음) | 4 | 로컬 규칙만 사용 |
+
+#### 프로바이더 및 모델
+
+**Cloudflare Workers AI (권장):**
+- 무료 한도: 10,000 Neurons/day (실질적 무제한)
+- 필요 권한: `Workers AI: Read` (최소 권한)
+- 토큰 발급: https://dash.cloudflare.com/profile/api-tokens
+- 기본 모델: `@cf/meta/llama-3.3-70b-instruct-fp8-fast` (24K context)
+- 가능한 모델: Llama 3.3/3.1, Mistral Small 3.1, Gemma 3, Qwen 2.5 Coder
+
+**Anthropic Claude:**
+- 최고 품질, 유료
+- API 키: https://console.anthropic.com/settings/keys
+- 모델: `claude-sonnet-4`
+- 추가 의존성: `npm install @anthropic-ai/sdk`
+
+#### 강제 프로바이더 선택
 
 ```bash
-export ANTHROPIC_API_KEY=sk-ant-...
-npm install @anthropic-ai/sdk  # 선택적 peer dep
-slaminar init .
+export SLAMINAR_AI_PROVIDER=cloudflare   # 또는 anthropic, local
 ```
 
-- **모델**: `claude-sonnet-4` (최고 품질)
-- **비용**: Cloudflare 대비 약 10배 비싸지만 품질 우수
+#### 팀 사용
 
-#### 프로바이더 강제 선택
+- `~/.config/slaminar/auth.json`은 **개인 파일** — git에 커밋되지 않음
+- 팀원 각자 `slaminar login` 실행
+- 팀 설정(`.slaminar/config.json`)은 승인된 도구 목록만 공유, 토큰은 절대 저장 X
+- CI에서는 환경변수 사용 (`CLOUDFLARE_API_TOKEN` GitHub Secret 등)
 
-```bash
-# Cloudflare 강제
-export SLAMINAR_AI_PROVIDER=cloudflare
+#### 인라인 프롬프트
 
-# Anthropic 강제
-export SLAMINAR_AI_PROVIDER=anthropic
+AI 미설정 상태에서 `slaminar init` 실행 시 자동으로 설정 제안:
 
-# 로컬 규칙만 (AI 안 씀)
-export SLAMINAR_AI_PROVIDER=local
 ```
+$ slaminar init .
 
-기본 동작: 둘 다 설정되어 있으면 **Cloudflare 우선** (무료 한도). 아무것도 없으면 로컬 규칙 기반으로 동작.
+⚠  AI 프로바이더가 설정되지 않았습니다.
+   설정하면 CLAUDE.md가 AI로 자동 개선됩니다 (Cloudflare 무료 옵션 제공).
+
+? 지금 설정할까요? (건너뛰면 로컬 규칙으로 진행) [Y/n]: _
+```
 
 ### 개별 명령어
 
