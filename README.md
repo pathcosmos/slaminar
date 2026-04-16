@@ -281,6 +281,29 @@ slaminar check .
 slaminar check --json .
 ```
 
+### AI 인증 명령어
+
+```bash
+# 인터랙티브 로그인 (프로바이더 선택 → 토큰 입력 → 모델 선택 → 검증)
+slaminar login
+
+# 현재 로그인 상태 확인
+slaminar whoami
+
+# 로그아웃 (자격 증명 삭제)
+slaminar logout
+
+# 상세 인증 상태
+slaminar auth status
+
+# 토큰 및 API 호출 진단
+slaminar auth test
+
+# 프로바이더 전환
+slaminar auth switch cloudflare
+slaminar auth switch anthropic
+```
+
 ### 글로벌 플래그
 
 | 플래그 | 설명 |
@@ -441,10 +464,21 @@ slaminar check --ci .
 
 ### Fallback 전략
 
-- **AI 모드 불가**: 로컬 규칙 기반으로 자동 전환 (ANTHROPIC_API_KEY 없거나 SDK 미설치)
+- **AI 프로바이더 체인**: 환경변수 → auth.json → 로컬 규칙. 어디서든 중단되지 않음
+- **AI 호출 실패**: HTTP/네트워크/토큰 오류 모두 graceful 처리 — 로컬 draft 반환
+- **Anthropic SDK 미설치**: API 키만 있어도 SDK 없으면 자동으로 로컬 모드
+- **Cloudflare Account 자동 감지 실패**: `/accounts` → `/memberships` → 수동 입력 3단계 폴백
 - **Python 없음**: graphify 대신 cartographer 추천 (같은 목적, 다른 런타임)
 - **모든 도구 점수 0**: 빈 추천 반환 (CLAUDE.md + 플러그인은 여전히 생성)
 - **Git 없음**: git 관련 분석 건너뛰기, 성숙도 = greenfield
+
+### AI 인증 예외 처리
+
+- **잘못된 토큰**: `auth test`에서 단계별 진단 → HTTP 상태, 에러 코드, 네트워크 오류 구분
+- **토큰 권한 부족**: 어떤 권한이 필요한지 친절한 안내 (예: "User: Memberships: Read 추가 권장")
+- **손상된 auth.json**: JSON.parse 실패 시 자동으로 null 반환 → 로컬 모드 fallback
+- **TTY 아닌 환경**: 인라인 프롬프트 자동 비활성화 (CI 친화적)
+- **Ctrl+C 중단**: inquirer의 force-close 에러를 조용히 처리 (스택 트레이스 X)
 
 ---
 
@@ -472,7 +506,7 @@ slaminar check --ci .
 
 ```
 src/
-├── cli.ts                        # CLI 진입점 (9 commands + global flags)
+├── cli.ts                        # CLI 진입점 (13 commands + global flags)
 ├── types/index.ts                # 모든 공유 타입
 │
 ├── core/                         # 파이프라인 코어
@@ -507,7 +541,14 @@ src/
 ├── generator/                    # Phase 5: 생성
 │   ├── claude-md.ts              # CLAUDE.md (소유권 마커 포함)
 │   ├── claude-plugin.ts          # plugin.json + skills/dev.md
-│   └── ai-provider.ts            # Claude API 라우팅 (로컬 폴백)
+│   ├── ai-provider.ts            # AI 라우팅 (Cloudflare/Anthropic/local)
+│   └── cloudflare-ai.ts          # Cloudflare Workers AI 어댑터 (native fetch)
+
+├── auth/                         # AI 프로바이더 인증 (login/whoami/logout)
+│   ├── config.ts                 # ~/.config/slaminar/auth.json (0600)
+│   ├── models.ts                 # Cloudflare/Anthropic 모델 카탈로그
+│   ├── diagnostics.ts            # 토큰 검증, /user, /memberships, 추론 테스트
+│   └── wizard.ts                 # 인터랙티브 login 플로우
 │
 ├── placer/                       # Phase 6: 배치
 │   ├── backup.ts                 # 난독 백업 (.dat) + manifest
@@ -622,6 +663,24 @@ CLAUDE.md 유효성 검증, plugin.json 스키마 검증, 터미널 컬러 테�
 - `0042357` CI check
 - `716d1bb` wire all CLI commands
 
+### Phase 7: Cloudflare Workers AI 통합 + 통합 인증 UX
+
+실질적 사용자 편의성을 대폭 개선한 단계. AI 개선 기능에 Cloudflare Workers AI를 추가하고 (무료 10K/일), gh/wrangler/vercel 스타일의 `login`/`whoami`/`logout` 명령어 그룹으로 모든 AI 설정을 통일.
+
+**주요 작업:**
+- **Cloudflare Workers AI provider** — native fetch 기반, SDK 의존성 없음. 14+ 모델 지원 (Llama 3.3 70B, Mistral Small 3.1, Gemma 3 등)
+- **AI provider 라우팅** — Cloudflare/Anthropic/local 자동 선택, 무료 옵션 우선
+- **`slaminar login` 인터랙티브 위자드** — 프로바이더 선택 → 브라우저 자동 오픈 → 토큰 입력 → 모델 선택 → 실제 추론 테스트까지 자동
+- **토큰 권한 자동 감지** — `/user`로 이메일 확인, `/memberships`로 Account ID 자동 감지 (수동 입력 제거)
+- **설정 파일 보안** — `~/.config/slaminar/auth.json` (0600 권한, XDG 표준)
+- **해결 우선순위** — CLI flag → 환경변수 → auth.json → local fallback
+- **인라인 프롬프트** — `slaminar init`에서 AI 미설정 시 자동으로 설정 유도
+
+**커밋:**
+- `66518ef` Cloudflare Workers AI provider (free-tier)
+- `627a34f` slaminar login/whoami/logout — unified AI auth UX
+- `d8acd6a` Cloudflare account auto-detection via /memberships
+
 ### 품질 개선 (3차례 리뷰)
 
 **1차 리뷰 — 에러 처리:**
@@ -655,12 +714,13 @@ CLAUDE.md 유효성 검증, plugin.json 스키마 검증, 터미널 컬러 테�
 
 | 항목 | 수치 |
 |------|------|
-| 소스 모듈 | 37개 |
-| 테스트 파일 | 34개 |
-| 테스트 케이스 | 157개 |
-| 커밋 | 48개 |
-| CLI 명령어 | 9개 |
+| 소스 모듈 | 42개 |
+| 테스트 파일 | 37개 |
+| 테스트 케이스 | 179개 |
+| 커밋 | 53개 |
+| CLI 명령어 | 13개 |
 | 카탈로그 도구 | 14개 |
+| AI 프로바이더 | 2개 (Cloudflare, Anthropic) |
 
 ---
 
@@ -683,6 +743,24 @@ A. `slaminar check --ci`를 사용하세요. 종료 코드 0(정상), 1(경고),
 
 ### Q. 어떤 프로젝트에 사용할 수 있나요?
 A. TypeScript/JavaScript, Python, Rust, Go, Java/Kotlin/Scala, Elixir 프로젝트에 적용 가능합니다. 새 프로젝트(greenfield)부터 200+ 커밋의 성숙한 프로젝트까지 성숙도에 따라 다른 전략으로 추천합니다.
+
+### Q. AI 개선을 꼭 설정해야 하나요?
+A. 아니요. 전혀 설정하지 않아도 로컬 규칙 기반으로 완전히 동작합니다. AI를 설정하면 CLAUDE.md의 문장 품질과 설명의 구체성이 향상됩니다. Cloudflare Workers AI를 사용하면 하루 10,000 Neurons 무료 한도 내에서 충분히 사용 가능합니다 (실질적으로 무제한).
+
+### Q. 토큰은 안전하게 저장되나요?
+A. `~/.config/slaminar/auth.json`에 저장되며 파일 권한 `0600` (소유자만 읽기/쓰기)으로 보호됩니다. XDG 표준 준수. `.slaminar/` 디렉토리에는 절대 저장되지 않으므로 프로젝트 리포지토리에 토큰이 커밋될 위험이 없습니다.
+
+### Q. Cloudflare vs Anthropic 중 무엇이 좋나요?
+A. 일반 사용에는 **Cloudflare Workers AI**를 권장합니다. 무료 한도가 넉넉하고 Llama 3.3 70B로도 CLAUDE.md 개선 품질이 충분합니다. 최고 품질이 필요하거나 긴 컨텍스트 (200K+)를 써야 한다면 **Anthropic Claude**를 사용하세요. `slaminar auth switch`로 언제든 전환 가능합니다.
+
+### Q. Cloudflare 토큰에 어떤 권한이 필요한가요?
+A. 최소 `Workers AI: Read` 하나만 있으면 동작합니다. 추가로 다음을 주면 UX가 개선됩니다:
+- `User: User Details: Read` — 로그인 시 이메일 자동 표시
+- `User: Memberships: Read` — Account ID 자동 감지 (수동 입력 제거)
+- `AI Gateway: Read` — 미래 캐싱/분석 기능용 (선택)
+
+### Q. CI에서 AI를 사용하고 싶은데 어떻게 하나요?
+A. CI에서는 환경변수를 사용하세요. `CLOUDFLARE_API_TOKEN`과 `CLOUDFLARE_ACCOUNT_ID`를 GitHub Secret 등으로 저장하고 워크플로우에서 env로 전달하면 auth.json 없이도 동작합니다. 해결 우선순위는 환경변수 > auth.json입니다.
 
 ---
 
