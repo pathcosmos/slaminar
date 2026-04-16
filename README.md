@@ -22,12 +22,14 @@ Run `slaminar init` on any codebase and it will automatically analyze your proje
 - [Project Analysis](#project-analysis)
 - [Generated Output](#generated-output)
 - [Dynamic Catalog](#dynamic-catalog)
+  - [Creating a Custom Catalog](#creating-a-custom-catalog)
 - [Verification](#verification)
 - [Error Handling & Safety](#error-handling--safety)
 - [Tech Stack](#tech-stack)
 - [Architecture](#architecture)
 - [Development](#development)
 - [Implementation History](#implementation-history)
+- [Roadmap](#roadmap)
 - [Project Stats](#project-stats)
 - [FAQ](#faq)
 - [Contributing](#contributing)
@@ -115,6 +117,40 @@ The tool catalog contains 24 Claude Code ecosystem tools (with an online catalog
 | `.slaminar/config.local.json` | No | Personal settings (AI mode, personal tools) |
 | `.slaminar/reports/*.md` | Yes | Setup reports (useful for PR reviews) |
 | `.slaminar/.bk/` | No | Backup files |
+
+**Config schema and defaults:**
+
+`.slaminar/config.json` (team, committed):
+```json
+{
+  "slaminarVersion": "0.1.0",
+  "excludeAuthTools": true,
+  "fileCountCap": 10000,
+  "approvedTools": [],
+  "catalogVersion": ""
+}
+```
+
+| Field | Description |
+|-------|-------------|
+| `slaminarVersion` | Version of slaminar that generated this config |
+| `excludeAuthTools` | Auto-exclude tools requiring external authentication |
+| `fileCountCap` | Max files scanned in file-tree analysis |
+| `approvedTools` | Team-approved tool names (empty = accept all recommendations) |
+| `catalogVersion` | Catalog version used at setup time (reserved for future version-pinning) |
+
+`.slaminar/config.local.json` (personal, gitignored):
+```json
+{
+  "aiMode": "auto",
+  "personalTools": []
+}
+```
+
+| Field | Description |
+|-------|-------------|
+| `aiMode` | `auto` (detect provider), `ai` (require AI), or `local` (no AI) |
+| `personalTools` | Reserved for future per-user tool additions (not yet active) |
 
 ---
 
@@ -231,11 +267,13 @@ slaminar catalog update                    # Fetch latest catalog + show diff
 slaminar catalog update --catalog <url>    # Fetch from custom URL
 slaminar catalog list                      # Table view of all tools
 slaminar catalog search <query>            # Search by name, tags, or description
-slaminar catalog check                     # Detect deprecated tools
+slaminar catalog check                     # Detect deprecated tools + show replacements
 slaminar catalog info <name>               # Detailed tool info
 slaminar catalog status                    # Cache status (age, validity, source)
 slaminar catalog rollback                  # Restore previous catalog version
 ```
+
+**Deprecation detection:** Tools in the catalog can be marked `deprecated: true` with an optional `deprecatedReason` and `replacedBy` field. Running `slaminar catalog check` scans your recommended tools against the catalog and warns about deprecated ones, showing the reason and suggested replacement.
 
 ### Claude Code Skill
 
@@ -362,13 +400,31 @@ These can be included in PRs for team review.
 
 slaminar's tool catalog is designed to evolve independently of CLI releases:
 
-- **Online catalog**: 24 tools fetched from GitHub, updated without upgrading slaminar
-- **Local cache**: `~/.config/slaminar/catalog-cache.json` with 24-hour TTL
-- **Fallback chain**: valid cache → remote fetch → stale cache → bundled fallback
-- **ETag support**: conditional HTTP requests to minimize bandwidth
-- **Catalog diff**: shows added, removed, deprecated, and updated tools on each update
+- **Online catalog**: 24 tools fetched from GitHub (`catalog/catalog.json` in this repo), updated without upgrading slaminar
+- **Local cache**: `~/.config/slaminar/catalog-cache.json` with 24-hour TTL and file permission `0600`
+- **Fallback chain**: valid cache → remote fetch → stale cache → bundled fallback (always works offline)
+- **ETag support**: conditional HTTP requests — if the remote catalog hasn't changed, the server responds `304 Not Modified` and no data is transferred
+- **Catalog diff**: `slaminar catalog update` shows added, removed, deprecated, and updated tools in colored terminal output
 - **Custom catalog URL**: point to your own catalog with `--catalog <url>` for enterprise or private tool registries
-- **Rollback**: instantly restore the previous catalog version
+- **Rollback**: `slaminar catalog rollback` restores the previous catalog version from `catalog-cache.prev.json`
+
+**How the fallback chain works:**
+
+```
+slaminar catalog update (or init/recommend)
+  │
+  ├─ 1. Is there a valid cache? (< 24 hours old)
+  │     YES → use cached catalog
+  │     NO  ↓
+  ├─ 2. Fetch from remote URL (with ETag if available)
+  │     200 OK    → save to cache, use new catalog
+  │     304       → mark cache as fresh, use cached
+  │     FAIL      ↓
+  ├─ 3. Is there a stale cache? (expired but exists)
+  │     YES → use stale cache (with warning)
+  │     NO  ↓
+  └─ 4. Use bundled catalog (14 tools, always available)
+```
 
 ### Catalog Tools (24)
 
@@ -397,6 +453,77 @@ slaminar's tool catalog is designed to evolve independently of CLI releases:
 | claude-code-subagents | 100+ subagents | marketplace |
 | awesome-claude-skills-security | Pentest skills | marketplace |
 | *+ 2 more* | *See `slaminar catalog list`* | — |
+
+### Creating a Custom Catalog
+
+You can host your own catalog and use it with `--catalog <url>`. The catalog must follow the `RemoteCatalog` JSON schema.
+
+**Minimum format** (only `tools` is required):
+
+```json
+{
+  "tools": [
+    {
+      "name": "my-internal-tool",
+      "repo": "company/internal-tool",
+      "category": "skill",
+      "description": "Internal code review tool",
+      "authRequired": false,
+      "networkRequired": "none",
+      "installMethod": "git-clone",
+      "installCommands": ["git clone https://git.company.com/tool.git ~/.claude/skills/tool"],
+      "prerequisites": [],
+      "tags": ["code-review", "internal"],
+      "maturityFit": ["growing", "mature"]
+    }
+  ]
+}
+```
+
+**Full format** (all optional fields included):
+
+```json
+{
+  "version": "1.0.0",
+  "minSlaminarVersion": "0.2.0",
+  "updatedAt": "2026-04-16T00:00:00Z",
+  "tools": [],
+  "suggestions": [],
+  "relations": []
+}
+```
+
+**CatalogTool fields:**
+
+| Field | Type | Required | Description |
+|-------|------|:--------:|-------------|
+| `name` | string | Yes | Unique tool name |
+| `repo` | string | Yes | GitHub `owner/repo` |
+| `category` | string | Yes | `plugin`, `skill`, `hook`, `agent`, or `workflow` |
+| `description` | string | Yes | Short description |
+| `authRequired` | boolean | Yes | Requires external auth (excluded from recommendations if true) |
+| `networkRequired` | string | Yes | `none`, `partial`, or `full` |
+| `installMethod` | string | Yes | `marketplace`, `npx`, `git-clone`, or `pip` |
+| `installCommands` | string[] | Yes | Shell commands to install |
+| `prerequisites` | string[] | Yes | Runtime requirements (e.g., `["python>=3.10"]`) |
+| `tags` | string[] | Yes | Scoring tags (e.g., `["typescript", "testing"]`) |
+| `maturityFit` | string[] | Yes | `greenfield`, `early`, `growing`, `mature` |
+| `deprecated` | boolean | No | Mark as deprecated |
+| `deprecatedReason` | string | No | Why deprecated |
+| `replacedBy` | string | No | Successor tool name |
+
+**Usage:**
+
+```bash
+# One-off via CLI flag
+slaminar init --catalog https://company.com/catalog.json .
+slaminar recommend --catalog https://company.com/catalog.json .
+slaminar catalog update --catalog https://company.com/catalog.json
+
+# Or host it on any static server / internal registry
+```
+
+When `version`, `suggestions`, or `relations` are omitted, slaminar uses sensible defaults (empty arrays, version "0.0.0").
 
 ---
 
@@ -620,6 +747,23 @@ Three rounds of review covering error handling, code quality, and remaining issu
 
 ---
 
+## Roadmap
+
+Features under consideration for future releases:
+
+| Feature | Description | Status |
+|---------|-------------|--------|
+| **Multi-source catalogs** | Merge multiple catalog sources (official + company + personal) with priority layers | Design complete |
+| **`catalog source` CLI** | `catalog source add/remove/list/test` for managing catalog sources | Planned |
+| **Personal tools** | `personalTools` field in local config for user-specific tool additions | Stub (type exists) |
+| **`slaminar install`** | CLI command to install recommended tools directly | Planned |
+| **Catalog trust levels** | `trusted` / `untrusted` / `verified` trust model for external catalogs | Planned |
+| **`SLAMINAR_CATALOG_SOURCES` env var** | Multi-catalog configuration via environment variable for CI | Planned |
+
+See [`docs/superpowers/specs/2026-04-16-custom-catalog-plan.md`](./docs/superpowers/specs/2026-04-16-custom-catalog-plan.md) for the full multi-source catalog design.
+
+---
+
 ## Project Stats
 
 | Metric | Value |
@@ -641,7 +785,7 @@ No. Every existing file is backed up first under `.slaminar/.bk/` with an obfusc
 
 ### Does it actually install the recommended tools?
 
-`slaminar init` only generates files. Tool installation is supported separately via the `installer` module. Each tool's install commands are included in the recommendation output so you can review them before running anything.
+No. `slaminar init` only generates files (CLAUDE.md, plugins, reports). Each recommended tool's install commands are shown in the output and saved in the report, so you can review and run them yourself. Automatic tool installation is planned for a future release.
 
 ### Does it require an external server or authentication?
 
