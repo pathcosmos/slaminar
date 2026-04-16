@@ -74,12 +74,14 @@ export interface InitOptions {
   dryRun?: boolean;
   /** Use AI to enhance generated CLAUDE.md when a provider is configured. Default: true */
   useAi?: boolean;
+  /** Custom catalog URL */
+  catalogUrl?: string;
 }
 
 export async function init(targetPath: string, options: InitOptions = {}): Promise<InitResult> {
   const useAi = options.useAi ?? true;
   const { snapshot, profile } = analyze(targetPath);
-  const recommendation = await recommend(profile);
+  const recommendation = await recommend(profile, { catalogUrl: options.catalogUrl });
   const plan = buildPlan(profile, snapshot, recommendation);
   const aiProvider = detectAiProvider();
 

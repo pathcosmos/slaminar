@@ -127,3 +127,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - 24 tools in online catalog, 14 in bundled fallback
 
 [0.2.0]: https://github.com/pathcosmos/slaminar/compare/v0.1.0...v0.2.0
+
+## [0.3.0] — 2026-04-16
+
+### Added — Custom Catalog URL + English Docs
+
+**Custom Catalog URL (`--catalog <url>`):**
+- `resolveCatalog()` now accepts a `catalogUrl` option for custom/private catalog sources
+- `--catalog <url>` flag added to `init`, `recommend`, and `catalog update` CLI commands
+- `recommend()` and `init()` pipeline functions thread `catalogUrl` through the full chain
+- Enables enterprise and private catalog hosting without forking the project
+
+**English README:**
+- `README.md` is now the primary English documentation
+- Korean documentation moved to `README.ko.md`
+- Cross-references between both language versions
+
+### Fixed
+
+- CLI version string corrected from `0.1.0` to match `package.json` (`0.2.0` → now `0.3.0`)
+- Catalog resolver tests stabilized with `.invalid` TLD URLs for deterministic remote-failure scenarios (previously flaky when network was available)
+
+### Stats
+
+- 47 source modules, 41 test files, 204 tests passing
+- 20 CLI commands
+- 24 tools in online catalog, 14 in bundled fallback
+
+[0.3.0]: https://github.com/pathcosmos/slaminar/compare/v0.2.0...v0.3.0

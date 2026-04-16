@@ -11,8 +11,8 @@ const MATURITY_LIMITS: Record<string, number> = {
   mature: 7,
 };
 
-export async function recommend(profile: ProjectProfile): Promise<RecommendationPlan> {
-  const resolved = await resolveCatalog({ silent: true });
+export async function recommend(profile: ProjectProfile, options?: { catalogUrl?: string }): Promise<RecommendationPlan> {
+  const resolved = await resolveCatalog({ silent: true, catalogUrl: options?.catalogUrl });
   const catalog = resolved.tools;
   const excluded: { tool: CatalogTool; reason: string }[] = [];
 

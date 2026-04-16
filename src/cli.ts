@@ -24,7 +24,7 @@ const program = new Command();
 program
   .name('slaminar')
   .description('Claude Code 전용 프로젝트 분석 및 지능형 세팅 도구')
-  .version('0.1.0')
+  .version('0.3.0')
   .option('-v, --verbose', 'Show detailed output');
 
 program
@@ -32,7 +32,8 @@ program
   .description('Full pipeline: scan → analyze → recommend → generate → place')
   .option('--dry-run', 'Preview changes without writing')
   .option('--no-ai', 'Disable AI enhancement (use local rules only)')
-  .action(async (path: string | undefined, options: { dryRun?: boolean; ai?: boolean }) => {
+  .option('--catalog <url>', 'Use custom catalog URL')
+  .action(async (path: string | undefined, options: { dryRun?: boolean; ai?: boolean; catalog?: string }) => {
     try {
       const verbose = program.opts().verbose || false;
       const timer = new PhaseTimer(verbose);
@@ -61,7 +62,7 @@ program
       }
 
       timer.start('Initializing');
-      const result = await init(targetPath, { dryRun: options.dryRun, useAi: options.ai });
+      const result = await init(targetPath, { dryRun: options.dryRun, useAi: options.ai, catalogUrl: options.catalog });
       timer.end(`${result.writtenFiles.length} files written (${result.aiProvider.provider})`);
 
       if (result.aiProvider.available && options.ai !== false) {
@@ -160,7 +161,8 @@ program
 program
   .command('recommend [path]')
   .description('Analyze project and recommend Claude Code tools')
-  .action(async (path?: string) => {
+  .option('--catalog <url>', 'Use custom catalog URL')
+  .action(async (path: string | undefined, options: { catalog?: string }) => {
     try {
       const verbose = program.opts().verbose || false;
       const timer = new PhaseTimer(verbose);
@@ -173,7 +175,7 @@ program
       timer.end();
 
       timer.start('Recommending');
-      const plan = await recommend(profile);
+      const plan = await recommend(profile, { catalogUrl: options.catalog });
       timer.end(`${plan.recommended.length} tools recommended`);
 
       console.log(JSON.stringify(plan, null, 2));
@@ -538,7 +540,8 @@ const catalogCmd = program.command('catalog').description('Manage tool catalog')
 
 catalogCmd.command('update')
   .description('Fetch latest catalog from remote')
-  .action(async () => {
+  .option('--catalog <url>', 'Use custom catalog URL')
+  .action(async (options: { catalog?: string }) => {
     try {
       const oldCache = loadCache();
       const oldTools = oldCache?.catalog.tools ?? [];
@@ -547,7 +550,7 @@ catalogCmd.command('update')
       if (oldCache) backupCache();
 
       console.log('\nFetching latest catalog...');
-      const resolved = await resolveCatalog({ forceRefresh: true });
+      const resolved = await resolveCatalog({ forceRefresh: true, catalogUrl: options.catalog });
 
       if (resolved.source === 'bundled') {
         console.log(chalk.yellow('\n⚠ Remote fetch failed. Using bundled catalog.\n'));

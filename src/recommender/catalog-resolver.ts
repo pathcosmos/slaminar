@@ -3,9 +3,10 @@ import { fetchRemoteCatalog, DEFAULT_CATALOG_URL } from './catalog-remote.js';
 import { getCatalog } from './catalog.js';
 import type { ResolvedCatalog, CatalogCacheEntry } from '../types/index.js';
 
-export async function resolveCatalog(options?: { forceRefresh?: boolean; silent?: boolean }): Promise<ResolvedCatalog> {
+export async function resolveCatalog(options?: { forceRefresh?: boolean; silent?: boolean; catalogUrl?: string }): Promise<ResolvedCatalog> {
   const forceRefresh = options?.forceRefresh ?? false;
   const silent = options?.silent ?? false;
+  const catalogUrl = options?.catalogUrl ?? DEFAULT_CATALOG_URL;
 
   // 1. Check cache
   const cached = loadCache();
@@ -22,7 +23,7 @@ export async function resolveCatalog(options?: { forceRefresh?: boolean; silent?
 
   // 2. Try remote fetch
   try {
-    const result = await fetchRemoteCatalog(DEFAULT_CATALOG_URL, cached?.etag);
+    const result = await fetchRemoteCatalog(catalogUrl, cached?.etag);
     if (result.notModified && cached) {
       // Update fetchedAt to reset TTL
       const updated: CatalogCacheEntry = { ...cached, fetchedAt: new Date().toISOString() };
@@ -39,7 +40,7 @@ export async function resolveCatalog(options?: { forceRefresh?: boolean; silent?
     // Save new cache
     const entry: CatalogCacheEntry = {
       fetchedAt: new Date().toISOString(),
-      sourceUrl: DEFAULT_CATALOG_URL,
+      sourceUrl: catalogUrl,
       etag: result.etag,
       catalog: result.catalog,
     };

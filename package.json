@@ -1,7 +1,7 @@
 {
   "name": "slaminar",
-  "version": "0.2.0",
-  "description": "Claude Code 전용 프로젝트 분석 및 지능형 세팅 도구",
+  "version": "0.3.0",
+  "description": "Intelligent project analyzer and setup tool for Claude Code",
   "type": "module",
   "bin": {
     "slaminar": "dist/cli.js"

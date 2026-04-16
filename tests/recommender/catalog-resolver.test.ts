@@ -22,7 +22,7 @@ describe('catalog-resolver', () => {
   });
 
   it('falls back to bundled catalog when no cache and remote fails', async () => {
-    const resolved = await resolveCatalog({ silent: true });
+    const resolved = await resolveCatalog({ silent: true, catalogUrl: 'https://unreachable.invalid/catalog.json' });
     expect(resolved.source).toBe('bundled');
     expect(resolved.version).toBe('0.0.0');
     expect(resolved.tools.length).toBeGreaterThan(0);
@@ -51,6 +51,13 @@ describe('catalog-resolver', () => {
     expect(resolved.stale).toBe(false);
   });
 
+  it('accepts custom catalogUrl option and falls back to bundled', async () => {
+    const resolved = await resolveCatalog({ silent: true, catalogUrl: 'https://custom.example.com/catalog.json' });
+    // Custom URL will fail (no server), should fall back to bundled
+    expect(resolved.source).toBe('bundled');
+    expect(resolved.tools.length).toBeGreaterThan(0);
+  });
+
   it('returns stale cache when cache is expired and remote fails', async () => {
     const entry: CatalogCacheEntry = {
       fetchedAt: new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString(),
@@ -65,7 +72,7 @@ describe('catalog-resolver', () => {
       },
     };
     saveCache(entry);
-    const resolved = await resolveCatalog({ silent: true });
+    const resolved = await resolveCatalog({ silent: true, catalogUrl: 'https://unreachable.invalid/catalog.json' });
     expect(resolved.source).toBe('cache');
     expect(resolved.version).toBe('1.5.0');
     expect(resolved.stale).toBe(true);
