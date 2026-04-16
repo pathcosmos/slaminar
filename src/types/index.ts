@@ -1,11 +1,15 @@
 // ─── Team config types ─────────────────────────────────────
 
+export type CatalogMode = 'extend' | 'replace';
+
 export interface TeamConfig {
   slaminarVersion: string;
   excludeAuthTools: boolean;
   fileCountCap: number;
   approvedTools: string[];
   catalogVersion: string;
+  catalogUrl: string;
+  catalogMode: CatalogMode;
 }
 
 export interface LocalConfig {
@@ -253,7 +257,7 @@ export interface ResolvedCatalog {
   tools: CatalogTool[];
   relations: ToolConflict[];
   suggestions: CatalogSuggestion[];
-  source: 'remote' | 'cache' | 'bundled';
+  source: 'remote' | 'cache' | 'bundled' | 'merged';
   version: string;
   stale: boolean;
 }

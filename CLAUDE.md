@@ -27,7 +27,7 @@ Each phase produces a JSON-serializable IR passed to the next.
 
 - `src/scanner/` — 4 modules: file-tree, git-info, ai-files, package-info
 - `src/analyzer/` — 5 modules: language-detector, structure-mapper, convention-extractor, dependency-analyzer, maturity-detector
-- `src/recommender/` — 5 modules: catalog (14 tools), scorer, conflict-detector, recommender, installer
+- `src/recommender/` — 10 modules: catalog, catalog-resolver, catalog-cache, catalog-remote, catalog-diff, catalog-merger, scorer, conflict-detector, recommender, installer
 - `src/generator/` — claude-md (with ownership markers), claude-plugin, ai-provider (Claude API fallback)
 - `src/placer/` — backup (obfuscated .dat), markers (section merge), writer
 - `src/validator/` — claude-md validator, plugin-schema validator

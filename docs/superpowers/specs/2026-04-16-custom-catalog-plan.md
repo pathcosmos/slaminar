@@ -1,7 +1,7 @@
 # Multi-source Custom Catalog — 설계 계획
 
 > Date: 2026-04-16
-> Status: 계획 단계 — 동적 카탈로그(v0.2.0) 완료 후 구현 예정
+> Status: **v0.3.0 MVP 배포됨** (`catalogUrl`, `catalogMode`, `catalog config` CLI, `mergeCatalogs` 구현완료); 전체 multi-source 아키텍처는 향후 계획
 
 ## 개요
 

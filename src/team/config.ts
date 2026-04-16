@@ -12,6 +12,8 @@ const DEFAULT_TEAM: TeamConfig = {
   fileCountCap: 10000,
   approvedTools: [],
   catalogVersion: '',
+  catalogUrl: '',
+  catalogMode: 'replace',
 };
 
 const DEFAULT_LOCAL: LocalConfig = {

@@ -22,6 +22,8 @@
 - [프로젝트 분석 능력](#프로젝트-분석-능력)
 - [생성물](#생성물)
 - [동적 카탈로그](#동적-카탈로그)
+  - [커스텀 카탈로그 작성](#커스텀-카탈로그-작성)
+  - [카탈로그 설정 영속화](#카탈로그-설정-영속화)
 - [검증 시스템](#검증-시스템)
 - [에러 처리 및 안전장치](#에러-처리-및-안전장치)
 - [기술 스택](#기술-스택)
@@ -92,7 +94,7 @@ scan → analyze → recommend → plan → generate → place → verify
 
 ### 지능적 도구 추천
 
-24개 Claude Code 생태계 도구를 포함한 온라인 카탈로그에서 프로젝트에 맞는 도구를 자동 선별합니다 (릴리즈와 독립적으로 업데이트 가능).
+46개 Claude Code 생태계 도구를 포함한 온라인 카탈로그에서 프로젝트에 맞는 도구를 자동 선별합니다 (릴리즈와 독립적으로 업데이트 가능).
 
 **추천 로직:**
 - 다차원 스코어링 (언어/프레임워크 매칭, 성숙도 적합도, 태그 매칭)
@@ -101,33 +103,9 @@ scan → analyze → recommend → plan → generate → place → verify
 - 외부 인증 필요 도구 자동 제외
 - `--catalog <url>` 플래그로 사설/기업용 카탈로그 지원
 
-**카탈로그 포함 도구 (24개):**
+**카탈로그 포함 도구 (46개):**
 
-| 도구 | 기능 | 설치 방법 |
-|------|------|----------|
-| caveman | 토큰 65% 절약 | marketplace |
-| planning-with-files | 마크다운 기반 계획 수립 | npx |
-| impeccable | 프론트엔드 디자인 품질 | marketplace |
-| playwright-skill | 브라우저 자동 테스트 | marketplace |
-| get-shit-done | 스펙 기반 개발 | npx |
-| claude-mem | 세션 메모리 | npx |
-| graphify | 코드 → 지식 그래프 | pip |
-| cartographer | 코드베이스 매핑 | marketplace |
-| trailofbits/skills | 보안 리뷰 | marketplace |
-| everything-claude-code | 성능 최적화 | git-clone |
-| claude-hud | 실시간 모니터링 | marketplace |
-| homunculus | 패턴 학습 | marketplace |
-| wshobson/agents | 멀티 에이전트 오케스트레이션 | npx |
-| claude-code-lsps | 20+ 언어 LSP | marketplace |
-| terraform-skill | IaC / DevOps | marketplace |
-| claude-code-templates | 프로젝트 부트스트랩 | npx |
-| laravel/agent-skills | PHP / Laravel | marketplace |
-| claude-on-rails | Ruby / Rails | marketplace |
-| apollographql/skills | GraphQL | marketplace |
-| spec-kit | 스펙 기반 (GitHub 공식) | marketplace |
-| claude-code-subagents | 100+ 서브에이전트 | marketplace |
-| awesome-claude-skills-security | 펜테스트 스킬 | marketplace |
-| *+ 2개* | *`slaminar catalog list`로 확인* | — |
+15개 카테고리에 걸쳐 46개 도구를 제공합니다. 토큰/성능, 계획, 프론트엔드, 테스트, 메모리, 보안, 품질, 팀 워크플로우, DevOps, 데이터베이스, 프레임워크별 스킬 등 — 전체 목록은 [동적 카탈로그](#카탈로그-도구-46개) 섹션 또는 `slaminar catalog list`로 확인할 수 있습니다.
 
 ### 안전한 파일 관리
 
@@ -154,7 +132,9 @@ scan → analyze → recommend → plan → generate → place → verify
   "excludeAuthTools": true,
   "fileCountCap": 10000,
   "approvedTools": [],
-  "catalogVersion": ""
+  "catalogVersion": "",
+  "catalogUrl": "",
+  "catalogMode": "replace"
 }
 ```
 
@@ -165,6 +145,8 @@ scan → analyze → recommend → plan → generate → place → verify
 | `fileCountCap` | 파일 트리 분석 시 최대 스캔 파일 수 |
 | `approvedTools` | 팀이 승인한 도구 이름 (빈 배열 = 모든 추천 허용) |
 | `catalogVersion` | 세팅 시점의 카탈로그 버전 (향후 버전 고정 기능용 예약) |
+| `catalogUrl` | 커스텀 카탈로그 URL (빈 문자열 = 공식 카탈로그). `slaminar catalog config --url`로 설정 |
+| `catalogMode` | `replace` (기본) 또는 `extend`. `slaminar catalog config --mode`로 설정 |
 
 `.slaminar/config.local.json` (개인용, gitignore):
 ```json
@@ -348,6 +330,7 @@ slaminar catalog check                     # 사용 중단 도구 감지 + 대�
 slaminar catalog info <name>               # 도구 상세 정보
 slaminar catalog status                    # 캐시 상태 (나이, 유효성, 소스)
 slaminar catalog rollback                  # 이전 카탈로그 버전 복원
+slaminar catalog config                    # 카탈로그 URL + 모드 영속 설정 보기/변경
 ```
 
 **사용 중단 감지:** 카탈로그의 도구에는 `deprecated: true` 플래그와 선택적으로 `deprecatedReason`(사유), `replacedBy`(대체 도구) 필드가 있을 수 있습니다. `slaminar catalog check`를 실행하면 추천된 도구 중 사용 중단된 것을 찾아 사유와 대체 도구를 안내합니다.
@@ -384,6 +367,7 @@ slaminar auth switch anthropic
 | `--json` | 머신 가독 JSON 출력 | check |
 | `--no-ai` | AI 개선 비활성화 | init |
 | `--catalog <url>` | 커스텀 카탈로그 URL 사용 | init, recommend, catalog update |
+| `--catalog-mode <mode>` | 카탈로그 모드: `extend` 또는 `replace` | init, recommend, catalog update |
 
 ### Claude Code 스킬
 
@@ -500,7 +484,7 @@ package.json scripts에서 자동 추출
 
 slaminar의 도구 카탈로그는 CLI 릴리즈와 독립적으로 진화하도록 설계되었습니다:
 
-- **온라인 카탈로그**: 24개 도구를 GitHub에서 가져옴 (이 저장소의 `catalog/catalog.json`), slaminar 업그레이드 없이 업데이트 가능
+- **온라인 카탈로그**: 46개 도구를 GitHub에서 가져옴 (이 저장소의 `catalog/catalog.json`), slaminar 업그레이드 없이 업데이트 가능
 - **로컬 캐시**: `~/.config/slaminar/catalog-cache.json`에 24시간 TTL로 캐시 (파일 권한 `0600`)
 - **Fallback 체인**: 유효 캐시 → 원격 fetch → 만료 캐시 → 번들 폴백 (오프라인에서도 항상 동작)
 - **ETag 지원**: 조건부 HTTP 요청 — 원격 카탈로그가 변경되지 않았으면 서버가 `304 Not Modified`로 응답하여 데이터 전송 없음
@@ -526,33 +510,27 @@ slaminar catalog update (또는 init/recommend)
   └─ 4. 번들 카탈로그 사용 (14개 도구, 항상 사용 가능)
 ```
 
-### 카탈로그 도구 (24개)
+### 카탈로그 도구 (46개)
 
-| 도구 | 기능 | 설치 방법 |
-|------|------|----------|
-| caveman | 토큰 65% 절약 | marketplace |
-| planning-with-files | 마크다운 기반 계획 수립 | npx |
-| impeccable | 프론트엔드 디자인 품질 | marketplace |
-| playwright-skill | 브라우저 자동 테스트 | marketplace |
-| get-shit-done | 스펙 기반 개발 | npx |
-| claude-mem | 세션 메모리 | npx |
-| graphify | 코드 → 지식 그래프 | pip |
-| cartographer | 코드베이스 매핑 | marketplace |
-| trailofbits/skills | 보안 리뷰 | marketplace |
-| everything-claude-code | 성능 최적화 | git-clone |
-| claude-hud | 실시간 모니터링 | marketplace |
-| homunculus | 패턴 학습 | marketplace |
-| wshobson/agents | 멀티 에이전트 오케스트레이션 | npx |
-| claude-code-lsps | 20+ 언어 LSP | marketplace |
-| terraform-skill | IaC / DevOps | marketplace |
-| claude-code-templates | 프로젝트 부트스트랩 | npx |
-| laravel/agent-skills | PHP / Laravel | marketplace |
-| claude-on-rails | Ruby / Rails | marketplace |
-| apollographql/skills | GraphQL | marketplace |
-| spec-kit | 스펙 기반 (GitHub 공식) | marketplace |
-| claude-code-subagents | 100+ 서브에이전트 | marketplace |
-| awesome-claude-skills-security | 펜테스트 스킬 | marketplace |
-| *+ 2개* | *`slaminar catalog list`로 확인* | — |
+| 카테고리 | 도구 |
+|----------|------|
+| **토큰/성능** | caveman, everything-claude-code, moyu |
+| **계획/스펙** | planning-with-files, get-shit-done, spec-kit |
+| **프론트엔드** | impeccable, senior-frontend |
+| **테스트/QA** | playwright-skill, tdd-guard, test-kitchen |
+| **메모리/컨텍스트** | claude-mem, reporecall, knowledge-graph |
+| **코드 분석** | graphify, cartographer |
+| **보안** | trailofbits/skills, awesome-claude-skills-security |
+| **품질 게이트** | vibeguard, review-squad, obey |
+| **팀/워크플로우** | oh-my-claudecode, vibe-kanban, ccpm |
+| **멀티 에이전트** | wshobson/agents, claude-code-subagents |
+| **DevOps/IaC** | terraform-skill, hashicorp/agent-skills, devops-claude-skills, container-use |
+| **데이터베이스** | supabase/agent-skills, pg-aiguide |
+| **프레임워크별** | laravel/agent-skills, claude-on-rails, apollographql/skills, developer-kit, rafaelkamimura/claude-tools, claude-elixir-phoenix |
+| **온보딩/유틸** | claude-code-templates, cc-safe-setup, preflight |
+| **모니터링/LSP** | claude-hud, claude-code-lsps, homunculus |
+
+전체 목록: `slaminar catalog list`
 
 ### 커스텀 카탈로그 작성
 
@@ -622,6 +600,71 @@ slaminar catalog update --catalog https://company.com/catalog.json
 ```
 
 `version`, `suggestions`, `relations`를 생략하면 기본값(빈 배열, 버전 "0.0.0")이 사용됩니다.
+
+### 카탈로그 설정 영속화
+
+매번 `--catalog <url>`을 붙이는 대신, 프로젝트 설정에 커스텀 카탈로그 URL과 모드를 저장할 수 있습니다:
+
+```bash
+# extend 모드로 커스텀 카탈로그 설정 (공식과 병합)
+slaminar catalog config --url https://company.com/catalog.json --mode extend
+
+# replace 모드로 커스텀 카탈로그 설정 (커스텀만 사용)
+slaminar catalog config --url https://company.com/catalog.json --mode replace
+
+# 현재 설정 확인
+slaminar catalog config
+
+# 설정 초기화 (공식 카탈로그로 복원)
+slaminar catalog config --clear
+```
+
+**extend vs. replace 모드:**
+
+| 모드 | 동작 |
+|------|------|
+| **extend** | 커스텀 도구가 공식 카탈로그와 **병합**됩니다. 동일 이름 도구가 있으면 커스텀 버전이 우선합니다. |
+| **replace** | 커스텀 카탈로그**만** 사용됩니다. 공식 카탈로그는 무시됩니다 (번들 카탈로그는 오프라인 폴백으로 유지). |
+
+**우선순위** (높은 순):
+
+| 소스 | 우선순위 |
+|------|:--------:|
+| CLI 플래그 (`--catalog`, `--catalog-mode`) | 1 (최고) |
+| 프로젝트 설정 (`.slaminar/config.json`) | 2 |
+| 기본값 (공식 카탈로그, replace 모드) | 3 |
+
+참고: `--catalog <url>`을 `--catalog-mode` 없이 사용하면 하위호환을 위해 replace 모드가 기본 적용됩니다.
+
+**팀 시나리오:**
+
+```bash
+# 기업: 공식 카탈로그에 사내 도구 추가
+slaminar catalog config --url https://tools.company.com/catalog.json --mode extend
+# → 팀원이 git pull 후 공식 + 사내 도구 모두 추천받음
+
+# 보안팀: 승인된 도구만 허용
+slaminar catalog config --url https://security.company.com/approved.json --mode replace
+# → 보안 승인 도구만 추천됨
+```
+
+**extend 모드 다이어그램:**
+
+```
+slaminar recommend (extend 모드)
+  │
+  ├─ 1. 공식 카탈로그 resolve (fallback 체인)
+  │     → 46개 공식 도구
+  │
+  ├─ 2. 커스텀 카탈로그 fetch
+  │     → N개 커스텀 도구
+  │     (fetch 실패 시 → 공식만 사용 + 경고)
+  │
+  └─ 3. 병합: 공식 + 커스텀
+        → 동일 이름: 커스텀 우선
+        → relations: 중복 제거 후 합산
+        → suggestions: 공식만 취급
+```
 
 ---
 
@@ -710,7 +753,7 @@ slaminar check --ci .
 
 ```
 src/
-├── cli.ts                        # CLI 진입점 (20 commands + global flags)
+├── cli.ts                        # CLI 진입점 (21 commands + global flags)
 ├── types/index.ts                # 모든 공유 타입
 │
 ├── core/                         # 파이프라인 코어
@@ -738,6 +781,7 @@ src/
 │   ├── catalog-cache.ts          # 로컬 캐시 (24h TTL + 롤백)
 │   ├── catalog-remote.ts         # 원격 fetch (ETag 조건부 요청)
 │   ├── catalog-diff.ts           # Diff 엔진 (추가/제거/사용중단/변경)
+│   ├── catalog-merger.ts         # 공식 + 커스텀 카탈로그 병합 (extend 모드)
 │   ├── scorer.ts                 # 다차원 스코어링 (태그, 성숙도, 범용성)
 │   ├── conflict-detector.ts      # 충돌/시너지 감지
 │   ├── recommender.ts            # 조정기 (필터 → 스코어 → 충돌 → 제한)
@@ -897,6 +941,10 @@ CLAUDE.md 유효성 검증, plugin.json 스키마 검증, 터미널 컬러 테�
 
 `--catalog <url>` 플래그를 `init`, `recommend`, `catalog update` 명령어에 추가. 기업/사설 카탈로그 호스팅 지원. CLI 버전 문자열 수정 및 카탈로그 해석기 테스트 안정화.
 
+### Phase 10: 카탈로그 설정 영속화 + 카탈로그 확장 (v0.4.0)
+
+`catalog config` 명령어로 커스텀 카탈로그 URL과 모드(extend/replace)를 프로젝트 설정에 영속 저장. extend 모드는 커스텀 도구를 공식 카탈로그와 병합하고, replace 모드는 커스텀만 사용. 온라인 카탈로그를 24개에서 46개로 확장 — DevOps, 팀 워크플로우, 품질 게이트, 데이터베이스, 테스트, 프론트엔드, 프레임워크별 도구 추가. 14개의 새 relation 규칙 추가.
+
 ### 품질 개선 (3차례 리뷰)
 
 **1차 리뷰 — 에러 처리:**
@@ -932,7 +980,7 @@ CLAUDE.md 유효성 검증, plugin.json 스키마 검증, 터미널 컬러 테�
 
 | 기능 | 설명 | 상태 |
 |------|------|------|
-| **멀티 소스 카탈로그** | 여러 카탈로그 소스(공식 + 회사 + 개인)를 우선순위 레이어로 병합 | 설계 완료 |
+| **멀티 소스 카탈로그** | 여러 카탈로그 소스(공식 + 회사 + 개인)를 우선순위 레이어로 병합 | MVP 구현 (`catalog config --mode extend`) |
 | **`catalog source` CLI** | `catalog source add/remove/list/test`로 카탈로그 소스 관리 | 계획 |
 | **개인 도구** | 로컬 config의 `personalTools` 필드로 사용자별 도구 추가 | 스텁 (타입만 존재) |
 | **`slaminar install`** | 추천 도구를 CLI에서 직접 설치 | 계획 |
@@ -948,10 +996,10 @@ CLAUDE.md 유효성 검증, plugin.json 스키마 검증, 터미널 컬러 테�
 | 항목 | 수치 |
 |------|------|
 | 소스 모듈 | 47개 |
-| 테스트 파일 | 41개 |
-| 테스트 케이스 | 204개 |
-| CLI 명령어 | 20개 |
-| 카탈로그 도구 | 24개 (온라인) + 14개 (번들 폴백) |
+| 테스트 파일 | 42개 |
+| 테스트 케이스 | 213개 |
+| CLI 명령어 | 21개 |
+| 카탈로그 도구 | 46개 (온라인) + 14개 (번들 폴백) |
 | AI 프로바이더 | 2개 (Cloudflare, Anthropic) |
 
 ---
@@ -995,7 +1043,7 @@ A. 최소 `Workers AI: Read` 하나만 있으면 동작합니다. 추가로 다�
 A. CI에서는 환경변수를 사용하세요. `CLOUDFLARE_API_TOKEN`과 `CLOUDFLARE_ACCOUNT_ID`를 GitHub Secret 등으로 저장하고 워크플로우에서 env로 전달하면 auth.json 없이도 동작합니다. 해결 우선순위는 환경변수 > auth.json입니다.
 
 ### Q. 사설 도구 카탈로그를 사용할 수 있나요?
-A. 네. `--catalog <url>` 플래그를 `init`, `recommend`, `catalog update`에서 사용하면 자체 서버나 사내 레지스트리에 호스팅한 카탈로그를 참조할 수 있습니다. 커스텀 카탈로그 형식은 아래 [커스텀 카탈로그 작성](#커스텀-카탈로그-작성) 섹션을 참고하세요.
+A. 네. 일회성으로는 `--catalog <url>` 플래그를 사용하고, 프로젝트에 영속 설정하려면 `slaminar catalog config --url <url> --mode extend` (공식과 병합) 또는 `--mode replace` (커스텀만 사용)를 실행하세요. 자세한 내용은 [카탈로그 설정 영속화](#카탈로그-설정-영속화)를 참고하세요.
 
 ---
 

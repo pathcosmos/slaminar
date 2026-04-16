@@ -15,7 +15,7 @@ import { generateReport, saveReport } from '../reporter/markdown.js';
 import { ensureGitignore, saveTeamConfig, loadTeamConfig } from '../team/config.js';
 import { detectAiProvider, enhanceWithAI } from '../generator/ai-provider.js';
 import type { AiProviderStatus } from '../generator/ai-provider.js';
-import type { ProjectSnapshot, ProjectProfile, AiContextSummary, GenerationPlan, RecommendationPlan, ValidationResult, BackupRecord } from '../types/index.js';
+import type { ProjectSnapshot, ProjectProfile, AiContextSummary, GenerationPlan, RecommendationPlan, ValidationResult, BackupRecord, CatalogMode } from '../types/index.js';
 
 function extractDescription(snapshot: ProjectSnapshot): string {
   for (const pkg of snapshot.packages) {
@@ -76,12 +76,14 @@ export interface InitOptions {
   useAi?: boolean;
   /** Custom catalog URL */
   catalogUrl?: string;
+  /** Catalog mode: 'extend' merges with official, 'replace' uses custom only */
+  catalogMode?: CatalogMode;
 }
 
 export async function init(targetPath: string, options: InitOptions = {}): Promise<InitResult> {
   const useAi = options.useAi ?? true;
   const { snapshot, profile } = analyze(targetPath);
-  const recommendation = await recommend(profile, { catalogUrl: options.catalogUrl });
+  const recommendation = await recommend(profile, { catalogUrl: options.catalogUrl, catalogMode: options.catalogMode, projectRoot: targetPath });
   const plan = buildPlan(profile, snapshot, recommendation);
   const aiProvider = detectAiProvider();
 

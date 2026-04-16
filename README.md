@@ -23,6 +23,7 @@ Run `slaminar init` on any codebase and it will automatically analyze your proje
 - [Generated Output](#generated-output)
 - [Dynamic Catalog](#dynamic-catalog)
   - [Creating a Custom Catalog](#creating-a-custom-catalog)
+  - [Persistent Catalog Configuration](#persistent-catalog-configuration)
 - [Verification](#verification)
 - [Error Handling & Safety](#error-handling--safety)
 - [Tech Stack](#tech-stack)
@@ -93,7 +94,7 @@ scan → analyze → recommend → plan → generate → place → verify
 
 ### Smart Tool Recommendations
 
-The tool catalog contains 24 Claude Code ecosystem tools (with an online catalog that can be updated independently of releases). slaminar automatically selects the right ones for your project.
+The tool catalog contains 46 Claude Code ecosystem tools (with an online catalog that can be updated independently of releases). slaminar automatically selects the right ones for your project.
 
 **How it works:**
 - Multi-dimensional scoring (language/framework match, maturity fit, tag overlap)
@@ -127,7 +128,9 @@ The tool catalog contains 24 Claude Code ecosystem tools (with an online catalog
   "excludeAuthTools": true,
   "fileCountCap": 10000,
   "approvedTools": [],
-  "catalogVersion": ""
+  "catalogVersion": "",
+  "catalogUrl": "",
+  "catalogMode": "replace"
 }
 ```
 
@@ -138,6 +141,8 @@ The tool catalog contains 24 Claude Code ecosystem tools (with an online catalog
 | `fileCountCap` | Max files scanned in file-tree analysis |
 | `approvedTools` | Team-approved tool names (empty = accept all recommendations) |
 | `catalogVersion` | Catalog version used at setup time (reserved for future version-pinning) |
+| `catalogUrl` | Custom catalog URL (empty = official catalog). Set via `slaminar catalog config --url` |
+| `catalogMode` | `replace` (default) or `extend`. Set via `slaminar catalog config --mode` |
 
 `.slaminar/config.local.json` (personal, gitignored):
 ```json
@@ -271,6 +276,7 @@ slaminar catalog check                     # Detect deprecated tools + show repl
 slaminar catalog info <name>               # Detailed tool info
 slaminar catalog status                    # Cache status (age, validity, source)
 slaminar catalog rollback                  # Restore previous catalog version
+slaminar catalog config                    # View/set persistent catalog URL + mode
 ```
 
 **Deprecation detection:** Tools in the catalog can be marked `deprecated: true` with an optional `deprecatedReason` and `replacedBy` field. Running `slaminar catalog check` scans your recommended tools against the catalog and warns about deprecated ones, showing the reason and suggested replacement.
@@ -294,6 +300,7 @@ Claude: Analyzing project... (slaminar init --dry-run)
 | `--json` | Machine-readable JSON output | check |
 | `--no-ai` | Skip AI enhancement | init |
 | `--catalog <url>` | Use a custom catalog URL | init, recommend, catalog update |
+| `--catalog-mode <mode>` | Catalog mode: `extend` or `replace` | init, recommend, catalog update |
 
 ---
 
@@ -400,7 +407,7 @@ These can be included in PRs for team review.
 
 slaminar's tool catalog is designed to evolve independently of CLI releases:
 
-- **Online catalog**: 24 tools fetched from GitHub (`catalog/catalog.json` in this repo), updated without upgrading slaminar
+- **Online catalog**: 46 tools fetched from GitHub (`catalog/catalog.json` in this repo), updated without upgrading slaminar
 - **Local cache**: `~/.config/slaminar/catalog-cache.json` with 24-hour TTL and file permission `0600`
 - **Fallback chain**: valid cache → remote fetch → stale cache → bundled fallback (always works offline)
 - **ETag support**: conditional HTTP requests — if the remote catalog hasn't changed, the server responds `304 Not Modified` and no data is transferred
@@ -426,33 +433,27 @@ slaminar catalog update (or init/recommend)
   └─ 4. Use bundled catalog (14 tools, always available)
 ```
 
-### Catalog Tools (24)
+### Catalog Tools (46)
 
-| Tool | Purpose | Install |
-|------|---------|---------|
-| caveman | 65% token savings | marketplace |
-| planning-with-files | Markdown-based planning | npx |
-| impeccable | Frontend design quality | marketplace |
-| playwright-skill | Browser automation testing | marketplace |
-| get-shit-done | Spec-driven development | npx |
-| claude-mem | Session memory | npx |
-| graphify | Code → knowledge graph | pip |
-| cartographer | Codebase mapping | marketplace |
-| trailofbits/skills | Security review | marketplace |
-| everything-claude-code | Performance optimization | git-clone |
-| claude-hud | Real-time monitoring | marketplace |
-| homunculus | Pattern learning | marketplace |
-| wshobson/agents | Multi-agent orchestration | npx |
-| claude-code-lsps | 20+ language LSPs | marketplace |
-| terraform-skill | IaC / DevOps | marketplace |
-| claude-code-templates | Project bootstrap | npx |
-| laravel/agent-skills | PHP / Laravel | marketplace |
-| claude-on-rails | Ruby / Rails | marketplace |
-| apollographql/skills | GraphQL | marketplace |
-| spec-kit | Spec-driven (GitHub official) | marketplace |
-| claude-code-subagents | 100+ subagents | marketplace |
-| awesome-claude-skills-security | Pentest skills | marketplace |
-| *+ 2 more* | *See `slaminar catalog list`* | — |
+| Category | Tools |
+|----------|-------|
+| **Token/Performance** | caveman, everything-claude-code, moyu |
+| **Planning/Spec** | planning-with-files, get-shit-done, spec-kit |
+| **Frontend** | impeccable, senior-frontend |
+| **Testing/QA** | playwright-skill, tdd-guard, test-kitchen |
+| **Memory/Context** | claude-mem, reporecall, knowledge-graph |
+| **Code Analysis** | graphify, cartographer |
+| **Security** | trailofbits/skills, awesome-claude-skills-security |
+| **Quality Gate** | vibeguard, review-squad, obey |
+| **Team/Workflow** | oh-my-claudecode, vibe-kanban, ccpm |
+| **Multi-Agent** | wshobson/agents, claude-code-subagents |
+| **DevOps/IaC** | terraform-skill, hashicorp/agent-skills, devops-claude-skills, container-use |
+| **Database** | supabase/agent-skills, pg-aiguide |
+| **Framework** | laravel/agent-skills, claude-on-rails, apollographql/skills, developer-kit, rafaelkamimura/claude-tools, claude-elixir-phoenix |
+| **Onboarding/Utility** | claude-code-templates, cc-safe-setup, preflight |
+| **Monitoring/LSP** | claude-hud, claude-code-lsps, homunculus |
+
+Full list: `slaminar catalog list`
 
 ### Creating a Custom Catalog
 
@@ -524,6 +525,71 @@ slaminar catalog update --catalog https://company.com/catalog.json
 ```
 
 When `version`, `suggestions`, or `relations` are omitted, slaminar uses sensible defaults (empty arrays, version "0.0.0").
+
+### Persistent Catalog Configuration
+
+Instead of passing `--catalog <url>` every time, you can save the custom catalog URL and mode in your project config:
+
+```bash
+# Set custom catalog in extend mode (merge with official)
+slaminar catalog config --url https://company.com/catalog.json --mode extend
+
+# Set custom catalog in replace mode (custom only)
+slaminar catalog config --url https://company.com/catalog.json --mode replace
+
+# View current configuration
+slaminar catalog config
+
+# Clear configuration (revert to official catalog)
+slaminar catalog config --clear
+```
+
+**Extend vs. Replace modes:**
+
+| Mode | Behavior |
+|------|----------|
+| **extend** | Custom tools are **merged** with the official catalog. If both catalogs have a tool with the same name, the custom version wins. |
+| **replace** | **Only** the custom catalog is used. The official catalog is ignored (bundled catalog remains as offline fallback). |
+
+**Precedence** (highest to lowest):
+
+| Source | Priority |
+|--------|:--------:|
+| CLI flags (`--catalog`, `--catalog-mode`) | 1 (highest) |
+| Project config (`.slaminar/config.json`) | 2 |
+| Default (official catalog, replace mode) | 3 |
+
+Note: `--catalog <url>` without `--catalog-mode` defaults to replace mode for backward compatibility.
+
+**Team scenarios:**
+
+```bash
+# Enterprise: extend official catalog with company tools
+slaminar catalog config --url https://tools.company.com/catalog.json --mode extend
+# → Team members get official + company tools after git pull
+
+# Security team: only allow approved tools
+slaminar catalog config --url https://security.company.com/approved.json --mode replace
+# → Only security-approved tools are recommended
+```
+
+**Extend mode diagram:**
+
+```
+slaminar recommend (with extend mode)
+  │
+  ├─ 1. Resolve official catalog (fallback chain)
+  │     → 46 official tools
+  │
+  ├─ 2. Fetch custom catalog
+  │     → N custom tools
+  │     (if fetch fails → use official only + warning)
+  │
+  └─ 3. Merge: official + custom
+        → Same-name tools: custom wins
+        → Relations: deduplicated union
+        → Suggestions: official only
+```
 
 ---
 
@@ -604,7 +670,7 @@ slaminar check --ci .
 
 ```
 src/
-├── cli.ts                        # CLI entry point (20 commands + global flags)
+├── cli.ts                        # CLI entry point (21 commands + global flags)
 ├── types/index.ts                # All shared types
 │
 ├── core/                         # Pipeline core
@@ -632,6 +698,7 @@ src/
 │   ├── catalog-cache.ts          # Local cache with 24h TTL + rollback
 │   ├── catalog-remote.ts         # Remote fetch with ETag conditional requests
 │   ├── catalog-diff.ts           # Diff engine (added/removed/deprecated/updated)
+│   ├── catalog-merger.ts         # Merge official + custom catalogs (extend mode)
 │   ├── scorer.ts                 # Multi-dimensional scoring (tags, maturity, versatility)
 │   ├── conflict-detector.ts      # Conflict / synergy detection
 │   ├── recommender.ts            # Coordinator (filter → score → conflicts → limit)
@@ -741,6 +808,10 @@ Decoupled the tool catalog from the release cycle. Online catalog (24 tools) wit
 
 Added `--catalog <url>` flag to `init`, `recommend`, and `catalog update` commands, enabling enterprise and private catalog hosting. Fixed CLI version mismatch and stabilized catalog resolver tests with deterministic failure URLs.
 
+### Phase 10: Persistent Catalog Config + Catalog Expansion (v0.4.0)
+
+Added `catalog config` command for persisting custom catalog URL and mode (extend/replace) in project settings. Extend mode merges custom tools with official catalog; replace mode uses custom only. Expanded online catalog from 24 to 46 tools covering DevOps, team workflow, quality gates, databases, testing, frontend, and framework-specific domains. Added 14 new relation rules for synergy/overlap detection.
+
 ### Quality Passes
 
 Three rounds of review covering error handling, code quality, and remaining issues — including `--dry-run`/`--verbose` flags, pipeline and planner tests, prerequisite checker, runtime detector, installer, and Claude Code skill definition.
@@ -753,7 +824,7 @@ Features under consideration for future releases:
 
 | Feature | Description | Status |
 |---------|-------------|--------|
-| **Multi-source catalogs** | Merge multiple catalog sources (official + company + personal) with priority layers | Design complete |
+| **Multi-source catalogs** | Merge multiple catalog sources (official + company + personal) with priority layers | MVP shipped (`catalog config --mode extend`) |
 | **`catalog source` CLI** | `catalog source add/remove/list/test` for managing catalog sources | Planned |
 | **Personal tools** | `personalTools` field in local config for user-specific tool additions | Stub (type exists) |
 | **`slaminar install`** | CLI command to install recommended tools directly | Planned |
@@ -769,10 +840,10 @@ See [`docs/superpowers/specs/2026-04-16-custom-catalog-plan.md`](./docs/superpow
 | Metric | Value |
 |--------|-------|
 | Source modules | 47 |
-| Test files | 41 |
-| Test cases | 204 |
-| CLI commands | 20 |
-| Catalog tools | 24 (online) + 14 (bundled fallback) |
+| Test files | 42 |
+| Test cases | 213 |
+| CLI commands | 21 |
+| Catalog tools | 46 (online) + 14 (bundled fallback) |
 | AI providers | 2 (Cloudflare Workers AI, Anthropic Claude) |
 
 ---
@@ -828,7 +899,7 @@ Set environment variables: `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` (o
 
 ### Can I use a private tool catalog?
 
-Yes. Use the `--catalog <url>` flag with `init`, `recommend`, or `catalog update` to point to your own catalog hosted on a private server or internal registry.
+Yes. For one-off use, pass `--catalog <url>` with `init`, `recommend`, or `catalog update`. To persist the setting for your project, run `slaminar catalog config --url <url> --mode extend` (merge with official) or `--mode replace` (custom only). See [Persistent Catalog Configuration](#persistent-catalog-configuration) for details.
 
 ---
 

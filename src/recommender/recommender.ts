@@ -2,7 +2,7 @@ import { getCatalog } from './catalog.js';
 import { resolveCatalog } from './catalog-resolver.js';
 import { scoreTool } from './scorer.js';
 import { detectConflicts } from './conflict-detector.js';
-import type { ProjectProfile, RecommendationPlan, ScoredTool, CatalogTool } from '../types/index.js';
+import type { ProjectProfile, RecommendationPlan, ScoredTool, CatalogTool, CatalogMode } from '../types/index.js';
 
 const MATURITY_LIMITS: Record<string, number> = {
   greenfield: 2,
@@ -11,8 +11,8 @@ const MATURITY_LIMITS: Record<string, number> = {
   mature: 7,
 };
 
-export async function recommend(profile: ProjectProfile, options?: { catalogUrl?: string }): Promise<RecommendationPlan> {
-  const resolved = await resolveCatalog({ silent: true, catalogUrl: options?.catalogUrl });
+export async function recommend(profile: ProjectProfile, options?: { catalogUrl?: string; catalogMode?: CatalogMode; projectRoot?: string }): Promise<RecommendationPlan> {
+  const resolved = await resolveCatalog({ silent: true, catalogUrl: options?.catalogUrl, catalogMode: options?.catalogMode, projectRoot: options?.projectRoot });
   const catalog = resolved.tools;
   const excluded: { tool: CatalogTool; reason: string }[] = [];
 

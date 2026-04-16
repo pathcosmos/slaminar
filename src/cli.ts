@@ -15,6 +15,8 @@ import { loadAuthConfig, clearAuthConfig, getAuthFilePath } from './auth/config.
 import { runCloudflareDiagnostics, runAnthropicDiagnostics } from './auth/diagnostics.js';
 import { detectAiProvider } from './generator/ai-provider.js';
 import { resolveCatalog } from './recommender/catalog-resolver.js';
+import { loadTeamConfig, saveTeamConfig } from './team/config.js';
+import type { CatalogMode } from './types/index.js';
 import { loadCache, backupCache, rollbackCache, isCacheValid } from './recommender/catalog-cache.js';
 import { diffCatalogs, formatDiff } from './recommender/catalog-diff.js';
 import Table from 'cli-table3';
@@ -24,7 +26,7 @@ const program = new Command();
 program
   .name('slaminar')
   .description('Claude Code 전용 프로젝트 분석 및 지능형 세팅 도구')
-  .version('0.3.0')
+  .version('0.4.0')
   .option('-v, --verbose', 'Show detailed output');
 
 program
@@ -33,7 +35,8 @@ program
   .option('--dry-run', 'Preview changes without writing')
   .option('--no-ai', 'Disable AI enhancement (use local rules only)')
   .option('--catalog <url>', 'Use custom catalog URL')
-  .action(async (path: string | undefined, options: { dryRun?: boolean; ai?: boolean; catalog?: string }) => {
+  .option('--catalog-mode <mode>', 'Catalog mode: extend or replace')
+  .action(async (path: string | undefined, options: { dryRun?: boolean; ai?: boolean; catalog?: string; catalogMode?: string }) => {
     try {
       const verbose = program.opts().verbose || false;
       const timer = new PhaseTimer(verbose);
@@ -62,7 +65,7 @@ program
       }
 
       timer.start('Initializing');
-      const result = await init(targetPath, { dryRun: options.dryRun, useAi: options.ai, catalogUrl: options.catalog });
+      const result = await init(targetPath, { dryRun: options.dryRun, useAi: options.ai, catalogUrl: options.catalog, catalogMode: options.catalogMode as CatalogMode | undefined });
       timer.end(`${result.writtenFiles.length} files written (${result.aiProvider.provider})`);
 
       if (result.aiProvider.available && options.ai !== false) {
@@ -162,7 +165,8 @@ program
   .command('recommend [path]')
   .description('Analyze project and recommend Claude Code tools')
   .option('--catalog <url>', 'Use custom catalog URL')
-  .action(async (path: string | undefined, options: { catalog?: string }) => {
+  .option('--catalog-mode <mode>', 'Catalog mode: extend or replace')
+  .action(async (path: string | undefined, options: { catalog?: string; catalogMode?: string }) => {
     try {
       const verbose = program.opts().verbose || false;
       const timer = new PhaseTimer(verbose);
@@ -175,7 +179,7 @@ program
       timer.end();
 
       timer.start('Recommending');
-      const plan = await recommend(profile, { catalogUrl: options.catalog });
+      const plan = await recommend(profile, { catalogUrl: options.catalog, catalogMode: options.catalogMode as CatalogMode | undefined, projectRoot: targetPath });
       timer.end(`${plan.recommended.length} tools recommended`);
 
       console.log(JSON.stringify(plan, null, 2));
@@ -541,7 +545,8 @@ const catalogCmd = program.command('catalog').description('Manage tool catalog')
 catalogCmd.command('update')
   .description('Fetch latest catalog from remote')
   .option('--catalog <url>', 'Use custom catalog URL')
-  .action(async (options: { catalog?: string }) => {
+  .option('--catalog-mode <mode>', 'Catalog mode: extend or replace')
+  .action(async (options: { catalog?: string; catalogMode?: string }) => {
     try {
       const oldCache = loadCache();
       const oldTools = oldCache?.catalog.tools ?? [];
@@ -550,7 +555,7 @@ catalogCmd.command('update')
       if (oldCache) backupCache();
 
       console.log('\nFetching latest catalog...');
-      const resolved = await resolveCatalog({ forceRefresh: true, catalogUrl: options.catalog });
+      const resolved = await resolveCatalog({ forceRefresh: true, catalogUrl: options.catalog, catalogMode: options.catalogMode as CatalogMode | undefined, projectRoot: process.cwd() });
 
       if (resolved.source === 'bundled') {
         console.log(chalk.yellow('\n⚠ Remote fetch failed. Using bundled catalog.\n'));
@@ -708,6 +713,54 @@ catalogCmd.command('rollback')
       } else {
         console.log(chalk.yellow('\nNo previous catalog version to restore.\n'));
       }
+    } catch (err) {
+      console.error(`\nError: ${err instanceof Error ? err.message : String(err)}\n`);
+      process.exitCode = 1;
+    }
+  });
+
+catalogCmd.command('config')
+  .description('View or set persistent catalog configuration')
+  .option('--url <url>', 'Set custom catalog URL')
+  .option('--mode <mode>', 'Set catalog mode: extend or replace')
+  .option('--clear', 'Clear custom catalog configuration')
+  .action(async (options: { url?: string; mode?: string; clear?: boolean }) => {
+    try {
+      const root = process.cwd();
+      const config = loadTeamConfig(root);
+
+      if (options.clear) {
+        config.catalogUrl = '';
+        config.catalogMode = 'replace';
+        saveTeamConfig(root, config);
+        console.log(chalk.green('\n✓ Catalog configuration cleared.\n'));
+        return;
+      }
+
+      if (options.url || options.mode) {
+        if (options.url) config.catalogUrl = options.url;
+        if (options.mode) {
+          if (options.mode !== 'extend' && options.mode !== 'replace') {
+            console.error(`\nError: --mode must be "extend" or "replace" (got "${options.mode}")\n`);
+            process.exitCode = 1;
+            return;
+          }
+          config.catalogMode = options.mode as CatalogMode;
+        }
+        saveTeamConfig(root, config);
+        console.log(chalk.green('\n✓ Catalog configuration saved.\n'));
+      }
+
+      // Display current config
+      console.log(`\n${chalk.bold('Catalog Configuration')} (.slaminar/config.json)`);
+      console.log(`  URL:  ${config.catalogUrl || chalk.dim('(default — official catalog)')}`);
+      console.log(`  Mode: ${config.catalogMode}`);
+      if (config.catalogMode === 'extend') {
+        console.log(`        ${chalk.dim('Custom tools merged with official catalog')}`);
+      } else if (config.catalogUrl) {
+        console.log(`        ${chalk.dim('Custom catalog replaces official catalog')}`);
+      }
+      console.log('');
     } catch (err) {
       console.error(`\nError: ${err instanceof Error ? err.message : String(err)}\n`);
       process.exitCode = 1;

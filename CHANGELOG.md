@@ -5,6 +5,60 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] — 2026-04-16
+
+### Added — Persistent Catalog Config + Catalog Expansion (24 → 46 tools)
+
+**Persistent Catalog Configuration (extend/replace modes):**
+- `CatalogMode` type (`'extend' | 'replace'`) and `catalogUrl`, `catalogMode` fields in `TeamConfig`
+- `slaminar catalog config` CLI subcommand — view/set/clear persistent catalog URL and mode
+- `--catalog-mode <extend|replace>` flag on `init`, `recommend`, `catalog update`
+- **Extend mode**: merges custom catalog tools with official catalog (custom wins on name collision)
+- **Replace mode**: uses only custom catalog (backward-compatible with existing `--catalog` flag)
+- `mergeCatalogs()` function (`catalog-merger.ts`) — tool dedup by name, relation dedup by sorted pair
+- Config precedence: CLI flag > `.slaminar/config.json` > default
+- Graceful degradation: custom fetch failure in extend mode falls back to official-only
+
+**Catalog Expansion (24 → 46 tools, catalog v2.0.0):**
+- DevOps/IaC (+3): hashicorp/agent-skills, devops-claude-skills, container-use
+- Team/Workflow (+3): oh-my-claudecode, vibe-kanban, ccpm
+- Quality/Code Review (+3): vibeguard, review-squad, obey
+- Database (+2): supabase/agent-skills, pg-aiguide
+- Memory/Codebase (+2): reporecall, knowledge-graph
+- Testing/TDD (+2): tdd-guard, test-kitchen
+- Frontend (+1): senior-frontend
+- Framework-specific (+3): developer-kit (Java/Spring), rafaelkamimura/claude-tools (Python/FastAPI), claude-elixir-phoenix
+- Onboarding/Utility (+3): cc-safe-setup, preflight, moyu
+- 3 evaluating suggestions promoted to full tools (supabase, rafaelkamimura, bmad-plugin → replaced by oh-my-claudecode)
+- Relations expanded: 6 → 20 (14 new synergy/overlap rules for new tools)
+
+**Documentation:**
+- README.md/README.ko.md: Persistent Catalog Configuration section with extend/replace explanation, diagrams, team scenarios
+- Both READMEs: catalog config command in catalog management section, --catalog-mode in flags table
+- Config schema documentation updated with `catalogUrl`, `catalogMode` fields
+- FAQ updated for persistent catalog configuration
+- Roadmap: multi-source catalogs marked as "MVP shipped"
+- Architecture: `catalog-merger.ts` added to module listings
+- CLAUDE.md: recommender module count 5 → 10
+- Design spec status updated to reflect v0.3.0 MVP delivery
+
+### Changed
+
+- `ResolvedCatalog.source` union now includes `'merged'` for extend-mode results
+- `resolveCatalog()` accepts `catalogMode` and `projectRoot` options
+- `recommend()` accepts `catalogMode` and `projectRoot` options
+- `InitOptions` includes `catalogMode` field
+- Online catalog version bumped to 2.0.0 (46 tools)
+
+### Stats
+
+- 47 source modules, 42 test files, 213 tests passing
+- 21 CLI commands (catalog config added)
+- 46 tools in online catalog, 14 in bundled fallback
+- 20 relation rules (synergy/overlap/conflict)
+
+[0.4.0]: https://github.com/pathcosmos/slaminar/compare/v0.3.0...v0.4.0
+
 ## [0.1.0] — 2026-04-16
 
 ### Added — Initial Release

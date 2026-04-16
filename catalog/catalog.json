@@ -1,7 +1,7 @@
 {
-  "version": "1.0.0",
-  "minSlaminarVersion": "0.1.0",
-  "updatedAt": "2026-04-16T00:00:00Z",
+  "version": "2.0.0",
+  "minSlaminarVersion": "0.3.0",
+  "updatedAt": "2026-04-16T12:00:00Z",
   "tools": [
     {
       "name": "caveman",
@@ -314,37 +314,296 @@
       "prerequisites": [],
       "tags": ["security", "pentest"],
       "maturityFit": ["growing", "mature"]
-    }
-  ],
-  "suggestions": [
+    },
+
+    {
+      "name": "hashicorp/agent-skills",
+      "repo": "hashicorp/agent-skills",
+      "category": "skill",
+      "description": "Official HashiCorp Terraform/Packer skills for IaC style, testing, stacks, and cloud provisioning.",
+      "authRequired": false,
+      "networkRequired": "none",
+      "installMethod": "marketplace",
+      "installCommands": ["/install-plugin hashicorp/agent-skills"],
+      "prerequisites": [],
+      "tags": ["devops", "terraform", "iac", "packer", "cloud"],
+      "maturityFit": ["growing", "mature"]
+    },
+    {
+      "name": "devops-claude-skills",
+      "repo": "ahmedasmar/devops-claude-skills",
+      "category": "skill",
+      "description": "DevOps skill set: K8s troubleshooting, CI/CD optimization, GitOps, monitoring, AWS cost optimization.",
+      "authRequired": false,
+      "networkRequired": "none",
+      "installMethod": "git-clone",
+      "installCommands": ["git clone https://github.com/ahmedasmar/devops-claude-skills.git"],
+      "prerequisites": [],
+      "tags": ["devops", "kubernetes", "ci-cd", "monitoring", "aws"],
+      "maturityFit": ["growing", "mature"]
+    },
+    {
+      "name": "container-use",
+      "repo": "dagger/container-use",
+      "category": "plugin",
+      "description": "Sandboxed development environments for coding agents, isolated container execution.",
+      "authRequired": false,
+      "networkRequired": "none",
+      "installMethod": "git-clone",
+      "installCommands": ["git clone https://github.com/dagger/container-use.git"],
+      "prerequisites": ["docker"],
+      "tags": ["devops", "sandbox", "container", "isolation"],
+      "maturityFit": ["growing", "mature"]
+    },
+    {
+      "name": "oh-my-claudecode",
+      "repo": "Yeachan-Heo/oh-my-claudecode",
+      "category": "agent",
+      "description": "Teams-first orchestration with 19 agents, 28 skills, Socratic questioning, and N-agent coordination.",
+      "authRequired": false,
+      "networkRequired": "none",
+      "installMethod": "git-clone",
+      "installCommands": ["git clone https://github.com/Yeachan-Heo/oh-my-claudecode.git"],
+      "prerequisites": [],
+      "tags": ["team", "orchestration", "multi-agent", "workflow"],
+      "maturityFit": ["growing", "mature"]
+    },
+    {
+      "name": "vibe-kanban",
+      "repo": "BloopAI/vibe-kanban",
+      "category": "agent",
+      "description": "Kanban board for 10+ coding agents with isolated git worktrees for parallel multi-agent work.",
+      "authRequired": false,
+      "networkRequired": "none",
+      "installMethod": "git-clone",
+      "installCommands": ["git clone https://github.com/BloopAI/vibe-kanban.git"],
+      "prerequisites": [],
+      "tags": ["team", "kanban", "multi-agent", "parallel", "workflow"],
+      "maturityFit": ["growing", "mature"]
+    },
+    {
+      "name": "ccpm",
+      "repo": "automazeio/ccpm",
+      "category": "agent",
+      "description": "Project management via GitHub Issues and git worktrees for organized parallel development.",
+      "authRequired": false,
+      "networkRequired": "none",
+      "installMethod": "git-clone",
+      "installCommands": ["git clone https://github.com/automazeio/ccpm.git"],
+      "prerequisites": ["git"],
+      "tags": ["project-management", "github", "workflow", "team"],
+      "maturityFit": ["growing", "mature"]
+    },
+    {
+      "name": "vibeguard",
+      "repo": "majiayu000/vibeguard",
+      "category": "hook",
+      "description": "Quality gate with 88 rules, 13 hooks, 14 agents for real-time AI hallucination interception.",
+      "authRequired": false,
+      "networkRequired": "none",
+      "installMethod": "git-clone",
+      "installCommands": ["git clone https://github.com/majiayu000/vibeguard.git"],
+      "prerequisites": [],
+      "tags": ["quality", "validation", "hooks", "universal"],
+      "maturityFit": ["early", "growing", "mature"]
+    },
+    {
+      "name": "review-squad",
+      "repo": "2389-research/review-squad",
+      "category": "agent",
+      "description": "Multi-perspective code review with subagent panels: experts, generalists, and detail-focused reviewers.",
+      "authRequired": false,
+      "networkRequired": "none",
+      "installMethod": "git-clone",
+      "installCommands": ["git clone https://github.com/2389-research/review-squad.git"],
+      "prerequisites": [],
+      "tags": ["code-review", "quality", "team", "universal"],
+      "maturityFit": ["growing", "mature"]
+    },
+    {
+      "name": "obey",
+      "repo": "Lexxes-Projects/obey",
+      "category": "hook",
+      "description": "Rule enforcement with 17 lifecycle hooks and 3 scopes for automatic coding standards compliance.",
+      "authRequired": false,
+      "networkRequired": "none",
+      "installMethod": "marketplace",
+      "installCommands": ["/install-plugin obey"],
+      "prerequisites": [],
+      "tags": ["rules", "hooks", "standards", "team", "universal"],
+      "maturityFit": ["early", "growing", "mature"]
+    },
     {
       "name": "supabase/agent-skills",
       "repo": "supabase/agent-skills",
-      "description": "Supabase official agent skills",
-      "reason": "DB project 지원",
-      "addedAt": "2026-04-16",
-      "matchTags": ["supabase", "database"],
-      "status": "evaluating"
+      "category": "skill",
+      "description": "Official Supabase skills for PostgreSQL database, Auth, Storage, and real-time features.",
+      "authRequired": false,
+      "networkRequired": "partial",
+      "installMethod": "git-clone",
+      "installCommands": ["git clone https://github.com/supabase/agent-skills.git"],
+      "prerequisites": [],
+      "tags": ["database", "supabase", "postgresql", "backend", "auth"],
+      "maturityFit": ["growing", "mature"]
     },
     {
-      "name": "bmad-plugin",
-      "repo": "PabloLION/bmad-plugin",
-      "description": "BMAD Method plugin",
-      "reason": "팀 워크플로우 강화",
-      "addedAt": "2026-04-16",
-      "matchTags": ["workflow", "team"],
-      "status": "evaluating"
+      "name": "pg-aiguide",
+      "repo": "timescale/pg-aiguide",
+      "category": "skill",
+      "description": "PostgreSQL MCP server by Timescale for database query, analysis, and optimization.",
+      "authRequired": false,
+      "networkRequired": "none",
+      "installMethod": "git-clone",
+      "installCommands": ["git clone https://github.com/timescale/pg-aiguide.git"],
+      "prerequisites": ["postgresql"],
+      "tags": ["database", "postgresql", "sql", "backend"],
+      "maturityFit": ["growing", "mature"]
+    },
+    {
+      "name": "reporecall",
+      "repo": "proofofwork-agency/reporecall",
+      "category": "agent",
+      "description": "Local codebase memory with tree-sitter AST (22 languages), hybrid keyword+vector search, and call-graph.",
+      "authRequired": false,
+      "networkRequired": "none",
+      "installMethod": "git-clone",
+      "installCommands": ["git clone https://github.com/proofofwork-agency/reporecall.git"],
+      "prerequisites": [],
+      "tags": ["memory", "large-codebase", "search", "analysis"],
+      "maturityFit": ["growing", "mature"]
+    },
+    {
+      "name": "knowledge-graph",
+      "repo": "hilyfux/knowledge-graph",
+      "category": "plugin",
+      "description": "Zero-dependency git-native memory layer, pure bash, ~3ms per event for lightweight context persistence.",
+      "authRequired": false,
+      "networkRequired": "none",
+      "installMethod": "git-clone",
+      "installCommands": ["git clone https://github.com/hilyfux/knowledge-graph.git"],
+      "prerequisites": ["git"],
+      "tags": ["memory", "lightweight", "context", "universal"],
+      "maturityFit": ["greenfield", "early", "growing", "mature"]
+    },
+    {
+      "name": "tdd-guard",
+      "repo": "nizos/tdd-guard",
+      "category": "hook",
+      "description": "Blocks TDD-violating file changes via hooks, enforcing test-first development workflow.",
+      "authRequired": false,
+      "networkRequired": "none",
+      "installMethod": "git-clone",
+      "installCommands": ["git clone https://github.com/nizos/tdd-guard.git"],
+      "prerequisites": [],
+      "tags": ["testing", "tdd", "hooks", "quality", "universal"],
+      "maturityFit": ["early", "growing", "mature"]
+    },
+    {
+      "name": "test-kitchen",
+      "repo": "2389-research/test-kitchen",
+      "category": "agent",
+      "description": "Parallel implementation exploration with competing subagents and automated comparison.",
+      "authRequired": false,
+      "networkRequired": "none",
+      "installMethod": "git-clone",
+      "installCommands": ["git clone https://github.com/2389-research/test-kitchen.git"],
+      "prerequisites": [],
+      "tags": ["testing", "exploration", "architecture", "universal"],
+      "maturityFit": ["growing", "mature"]
+    },
+    {
+      "name": "senior-frontend",
+      "repo": "senior-frontend/skills",
+      "category": "skill",
+      "description": "React/Next.js/TypeScript patterns, bundle analysis, and accessibility best practices for frontend projects.",
+      "authRequired": false,
+      "networkRequired": "none",
+      "installMethod": "marketplace",
+      "installCommands": ["/install-plugin senior-frontend"],
+      "prerequisites": [],
+      "tags": ["frontend", "react", "nextjs", "typescript", "accessibility"],
+      "maturityFit": ["growing", "mature"]
+    },
+    {
+      "name": "developer-kit",
+      "repo": "giuseppe-trisciuoglio/developer-kit",
+      "category": "skill",
+      "description": "150+ skills for Java/Spring Boot, TypeScript, Python, PHP, and AWS including CRUD generation.",
+      "authRequired": false,
+      "networkRequired": "none",
+      "installMethod": "marketplace",
+      "installCommands": ["/install-plugin developer-kit"],
+      "prerequisites": [],
+      "tags": ["java", "spring", "typescript", "python", "php", "aws", "backend"],
+      "maturityFit": ["growing", "mature"]
     },
     {
       "name": "rafaelkamimura/claude-tools",
       "repo": "rafaelkamimura/claude-tools",
-      "description": "FastAPI skills + 46 agents",
-      "reason": "Python/FastAPI 커버리지",
-      "addedAt": "2026-04-16",
-      "matchTags": ["python", "fastapi"],
-      "status": "evaluating"
+      "category": "agent",
+      "description": "FastAPI backend skills with 46 specialized agents for Python backend development.",
+      "authRequired": false,
+      "networkRequired": "none",
+      "installMethod": "git-clone",
+      "installCommands": ["git clone https://github.com/rafaelkamimura/claude-tools.git"],
+      "prerequisites": ["python >= 3.10"],
+      "tags": ["python", "fastapi", "backend", "api"],
+      "maturityFit": ["growing", "mature"]
+    },
+    {
+      "name": "claude-elixir-phoenix",
+      "repo": "oliver-kriska/claude-elixir-phoenix",
+      "category": "agent",
+      "description": "20 specialist agents for Elixir/Phoenix functional web framework development.",
+      "authRequired": false,
+      "networkRequired": "none",
+      "installMethod": "git-clone",
+      "installCommands": ["git clone https://github.com/oliver-kriska/claude-elixir-phoenix.git"],
+      "prerequisites": ["elixir"],
+      "tags": ["elixir", "phoenix", "backend", "functional"],
+      "maturityFit": ["growing", "mature"]
+    },
+    {
+      "name": "cc-safe-setup",
+      "repo": "yurukusa/cc-safe-setup",
+      "category": "hook",
+      "description": "One-command installation of 6 essential safety hooks in 10 seconds for new project onboarding.",
+      "authRequired": false,
+      "networkRequired": "none",
+      "installMethod": "npx",
+      "installCommands": ["npx cc-safe-setup"],
+      "prerequisites": [],
+      "tags": ["safety", "hooks", "onboarding", "universal"],
+      "maturityFit": ["greenfield", "early", "growing"]
+    },
+    {
+      "name": "preflight",
+      "repo": "preflight-dev/preflight",
+      "category": "plugin",
+      "description": "24-tool MCP catching vague prompts, providing 12-category scorecards and cost estimation.",
+      "authRequired": false,
+      "networkRequired": "none",
+      "installMethod": "npx",
+      "installCommands": ["npx preflight-dev"],
+      "prerequisites": [],
+      "tags": ["quality", "prompt", "cost", "universal"],
+      "maturityFit": ["greenfield", "early", "growing", "mature"]
+    },
+    {
+      "name": "moyu",
+      "repo": "uucz/moyu",
+      "category": "skill",
+      "description": "Anti-over-engineering skill enforcing code simplicity, achieving 66% code reduction vs baseline.",
+      "authRequired": false,
+      "networkRequired": "none",
+      "installMethod": "marketplace",
+      "installCommands": ["/install-plugin moyu"],
+      "prerequisites": [],
+      "tags": ["simplicity", "quality", "universal"],
+      "maturityFit": ["greenfield", "early", "growing", "mature"]
     }
   ],
+  "suggestions": [],
   "relations": [
     {
       "tools": ["caveman", "everything-claude-code"],
@@ -376,6 +635,81 @@
       "tools": ["trailofbits/skills", "awesome-claude-skills-security"],
       "relation": "synergy",
       "resolution": "audit skills + pentest skills complement each other"
+    },
+    {
+      "tools": ["terraform-skill", "hashicorp/agent-skills"],
+      "relation": "synergy",
+      "resolution": "community patterns + official HashiCorp skills complement each other"
+    },
+    {
+      "tools": ["terraform-skill", "devops-claude-skills"],
+      "relation": "synergy",
+      "resolution": "IaC + CI/CD/monitoring/K8s cover full DevOps lifecycle"
+    },
+    {
+      "tools": ["oh-my-claudecode", "vibe-kanban"],
+      "relation": "overlap",
+      "resolution": "both orchestrate multi-agent teams — pick based on style preference",
+      "winner": "oh-my-claudecode"
+    },
+    {
+      "tools": ["claude-mem", "reporecall"],
+      "relation": "overlap",
+      "resolution": "session memory vs codebase memory — reporecall for large projects",
+      "winner": "reporecall"
+    },
+    {
+      "tools": ["claude-mem", "knowledge-graph"],
+      "relation": "overlap",
+      "resolution": "heavy memory vs lightweight memory — knowledge-graph for small projects",
+      "winner": "claude-mem"
+    },
+    {
+      "tools": ["graphify", "reporecall"],
+      "relation": "overlap",
+      "resolution": "both analyze large codebases — graphify for visualization, reporecall for search"
+    },
+    {
+      "tools": ["impeccable", "senior-frontend"],
+      "relation": "synergy",
+      "resolution": "design quality + React/Next.js patterns complement each other"
+    },
+    {
+      "tools": ["vibeguard", "obey"],
+      "relation": "overlap",
+      "resolution": "both enforce quality via hooks — vibeguard broader, obey more customizable",
+      "winner": "vibeguard"
+    },
+    {
+      "tools": ["tdd-guard", "playwright-skill"],
+      "relation": "synergy",
+      "resolution": "TDD enforcement + e2e testing cover full test spectrum"
+    },
+    {
+      "tools": ["supabase/agent-skills", "pg-aiguide"],
+      "relation": "overlap",
+      "resolution": "both cover PostgreSQL — supabase for Supabase users, pg-aiguide for raw PostgreSQL"
+    },
+    {
+      "tools": ["preflight", "moyu"],
+      "relation": "synergy",
+      "resolution": "prompt quality + code simplicity — reduce waste at both ends"
+    },
+    {
+      "tools": ["cc-safe-setup", "vibeguard"],
+      "relation": "synergy",
+      "resolution": "quick safety hooks + comprehensive quality gate"
+    },
+    {
+      "tools": ["laravel/agent-skills", "developer-kit"],
+      "relation": "synergy",
+      "resolution": "Laravel-specific + polyglot backend skills"
+    },
+    {
+      "tools": ["ccpm", "vibe-kanban"],
+      "relation": "overlap",
+      "resolution": "both manage parallel work — ccpm for GitHub Issues, vibe-kanban for kanban style",
+      "winner": "vibe-kanban"
     }
   ]
 }

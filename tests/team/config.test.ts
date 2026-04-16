@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { loadTeamConfig, loadLocalConfig, saveTeamConfig, saveLocalConfig, ensureGitignore } from '../../src/team/config.js';
-import { mkdtempSync, readFileSync, existsSync, rmSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, existsSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 
@@ -19,10 +19,32 @@ describe('team config', () => {
   it('saves and loads team config', () => {
     const dir = tmpDir();
     try {
-      saveTeamConfig(dir, { slaminarVersion: '0.1.0', excludeAuthTools: false, fileCountCap: 5000, approvedTools: ['caveman'], catalogVersion: 'abc' });
+      saveTeamConfig(dir, { slaminarVersion: '0.1.0', excludeAuthTools: false, fileCountCap: 5000, approvedTools: ['caveman'], catalogVersion: 'abc', catalogUrl: '', catalogMode: 'replace' });
       const cfg = loadTeamConfig(dir);
       expect(cfg.excludeAuthTools).toBe(false);
       expect(cfg.approvedTools).toContain('caveman');
+    } finally { rmSync(dir, { recursive: true }); }
+  });
+
+  it('defaults catalogUrl and catalogMode for old configs without these fields', () => {
+    const dir = tmpDir();
+    try {
+      // Simulate old config without new fields
+      mkdirSync(join(dir, '.slaminar'), { recursive: true });
+      writeFileSync(join(dir, '.slaminar', 'config.json'), JSON.stringify({ slaminarVersion: '0.1.0', excludeAuthTools: true, fileCountCap: 10000, approvedTools: [], catalogVersion: '' }));
+      const cfg = loadTeamConfig(dir);
+      expect(cfg.catalogUrl).toBe('');
+      expect(cfg.catalogMode).toBe('replace');
+    } finally { rmSync(dir, { recursive: true }); }
+  });
+
+  it('saves and loads catalogUrl and catalogMode', () => {
+    const dir = tmpDir();
+    try {
+      saveTeamConfig(dir, { slaminarVersion: '0.1.0', excludeAuthTools: true, fileCountCap: 10000, approvedTools: [], catalogVersion: '', catalogUrl: 'https://example.com/catalog.json', catalogMode: 'extend' });
+      const cfg = loadTeamConfig(dir);
+      expect(cfg.catalogUrl).toBe('https://example.com/catalog.json');
+      expect(cfg.catalogMode).toBe('extend');
     } finally { rmSync(dir, { recursive: true }); }
   });
 
