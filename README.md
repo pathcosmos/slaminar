@@ -794,6 +794,39 @@ Issues와 Pull Requests를 환영합니다.
 
 ---
 
+## 버전 정책
+
+**[Semantic Versioning](https://semver.org/)** 을 준수합니다. 버전 히스토리는 [CHANGELOG.md](./CHANGELOG.md) 참조.
+
+| 버전 대역 | 단계 | 의미 |
+|----------|------|------|
+| `0.1.x` ~ `0.x.y` | **Alpha (현재)** | API 변경 가능, 초기 피드백 수집 |
+| `0.9.x` | **Beta** | 기능 동결, 안정성 검증 |
+| `1.0.0+` | **Stable** | API 안정, breaking change 시 major bump |
+
+### 릴리스 방법 (maintainer 전용)
+
+```bash
+npm run release:patch   # 0.1.0 → 0.1.1 (버그 수정)
+npm run release:minor   # 0.1.0 → 0.2.0 (새 기능)
+npm run release:major   # 0.x.y → 1.0.0 (breaking change, 1.0부터)
+```
+
+위 명령어는 자동으로:
+1. 테스트 실행 + 빌드
+2. `package.json` 버전 bump
+3. Git tag 생성 (`v0.1.1` 형식)
+4. CHANGELOG.md 커밋에 포함
+
+이후 `git push --follow-tags && npm publish` 로 게시.
+
+**변경 유형 가이드:**
+- **patch**: 버그 수정, 내부 리팩토링, 문서
+- **minor**: 새 CLI 명령어/플래그, 새 AI 프로바이더, 새 도구 카탈로그 항목
+- **major** (1.0+ 이후): CLI 명령어 제거/리네임, config 스키마 breaking change
+
+---
+
 ## 라이선스
 
 MIT
