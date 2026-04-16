@@ -14,6 +14,10 @@ import { runLoginWizard } from './auth/wizard.js';
 import { loadAuthConfig, clearAuthConfig, getAuthFilePath } from './auth/config.js';
 import { runCloudflareDiagnostics, runAnthropicDiagnostics } from './auth/diagnostics.js';
 import { detectAiProvider } from './generator/ai-provider.js';
+import { resolveCatalog } from './recommender/catalog-resolver.js';
+import { loadCache, backupCache, rollbackCache, isCacheValid } from './recommender/catalog-cache.js';
+import { diffCatalogs, formatDiff } from './recommender/catalog-diff.js';
+import Table from 'cli-table3';
 
 const program = new Command();
 
@@ -524,6 +528,185 @@ authCmd
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       console.error(`\nError: ${message}\n`);
+      process.exitCode = 1;
+    }
+  });
+
+// ─── Catalog commands ────────────────────────────────────
+
+const catalogCmd = program.command('catalog').description('Manage tool catalog');
+
+catalogCmd.command('update')
+  .description('Fetch latest catalog from remote')
+  .action(async () => {
+    try {
+      const oldCache = loadCache();
+      const oldTools = oldCache?.catalog.tools ?? [];
+      const oldVersion = oldCache?.catalog.version ?? '0.0.0';
+
+      if (oldCache) backupCache();
+
+      console.log('\nFetching latest catalog...');
+      const resolved = await resolveCatalog({ forceRefresh: true });
+
+      if (resolved.source === 'bundled') {
+        console.log(chalk.yellow('\n⚠ Remote fetch failed. Using bundled catalog.\n'));
+        return;
+      }
+
+      const diff = diffCatalogs(oldTools, resolved.tools, oldVersion, resolved.version);
+      console.log(formatDiff(diff));
+      console.log(`\nCatalog ${resolved.version} — ${resolved.tools.length} tools (source: ${resolved.source})\n`);
+    } catch (err) {
+      console.error(`\nError: ${err instanceof Error ? err.message : String(err)}\n`);
+      process.exitCode = 1;
+    }
+  });
+
+catalogCmd.command('list')
+  .description('List all tools in catalog')
+  .action(async () => {
+    try {
+      const resolved = await resolveCatalog({ silent: true });
+      const table = new Table({
+        head: ['Name', 'Category', 'Install', 'Auth', 'Tags'],
+      });
+      for (const tool of resolved.tools) {
+        table.push([
+          tool.deprecated ? chalk.strikethrough(tool.name) : tool.name,
+          tool.category,
+          tool.installMethod,
+          tool.authRequired ? chalk.red('YES') : chalk.green('NO'),
+          tool.tags.slice(0, 3).join(', '),
+        ]);
+      }
+      console.log(`\nCatalog v${resolved.version} — ${resolved.tools.length} tools (source: ${resolved.source}${resolved.stale ? ', stale' : ''})\n`);
+      console.log(table.toString());
+      console.log('');
+    } catch (err) {
+      console.error(`\nError: ${err instanceof Error ? err.message : String(err)}\n`);
+      process.exitCode = 1;
+    }
+  });
+
+catalogCmd.command('search <query>')
+  .description('Search tools by name, description, or tags')
+  .action(async (query: string) => {
+    try {
+      const resolved = await resolveCatalog({ silent: true });
+      const q = query.toLowerCase();
+      const matches = resolved.tools.filter(t =>
+        t.name.toLowerCase().includes(q) ||
+        t.description.toLowerCase().includes(q) ||
+        t.tags.some(tag => tag.toLowerCase().includes(q))
+      );
+      if (matches.length === 0) {
+        console.log(`\nNo tools matching "${query}"\n`);
+        return;
+      }
+      console.log(`\n${matches.length} tool(s) matching "${query}":\n`);
+      for (const t of matches) {
+        const auth = t.authRequired ? chalk.red(' [auth]') : '';
+        console.log(`  ${chalk.bold(t.name)}${auth} — ${t.description}`);
+        console.log(`    ${chalk.dim(t.installMethod)} | ${chalk.dim(t.tags.join(', '))}`);
+      }
+      console.log('');
+    } catch (err) {
+      console.error(`\nError: ${err instanceof Error ? err.message : String(err)}\n`);
+      process.exitCode = 1;
+    }
+  });
+
+catalogCmd.command('check')
+  .description('Check for deprecated or expired tools')
+  .action(async () => {
+    try {
+      const resolved = await resolveCatalog({ silent: true });
+      const deprecated = resolved.tools.filter(t => t.deprecated);
+      if (deprecated.length === 0) {
+        console.log(chalk.green('\n✓ No deprecated tools in catalog.\n'));
+        return;
+      }
+      console.log(`\n${chalk.yellow('⚠')} ${deprecated.length} deprecated tool(s):\n`);
+      for (const t of deprecated) {
+        console.log(`  ${chalk.strikethrough(t.name)} — ${t.deprecatedReason ?? 'No reason provided'}`);
+        if (t.replacedBy) console.log(`    → Replace with: ${chalk.bold(t.replacedBy)}`);
+      }
+      console.log('');
+    } catch (err) {
+      console.error(`\nError: ${err instanceof Error ? err.message : String(err)}\n`);
+      process.exitCode = 1;
+    }
+  });
+
+catalogCmd.command('info <name>')
+  .description('Show detailed info for a tool')
+  .action(async (name: string) => {
+    try {
+      const resolved = await resolveCatalog({ silent: true });
+      const tool = resolved.tools.find(t => t.name === name);
+      if (!tool) {
+        console.log(`\nTool "${name}" not found in catalog.\n`);
+        process.exitCode = 1;
+        return;
+      }
+      console.log(`\n${chalk.bold(tool.name)}`);
+      console.log(`  Repo:         ${tool.repo}`);
+      console.log(`  Category:     ${tool.category}`);
+      console.log(`  Description:  ${tool.description}`);
+      console.log(`  Install:      ${tool.installMethod} — ${tool.installCommands.join('; ')}`);
+      console.log(`  Auth:         ${tool.authRequired ? 'Required' : 'Not required'}`);
+      console.log(`  Network:      ${tool.networkRequired}`);
+      console.log(`  Tags:         ${tool.tags.join(', ')}`);
+      console.log(`  Maturity:     ${tool.maturityFit.join(', ')}`);
+      if (tool.prerequisites.length) console.log(`  Prerequisites: ${tool.prerequisites.join(', ')}`);
+      if (tool.deprecated) console.log(`  ${chalk.red('DEPRECATED')}: ${tool.deprecatedReason ?? ''}`);
+      if (tool.replacedBy) console.log(`  Replaced by:  ${tool.replacedBy}`);
+      console.log('');
+    } catch (err) {
+      console.error(`\nError: ${err instanceof Error ? err.message : String(err)}\n`);
+      process.exitCode = 1;
+    }
+  });
+
+catalogCmd.command('status')
+  .description('Show catalog cache status')
+  .action(async () => {
+    try {
+      const cached = loadCache();
+      if (!cached) {
+        console.log('\nNo catalog cache. Run `slaminar catalog update` to fetch.\n');
+        return;
+      }
+      const age = Date.now() - new Date(cached.fetchedAt).getTime();
+      const ageHours = Math.round(age / (1000 * 60 * 60) * 10) / 10;
+      const valid = isCacheValid(cached);
+      console.log(`\n${chalk.bold('Catalog Cache Status')}`);
+      console.log(`  Version:    ${cached.catalog.version}`);
+      console.log(`  Source:     ${cached.sourceUrl}`);
+      console.log(`  Fetched:    ${cached.fetchedAt} (${ageHours}h ago)`);
+      console.log(`  Valid:      ${valid ? chalk.green('yes') : chalk.yellow('expired (will auto-refresh)')}`);
+      console.log(`  Tools:      ${cached.catalog.tools.length}`);
+      console.log(`  Suggestions:${cached.catalog.suggestions?.length ?? 0}`);
+      console.log(`  Relations:  ${cached.catalog.relations?.length ?? 0}`);
+      console.log('');
+    } catch (err) {
+      console.error(`\nError: ${err instanceof Error ? err.message : String(err)}\n`);
+      process.exitCode = 1;
+    }
+  });
+
+catalogCmd.command('rollback')
+  .description('Restore previous catalog version')
+  .action(async () => {
+    try {
+      if (rollbackCache()) {
+        console.log(chalk.green('\n✓ Catalog rolled back to previous version.\n'));
+      } else {
+        console.log(chalk.yellow('\nNo previous catalog version to restore.\n'));
+      }
+    } catch (err) {
+      console.error(`\nError: ${err instanceof Error ? err.message : String(err)}\n`);
       process.exitCode = 1;
     }
   });
