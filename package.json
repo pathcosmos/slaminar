@@ -1,6 +1,6 @@
 {
   "name": "slaminar",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Claude Code 전용 프로젝트 분석 및 지능형 세팅 도구",
   "type": "module",
   "bin": {
