@@ -1,4 +1,5 @@
 import { getCatalog } from './catalog.js';
+import { resolveCatalog } from './catalog-resolver.js';
 import { scoreTool } from './scorer.js';
 import { detectConflicts } from './conflict-detector.js';
 import type { ProjectProfile, RecommendationPlan, ScoredTool, CatalogTool } from '../types/index.js';
@@ -10,8 +11,9 @@ const MATURITY_LIMITS: Record<string, number> = {
   mature: 7,
 };
 
-export function recommend(profile: ProjectProfile): RecommendationPlan {
-  const catalog = getCatalog();
+export async function recommend(profile: ProjectProfile): Promise<RecommendationPlan> {
+  const resolved = await resolveCatalog({ silent: true });
+  const catalog = resolved.tools;
   const excluded: { tool: CatalogTool; reason: string }[] = [];
 
   // Filter auth-required
@@ -31,7 +33,7 @@ export function recommend(profile: ProjectProfile): RecommendationPlan {
     .sort((a, b) => b.score - a.score);
 
   // Detect conflicts among scored tools
-  const conflicts = detectConflicts(scored.map(s => s.tool));
+  const conflicts = detectConflicts(scored.map(s => s.tool), resolved.relations);
 
   // Resolve overlaps: remove losers
   const toRemove = new Map<string, string>();

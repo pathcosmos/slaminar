@@ -13,9 +13,9 @@ export interface UpdateResult {
   newFiles: string[];
 }
 
-export function update(targetPath: string, options: { dryRun?: boolean } = {}): UpdateResult {
+export async function update(targetPath: string, options: { dryRun?: boolean } = {}): Promise<UpdateResult> {
   const { snapshot, profile } = analyze(targetPath);
-  const recommendation = recommend(profile);
+  const recommendation = await recommend(profile);
   const plan = buildPlan(profile, snapshot, recommendation);
 
   const updatedFiles: string[] = [];

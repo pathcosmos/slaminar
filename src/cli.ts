@@ -169,7 +169,7 @@ program
       timer.end();
 
       timer.start('Recommending');
-      const plan = recommend(profile);
+      const plan = await recommend(profile);
       timer.end(`${plan.recommended.length} tools recommended`);
 
       console.log(JSON.stringify(plan, null, 2));
@@ -240,7 +240,7 @@ program
       if (verbose) console.log('\nslaminar update — verbose mode\n');
 
       timer.start('Updating');
-      const result = update(targetPath, { dryRun: options.dryRun });
+      const result = await update(targetPath, { dryRun: options.dryRun });
       timer.end(`${result.updatedFiles.length} updated, ${result.newFiles.length} new, ${result.unchangedFiles.length} unchanged`);
 
       if (options.dryRun) {

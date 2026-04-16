@@ -7,7 +7,8 @@ const KNOWN_RELATIONS: ToolConflict[] = [
   { tools: ['claude-mem', 'everything-claude-code'], relation: 'synergy', resolution: 'memory + performance optimization complement each other' },
 ];
 
-export function detectConflicts(tools: CatalogTool[]): ToolConflict[] {
+export function detectConflicts(tools: CatalogTool[], externalRelations?: ToolConflict[]): ToolConflict[] {
   const names = new Set(tools.map(t => t.name));
-  return KNOWN_RELATIONS.filter(r => names.has(r.tools[0]) && names.has(r.tools[1]));
+  const relations = (externalRelations && externalRelations.length > 0) ? externalRelations : KNOWN_RELATIONS;
+  return relations.filter(r => names.has(r.tools[0]) && names.has(r.tools[1]));
 }

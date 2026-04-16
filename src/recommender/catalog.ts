@@ -1,6 +1,6 @@
 import type { CatalogTool } from '../types/index.js';
 
-const catalog: CatalogTool[] = [
+const BUNDLED_CATALOG: CatalogTool[] = [
   {
     name: 'caveman',
     repo: 'anthropics/caveman',
@@ -186,13 +186,15 @@ const catalog: CatalogTool[] = [
 ];
 
 export function getCatalog(): CatalogTool[] {
-  return catalog;
+  return BUNDLED_CATALOG;
 }
 
 export function findToolByName(name: string): CatalogTool | null {
-  return catalog.find((t) => t.name === name) ?? null;
+  return BUNDLED_CATALOG.find((t) => t.name === name) ?? null;
 }
 
 export function getToolsByTag(tag: string): CatalogTool[] {
-  return catalog.filter((t) => t.tags.includes(tag));
+  return BUNDLED_CATALOG.filter((t) => t.tags.includes(tag));
 }
+
+export { resolveCatalog } from './catalog-resolver.js';

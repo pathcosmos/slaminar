@@ -15,37 +15,37 @@ describe('update', () => {
     return dir;
   }
 
-  it('creates new files on first run', () => {
+  it('creates new files on first run', async () => {
     const dir = createProject({
       'package.json': JSON.stringify({ name: 'test', scripts: { build: 'tsc' } }),
     });
     try {
-      const result = update(dir);
+      const result = await update(dir);
       expect(result.newFiles.length).toBeGreaterThan(0);
       expect(existsSync(join(dir, 'CLAUDE.md'))).toBe(true);
     } finally { rmSync(dir, { recursive: true }); }
   });
 
-  it('detects unchanged files on second run', () => {
+  it('detects unchanged files on second run', async () => {
     const dir = createProject({
       'package.json': JSON.stringify({ name: 'test', scripts: { build: 'tsc' } }),
     });
     try {
-      update(dir); // first run
-      const result = update(dir); // second run
+      await update(dir); // first run
+      const result = await update(dir); // second run
       expect(result.unchangedFiles.length).toBeGreaterThan(0);
     } finally { rmSync(dir, { recursive: true }); }
   });
 
-  it('updates files when project changes', () => {
+  it('updates files when project changes', async () => {
     const dir = createProject({
       'package.json': JSON.stringify({ name: 'test', scripts: { build: 'tsc' } }),
     });
     try {
-      update(dir); // first run
+      await update(dir); // first run
       // Change project
       writeFileSync(join(dir, 'package.json'), JSON.stringify({ name: 'test-changed', scripts: { build: 'tsc', test: 'vitest' } }));
-      const result = update(dir);
+      const result = await update(dir);
       // CLAUDE.md should be updated since project name and scripts changed
       expect(result.updatedFiles.length + result.unchangedFiles.length).toBeGreaterThan(0);
     } finally { rmSync(dir, { recursive: true }); }

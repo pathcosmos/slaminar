@@ -15,38 +15,38 @@ function makeProfile(overrides: Partial<ProjectProfile> = {}): ProjectProfile {
 }
 
 describe('recommend', () => {
-  it('returns recommendations for React SPA', () => {
-    const plan = recommend(makeProfile());
+  it('returns recommendations for React SPA', async () => {
+    const plan = await recommend(makeProfile());
     expect(plan.recommended.length).toBeGreaterThan(0);
     expect(plan.recommended.length).toBeLessThanOrEqual(plan.maxTools);
   });
 
-  it('excludes auth-required tools', () => {
-    const plan = recommend(makeProfile());
+  it('excludes auth-required tools', async () => {
+    const plan = await recommend(makeProfile());
     expect(plan.recommended.every(r => !r.tool.authRequired)).toBe(true);
     expect(plan.excluded.some(e => e.reason.includes('auth'))).toBe(true);
   });
 
-  it('limits tools by maturity', () => {
-    const earlyPlan = recommend(makeProfile({ maturity: 'early' }));
-    const maturePlan = recommend(makeProfile({ maturity: 'mature' }));
+  it('limits tools by maturity', async () => {
+    const earlyPlan = await recommend(makeProfile({ maturity: 'early' }));
+    const maturePlan = await recommend(makeProfile({ maturity: 'mature' }));
     expect(earlyPlan.maxTools).toBe(3);
     expect(maturePlan.maxTools).toBe(7);
   });
 
-  it('sorts by score descending', () => {
-    const plan = recommend(makeProfile());
+  it('sorts by score descending', async () => {
+    const plan = await recommend(makeProfile());
     for (let i = 1; i < plan.recommended.length; i++) {
       expect(plan.recommended[i - 1].score).toBeGreaterThanOrEqual(plan.recommended[i].score);
     }
   });
 
-  it('handles greenfield', () => {
-    const plan = recommend(makeProfile({ maturity: 'greenfield' }));
+  it('handles greenfield', async () => {
+    const plan = await recommend(makeProfile({ maturity: 'greenfield' }));
     expect(plan.recommended.length).toBeLessThanOrEqual(2);
   });
 
-  it('detects conflicts', () => {
-    expect(Array.isArray(recommend(makeProfile()).conflicts)).toBe(true);
+  it('detects conflicts', async () => {
+    expect(Array.isArray((await recommend(makeProfile())).conflicts)).toBe(true);
   });
 });

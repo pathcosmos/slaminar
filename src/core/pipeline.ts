@@ -79,7 +79,7 @@ export interface InitOptions {
 export async function init(targetPath: string, options: InitOptions = {}): Promise<InitResult> {
   const useAi = options.useAi ?? true;
   const { snapshot, profile } = analyze(targetPath);
-  const recommendation = recommend(profile);
+  const recommendation = await recommend(profile);
   const plan = buildPlan(profile, snapshot, recommendation);
   const aiProvider = detectAiProvider();
 
