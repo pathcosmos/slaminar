@@ -160,6 +160,10 @@ export interface CatalogTool {
   prerequisites: string[];
   tags: string[];
   maturityFit: ProjectMaturity[];
+  deprecated?: boolean;
+  deprecatedReason?: string;
+  lastVerified?: string;
+  replacedBy?: string;
 }
 
 export interface ScoredTool {
@@ -215,4 +219,41 @@ export interface ValidationResult {
   passCount: number;
   failCount: number;
   warnCount: number;
+}
+
+// ─── Dynamic Catalog types ─────────────────────────────────
+
+export interface CatalogSuggestion {
+  name: string;
+  repo: string;
+  description: string;
+  reason: string;
+  addedAt: string;
+  matchTags: string[];
+  status: 'evaluating' | 'approved' | 'rejected';
+}
+
+export interface RemoteCatalog {
+  version: string;
+  minSlaminarVersion: string;
+  updatedAt: string;
+  tools: CatalogTool[];
+  suggestions: CatalogSuggestion[];
+  relations: ToolConflict[];
+}
+
+export interface CatalogCacheEntry {
+  fetchedAt: string;
+  sourceUrl: string;
+  etag?: string;
+  catalog: RemoteCatalog;
+}
+
+export interface ResolvedCatalog {
+  tools: CatalogTool[];
+  relations: ToolConflict[];
+  suggestions: CatalogSuggestion[];
+  source: 'remote' | 'cache' | 'bundled';
+  version: string;
+  stale: boolean;
 }

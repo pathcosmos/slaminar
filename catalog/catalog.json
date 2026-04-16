@@ -1,0 +1,381 @@
+{
+  "version": "1.0.0",
+  "minSlaminarVersion": "0.1.0",
+  "updatedAt": "2026-04-16T00:00:00Z",
+  "tools": [
+    {
+      "name": "caveman",
+      "repo": "anthropics/caveman",
+      "category": "plugin",
+      "description": "Token-saving plugin that reduces verbose output and optimizes context usage.",
+      "authRequired": false,
+      "networkRequired": "none",
+      "installMethod": "marketplace",
+      "installCommands": ["/install-plugin caveman"],
+      "prerequisites": [],
+      "tags": ["token-saving", "universal", "optimization"],
+      "maturityFit": ["greenfield", "early", "growing", "mature"]
+    },
+    {
+      "name": "planning-with-files",
+      "repo": "anthropics/planning-with-files",
+      "category": "skill",
+      "description": "Structured planning skill that creates and manages implementation plans as files.",
+      "authRequired": false,
+      "networkRequired": "none",
+      "installMethod": "npx",
+      "installCommands": ["npx planning-with-files init"],
+      "prerequisites": [],
+      "tags": ["planning", "universal", "workflow"],
+      "maturityFit": ["greenfield", "early", "growing", "mature"]
+    },
+    {
+      "name": "impeccable",
+      "repo": "anthropics/impeccable",
+      "category": "plugin",
+      "description": "Frontend and React design plugin that enforces design system conventions and best practices.",
+      "authRequired": false,
+      "networkRequired": "none",
+      "installMethod": "marketplace",
+      "installCommands": ["/install-plugin impeccable"],
+      "prerequisites": [],
+      "tags": ["frontend", "react", "design", "ui"],
+      "maturityFit": ["early", "growing", "mature"]
+    },
+    {
+      "name": "playwright-skill",
+      "repo": "anthropics/playwright-skill",
+      "category": "skill",
+      "description": "End-to-end testing skill using Playwright for browser automation and frontend testing.",
+      "authRequired": false,
+      "networkRequired": "none",
+      "installMethod": "marketplace",
+      "installCommands": ["/install-plugin playwright-skill"],
+      "prerequisites": [],
+      "tags": ["testing", "frontend", "e2e", "browser"],
+      "maturityFit": ["growing", "mature"]
+    },
+    {
+      "name": "get-shit-done",
+      "repo": "anthropics/get-shit-done",
+      "category": "skill",
+      "description": "Spec-driven development skill for CLI tools that enforces structured implementation workflows.",
+      "authRequired": false,
+      "networkRequired": "none",
+      "installMethod": "npx",
+      "installCommands": ["npx get-shit-done init"],
+      "prerequisites": [],
+      "tags": ["spec-driven", "cli", "workflow", "productivity"],
+      "maturityFit": ["greenfield", "early", "growing", "mature"]
+    },
+    {
+      "name": "claude-mem",
+      "repo": "anthropics/claude-mem",
+      "category": "plugin",
+      "description": "Memory management plugin for long-running sessions, persisting context across conversations.",
+      "authRequired": false,
+      "networkRequired": "none",
+      "installMethod": "npx",
+      "installCommands": ["npx claude-mem init"],
+      "prerequisites": ["node >= 18"],
+      "tags": ["memory", "long-running", "context"],
+      "maturityFit": ["growing", "mature"]
+    },
+    {
+      "name": "graphify",
+      "repo": "anthropics/graphify",
+      "category": "agent",
+      "description": "Knowledge graph builder for large codebases, mapping relationships between modules and symbols.",
+      "authRequired": false,
+      "networkRequired": "partial",
+      "installMethod": "pip",
+      "installCommands": ["pip install graphify"],
+      "prerequisites": ["python >= 3.10"],
+      "tags": ["knowledge-graph", "large-codebase", "analysis", "visualization"],
+      "maturityFit": ["growing", "mature"]
+    },
+    {
+      "name": "cartographer",
+      "repo": "anthropics/cartographer",
+      "category": "plugin",
+      "description": "Codebase mapping plugin that generates navigable maps of project structure and dependencies.",
+      "authRequired": false,
+      "networkRequired": "none",
+      "installMethod": "marketplace",
+      "installCommands": ["/install-plugin cartographer"],
+      "prerequisites": [],
+      "tags": ["codebase-mapping", "navigation", "architecture"],
+      "maturityFit": ["growing", "mature"]
+    },
+    {
+      "name": "trailofbits/skills",
+      "repo": "trailofbits/skills",
+      "category": "skill",
+      "description": "Security-focused skills from Trail of Bits for vulnerability detection and secure coding.",
+      "authRequired": false,
+      "networkRequired": "none",
+      "installMethod": "marketplace",
+      "installCommands": ["/install-plugin trailofbits/skills"],
+      "prerequisites": [],
+      "tags": ["security", "audit", "vulnerability"],
+      "maturityFit": ["growing", "mature"]
+    },
+    {
+      "name": "everything-claude-code",
+      "repo": "anthropics/everything-claude-code",
+      "category": "workflow",
+      "description": "Performance and token-saving collection of best-practice configurations and workflows.",
+      "authRequired": false,
+      "networkRequired": "none",
+      "installMethod": "git-clone",
+      "installCommands": ["git clone https://github.com/anthropics/everything-claude-code.git"],
+      "prerequisites": [],
+      "tags": ["performance", "token-saving", "best-practices", "universal"],
+      "maturityFit": ["greenfield", "early", "growing", "mature"]
+    },
+    {
+      "name": "claude-hud",
+      "repo": "anthropics/claude-hud",
+      "category": "plugin",
+      "description": "Monitoring dashboard plugin that tracks token usage, session metrics, and performance.",
+      "authRequired": false,
+      "networkRequired": "none",
+      "installMethod": "marketplace",
+      "installCommands": ["/install-plugin claude-hud"],
+      "prerequisites": ["node >= 18"],
+      "tags": ["monitoring", "metrics", "dashboard"],
+      "maturityFit": ["growing", "mature"]
+    },
+    {
+      "name": "homunculus",
+      "repo": "anthropics/homunculus",
+      "category": "agent",
+      "description": "Pattern-learning agent that observes coding patterns and suggests improvements over time.",
+      "authRequired": false,
+      "networkRequired": "none",
+      "installMethod": "marketplace",
+      "installCommands": ["/install-plugin homunculus"],
+      "prerequisites": [],
+      "tags": ["pattern-learning", "ai", "automation"],
+      "maturityFit": ["growing", "mature"]
+    },
+    {
+      "name": "claude-octopus",
+      "repo": "anthropics/claude-octopus",
+      "category": "plugin",
+      "description": "Multi-model orchestration plugin that coordinates between different AI models.",
+      "authRequired": true,
+      "networkRequired": "full",
+      "installMethod": "marketplace",
+      "installCommands": ["/install-plugin claude-octopus"],
+      "prerequisites": [],
+      "tags": ["multi-model", "orchestration"],
+      "maturityFit": ["growing", "mature"]
+    },
+    {
+      "name": "call-me",
+      "repo": "anthropics/call-me",
+      "category": "plugin",
+      "description": "Phone notification plugin that calls you when long-running tasks complete.",
+      "authRequired": true,
+      "networkRequired": "full",
+      "installMethod": "marketplace",
+      "installCommands": ["/install-plugin call-me"],
+      "prerequisites": [],
+      "tags": ["phone", "notification", "alerts"],
+      "maturityFit": ["growing", "mature"]
+    },
+    {
+      "name": "wshobson/agents",
+      "repo": "wshobson/agents",
+      "category": "agent",
+      "description": "Agent marketplace with multi-agent orchestration capabilities for diverse workflows.",
+      "authRequired": false,
+      "networkRequired": "none",
+      "installMethod": "marketplace",
+      "installCommands": ["/install-plugin wshobson/agents"],
+      "prerequisites": [],
+      "tags": ["orchestration", "multi-agent", "universal"],
+      "maturityFit": ["greenfield", "early", "growing", "mature"]
+    },
+    {
+      "name": "claude-code-lsps",
+      "repo": "Piebald-AI/claude-code-lsps",
+      "category": "plugin",
+      "description": "LSP integration plugin that adds static analysis and language server features to Claude Code.",
+      "authRequired": false,
+      "networkRequired": "none",
+      "installMethod": "marketplace",
+      "installCommands": ["/install-plugin claude-code-lsps"],
+      "prerequisites": [],
+      "tags": ["lsp", "static-analysis", "universal"],
+      "maturityFit": ["growing", "mature"]
+    },
+    {
+      "name": "terraform-skill",
+      "repo": "antonbabenko/terraform-skill",
+      "category": "skill",
+      "description": "Terraform infrastructure-as-code skill for provisioning and managing cloud resources.",
+      "authRequired": false,
+      "networkRequired": "none",
+      "installMethod": "git-clone",
+      "installCommands": ["git clone https://github.com/antonbabenko/terraform-skill.git"],
+      "prerequisites": [],
+      "tags": ["devops", "terraform", "iac"],
+      "maturityFit": ["growing", "mature"]
+    },
+    {
+      "name": "claude-code-templates",
+      "repo": "davila7/claude-code-templates",
+      "category": "workflow",
+      "description": "Project bootstrapping templates for quickly scaffolding new projects with Claude Code.",
+      "authRequired": false,
+      "networkRequired": "none",
+      "installMethod": "npx",
+      "installCommands": ["npx claude-code-templates init"],
+      "prerequisites": [],
+      "tags": ["bootstrap", "templates", "universal"],
+      "maturityFit": ["greenfield", "early", "growing", "mature"]
+    },
+    {
+      "name": "laravel/agent-skills",
+      "repo": "laravel/agent-skills",
+      "category": "skill",
+      "description": "Official Laravel agent skills for PHP/Laravel backend development.",
+      "authRequired": false,
+      "networkRequired": "none",
+      "installMethod": "git-clone",
+      "installCommands": ["git clone https://github.com/laravel/agent-skills.git"],
+      "prerequisites": [],
+      "tags": ["php", "laravel", "backend"],
+      "maturityFit": ["growing", "mature"]
+    },
+    {
+      "name": "claude-on-rails",
+      "repo": "obie/claude-on-rails",
+      "category": "skill",
+      "description": "Ruby on Rails skill for Rails-specific development patterns and conventions.",
+      "authRequired": false,
+      "networkRequired": "none",
+      "installMethod": "git-clone",
+      "installCommands": ["git clone https://github.com/obie/claude-on-rails.git"],
+      "prerequisites": [],
+      "tags": ["ruby", "rails", "backend"],
+      "maturityFit": ["growing", "mature"]
+    },
+    {
+      "name": "apollographql/skills",
+      "repo": "apollographql/skills",
+      "category": "skill",
+      "description": "Apollo GraphQL skills for building and managing GraphQL APIs.",
+      "authRequired": false,
+      "networkRequired": "none",
+      "installMethod": "git-clone",
+      "installCommands": ["git clone https://github.com/apollographql/skills.git"],
+      "prerequisites": [],
+      "tags": ["graphql", "api", "backend"],
+      "maturityFit": ["growing", "mature"]
+    },
+    {
+      "name": "spec-kit",
+      "repo": "github/spec-kit",
+      "category": "skill",
+      "description": "Spec-driven development skill for structured planning and implementation workflows.",
+      "authRequired": false,
+      "networkRequired": "none",
+      "installMethod": "npx",
+      "installCommands": ["npx spec-kit init"],
+      "prerequisites": [],
+      "tags": ["spec-driven", "planning", "universal"],
+      "maturityFit": ["greenfield", "early", "growing", "mature"]
+    },
+    {
+      "name": "claude-code-subagents",
+      "repo": "0xfurai/claude-code-subagents",
+      "category": "agent",
+      "description": "Subagent orchestration framework for delegating tasks to specialized agents.",
+      "authRequired": false,
+      "networkRequired": "none",
+      "installMethod": "git-clone",
+      "installCommands": ["git clone https://github.com/0xfurai/claude-code-subagents.git"],
+      "prerequisites": [],
+      "tags": ["subagents", "universal"],
+      "maturityFit": ["growing", "mature"]
+    },
+    {
+      "name": "awesome-claude-skills-security",
+      "repo": "Eyadkelleh/awesome-claude-skills-security",
+      "category": "skill",
+      "description": "Security and penetration testing skills for vulnerability assessment and secure development.",
+      "authRequired": false,
+      "networkRequired": "none",
+      "installMethod": "git-clone",
+      "installCommands": ["git clone https://github.com/Eyadkelleh/awesome-claude-skills-security.git"],
+      "prerequisites": [],
+      "tags": ["security", "pentest"],
+      "maturityFit": ["growing", "mature"]
+    }
+  ],
+  "suggestions": [
+    {
+      "name": "supabase/agent-skills",
+      "repo": "supabase/agent-skills",
+      "description": "Supabase official agent skills",
+      "reason": "DB project 지원",
+      "addedAt": "2026-04-16",
+      "matchTags": ["supabase", "database"],
+      "status": "evaluating"
+    },
+    {
+      "name": "bmad-plugin",
+      "repo": "PabloLION/bmad-plugin",
+      "description": "BMAD Method plugin",
+      "reason": "팀 워크플로우 강화",
+      "addedAt": "2026-04-16",
+      "matchTags": ["workflow", "team"],
+      "status": "evaluating"
+    },
+    {
+      "name": "rafaelkamimura/claude-tools",
+      "repo": "rafaelkamimura/claude-tools",
+      "description": "FastAPI skills + 46 agents",
+      "reason": "Python/FastAPI 커버리지",
+      "addedAt": "2026-04-16",
+      "matchTags": ["python", "fastapi"],
+      "status": "evaluating"
+    }
+  ],
+  "relations": [
+    {
+      "tools": ["caveman", "everything-claude-code"],
+      "relation": "overlap",
+      "resolution": "both provide token optimization — pick one",
+      "winner": "everything-claude-code"
+    },
+    {
+      "tools": ["planning-with-files", "get-shit-done"],
+      "relation": "synergy",
+      "resolution": "planning + execution complement each other"
+    },
+    {
+      "tools": ["graphify", "cartographer"],
+      "relation": "overlap",
+      "resolution": "both map codebases — graphify for large, cartographer for small"
+    },
+    {
+      "tools": ["claude-mem", "everything-claude-code"],
+      "relation": "synergy",
+      "resolution": "memory + performance optimization complement each other"
+    },
+    {
+      "tools": ["planning-with-files", "spec-kit"],
+      "relation": "synergy",
+      "resolution": "structured planning + spec-driven development"
+    },
+    {
+      "tools": ["trailofbits/skills", "awesome-claude-skills-security"],
+      "relation": "synergy",
+      "resolution": "audit skills + pentest skills complement each other"
+    }
+  ]
+}

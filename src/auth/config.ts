@@ -39,7 +39,7 @@ export interface AuthConfig {
   savedAt: string;
 }
 
-function getConfigDir(): string {
+export function getConfigDir(): string {
   const xdgHome = process.env.XDG_CONFIG_HOME;
   const base = xdgHome ? xdgHome : join(homedir(), '.config');
   return join(base, 'slaminar');
