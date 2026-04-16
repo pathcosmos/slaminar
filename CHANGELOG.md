@@ -73,3 +73,57 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - TypeScript ESM, Node.js ≥ 18
 
 [0.1.0]: https://github.com/pathcosmos/slaminar/releases/tag/v0.1.0
+
+## [0.2.0] — 2026-04-16
+
+### Added — Dynamic Catalog System
+
+**Dynamic Catalog:**
+- Online catalog source (`catalog/catalog.json`, 24 tools) fetched from GitHub raw
+- Local cache (`~/.config/slaminar/catalog-cache.json`, 24h TTL)
+- Fallback chain: cache → remote → stale cache → bundled
+- ETag-based conditional requests (bandwidth savings)
+- Catalog diff on update (added/removed/deprecated/updated)
+- Catalog rollback support
+
+**New CLI Commands:**
+- `slaminar catalog update` — fetch latest catalog + show diff
+- `slaminar catalog list` — table view of all tools
+- `slaminar catalog search <q>` — search by name/tags/description
+- `slaminar catalog check` — detect deprecated tools
+- `slaminar catalog info <name>` — tool details
+- `slaminar catalog status` — cache status
+- `slaminar catalog rollback` — restore previous version
+
+**Catalog Expansion (14 → 24 tools):**
+- wshobson/agents (multi-agent orchestration)
+- claude-code-lsps (20+ language LSPs)
+- terraform-skill (IaC/DevOps)
+- claude-code-templates (project bootstrap)
+- laravel/agent-skills (PHP/Laravel)
+- claude-on-rails (Ruby/Rails)
+- apollographql/skills (GraphQL)
+- spec-kit (GitHub official, spec-driven)
+- claude-code-subagents (100+ subagents)
+- awesome-claude-skills-security (pentest)
+
+**CatalogTool Extensions:**
+- `deprecated`, `deprecatedReason`, `lastVerified`, `replacedBy` optional fields
+- `RemoteCatalog`, `CatalogSuggestion`, `CatalogCacheEntry`, `ResolvedCatalog` types
+- Catalog suggestions section (evaluating tools)
+- Catalog relations section (conflict/synergy rules moved from hardcode)
+
+### Changed
+
+- `recommend()` is now async (breaking for programmatic users)
+- `update()` is now async
+- `conflict-detector` accepts external relations parameter
+- Bundled catalog serves as ultimate offline fallback only
+
+### Stats
+
+- 47 source modules, 41 test files, 203 tests passing
+- 20 CLI commands (7 catalog commands added)
+- 24 tools in online catalog, 14 in bundled fallback
+
+[0.2.0]: https://github.com/pathcosmos/slaminar/compare/v0.1.0...v0.2.0
