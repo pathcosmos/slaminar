@@ -5,6 +5,46 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.2] — 2026-04-17
+
+### Added — Claude Code Passthrough via SKILL.md
+
+When invoked through Claude Code's `/slaminar` skill, slaminar now produces a local-rules CLAUDE.md and the calling Claude agent enhances it in place. No external AI provider is called from the skill path; users with a Max/Pro Claude subscription can use slaminar without configuring any API key.
+
+**SKILL.md Workflow rewrite (`src/skill/SKILL.md`):**
+- Step 2 (dry-run) now passes `--no-ai`
+- Step 4 (execute) now passes `--no-ai`
+- Step 5 is new: outer Claude uses `Read` to load the generated CLAUDE.md and relevant project files, then uses `Edit` to improve content inside `<!-- slaminar:begin:SECTION -->` ... `<!-- slaminar:end:SECTION -->` blocks
+- Step 6 is new: `slaminar check <path>` verifies marker integrity + CLAUDE.md well-formedness
+- Step 7 (install recommended tools) is the renumbered original Step 5
+
+**Documentation (`docs/getting-started-walkthrough.md`):**
+- New §1.5 "실행 맥락 두 가지 — Claude Code 내부 vs 외부 CLI" explaining the two routing paths and when an API key is (or isn't) required
+
+**Enhancement invariants:**
+- Ownership markers are load-bearing for `slaminar update` incremental merges — the outer Claude never modifies the marker lines themselves
+- Content outside markers is user-owned — the outer Claude never edits it
+- Direct CLI use (`slaminar init` from terminal) is unchanged: provider flow (Cloudflare/Anthropic) or local fallback per the `~/.config/slaminar/auth.json` state produced by `slaminar setup`
+
+### Changed
+
+- `package.json`, `src/version.ts` bumped 0.8.1 → 0.8.2 (patch only per project release policy recorded 2026-04-17)
+- `CLAUDE.md` — added "Release Policy" section documenting the patch-only versioning rule
+
+### Not Changed (deliberate)
+
+- No TypeScript source files modified (0 lines of runtime code changed)
+- No new tests added (existing 338 tests continue to pass unchanged — this release is content/doc only)
+- No breaking changes
+
+### Stats
+
+- 61 source modules, 55 test files, **338 tests passing** (unchanged from v0.8.1)
+- Package size unchanged (SKILL.md content change only)
+- Design spec: [`docs/superpowers/specs/2026-04-17-claude-code-passthrough-design.md`](./docs/superpowers/specs/2026-04-17-claude-code-passthrough-design.md)
+
+[0.8.2]: https://github.com/pathcosmos/slaminar/compare/v0.8.1...v0.8.2
+
 ## [0.8.1] — 2026-04-17
 
 ### Changed — User-Facing Prompt i18n (all prompts now English)

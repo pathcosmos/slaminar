@@ -1256,7 +1256,24 @@ CLAUDE.md 유효성 검증, plugin.json 스키마 검증, 터미널 컬러 테�
 
 **교차 링크.** [CHANGELOG v0.8.0](./CHANGELOG.md#080--2026-04-17) · [spec: `2026-04-16-custom-catalog-plan.md`](./docs/superpowers/specs/2026-04-16-custom-catalog-plan.md) + [spec §v0.8](./docs/superpowers/specs/2026-04-17-global-setup-plan.md) · 테스트: `tests/recommender/{catalog-sources,catalog-source-persistence,catalog-merger,catalog-resolver}.test.ts`.
 
-### 교차 참조 인덱스 (v0.5 → v0.8)
+### Phase 15: Claude Code Passthrough (v0.8.2)
+
+**동기.** v0.8.1까지 Claude Code에서 `/slaminar`를 호출하면 slaminar가 자체 AI provider(Cloudflare/Anthropic)를 호출해 enhancement를 수행했습니다. 이미 outer Claude(Max/Pro 구독)가 실행 중인데도 별도 API 키 발급을 강요했고, AI 호출이 중첩되어 지연/비용 낭비가 있었습니다.
+
+**산출물.**
+- `src/skill/SKILL.md` — 7단계 workflow 재작성: Step 2/4에 `--no-ai` 강제, Step 5(outer Claude가 in-place enhance) 신설, Step 6(`slaminar check` 검증) 신설
+- `docs/getting-started-walkthrough.md` — §1.5 "Claude Code 내부 vs 외부 CLI" 두 실행 맥락 설명 추가
+- TypeScript 코어 코드 **변경 0** — 기존 `--no-ai` 플래그와 ownership marker 시스템을 그대로 재사용
+
+**의사결정.**
+
+- **D15.1 — Claude Code 맥락에선 `--no-ai` 강제, slaminar가 외부 provider를 호출하지 않음.** 대안: 외부 에이전트가 실행마다 선택. 근거: outer Claude가 이미 최고 품질 모델이며 실행 중인데 중첩 AI 호출은 지연/비용 낭비이고 API 키 설정 마찰까지 유발. 증거: `src/skill/SKILL.md` Step 2와 Step 4 모두 `--no-ai` 전달, `src/cli.ts`의 `--no-ai` 플래그 처리.
+- **D15.2 — Enhancement 경계는 slaminar 기존 ownership markers.** 대안: "agent 편집 가능 영역"이라는 새 primitive 도입. 근거: 마커는 이미 `slaminar update` incremental merge에 필수이며 "slaminar 영역 vs 사용자 영역" 구분을 강제하고 있음. 층을 더 쌓으면 contract drift 위험. 증거: `src/placer/markers.ts`, `src/core/updater.ts`.
+- **D15.3 — SKILL.md가 "Claude Code 맥락"의 유일한 carrier, env-var 자동 감지 없음.** 대안: `SLAMINAR_AGENT_MODE=1` 읽기 또는 parent process 검사로 passthrough 모드 강제. 근거: SKILL.md는 이미 "Claude Code를 통해 호출됐다"는 정확한 정의 — Claude Code skill 호출 안에 있다는 것 자체가 우리가 필요한 신호이므로 별도 채널 불필요. env-var 감지는 새 기능 없이 false-positive 위험만 추가. 증거: `src/skill/SKILL.md` frontmatter + workflow.
+
+**교차 링크.** [CHANGELOG v0.8.2](./CHANGELOG.md#082--2026-04-17) · [spec: `2026-04-17-claude-code-passthrough-design.md`](./docs/superpowers/specs/2026-04-17-claude-code-passthrough-design.md) · 신규 테스트 없음 (기존 338개 계속 통과).
+
+### 교차 참조 인덱스 (v0.5 → v0.8.2)
 
 위의 번호 붙은 모든 의사결정은 3곳에 기록되어 있습니다 — README(여기), CHANGELOG(릴리스 노트), 설계 spec(있을 때). 의사결정 ID는 **`README.md`와 `README.ko.md`에서 동일** — `grep -n "D14\.3" README*.md`로 패리티 검증 가능. 파일 경로는 직접 열어 주장 감사 가능; 테스트 파일은 `npm test -- --run <path>`로 격리 실행.
 
@@ -1287,6 +1304,9 @@ CLAUDE.md 유효성 검증, plugin.json 스키마 검증, 터미널 컬러 테�
 | D14.6 | trust 저장만, enforcement X | v0.8.0 | same | `src/types/index.ts` | — |
 | D14.7 | CLI `--catalog`를 adhoc 소스로 | v0.8.0 | same | `src/recommender/catalog-sources.ts` | `tests/recommender/catalog-resolver.test.ts` |
 | D14.8 | 고정 `cli-adhoc` ID vs 해시된 env ID | v0.8.0 | same | `src/recommender/catalog-sources.ts` | `tests/recommender/catalog-sources.test.ts` |
+| D15.1 | Claude Code 맥락에 `--no-ai` 강제 | v0.8.2 | `2026-04-17-claude-code-passthrough-design.md` | `src/skill/SKILL.md` | — |
+| D15.2 | Enhancement 경계 = ownership markers | v0.8.2 | same | `src/placer/markers.ts`, `src/core/updater.ts` | — |
+| D15.3 | SKILL.md가 carrier, env-var 자동 감지 없음 | v0.8.2 | same | `src/skill/SKILL.md` | — |
 
 ### 품질 개선 (3차례 리뷰)
 

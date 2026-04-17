@@ -105,7 +105,7 @@ added 1 package in 3s
 ### 1.4 설치 후 즉시 검증
 
 ```bash
-slaminar --version           # → 0.8.0
+slaminar --version           # → 0.8.2
 slaminar skill status        # 스킬 설치 상태 확인
 ```
 
@@ -117,6 +117,37 @@ Claude Code Skill Status
   Content:   matches bundled version
   Bundled:   available
 ```
+
+### 1.5 실행 맥락 두 가지 — Claude Code 내부 vs 외부 CLI (v0.8.2+)
+
+slaminar는 **어디서 호출되느냐**에 따라 AI 처리 방식이 달라집니다. 이 차이를 이해하면 API 키가 왜 필요할 수도, 안 필요할 수도 있는지 알 수 있습니다.
+
+| 경로 | 명령 | AI 처리 | API 키 필요 |
+|---|---|---|---|
+| **(A) Claude Code 내부** | `/slaminar` 스킬 호출 | `--no-ai`로 로컬 규칙 CLAUDE.md 생성 후 **outer Claude(Max/Pro 구독)가 직접 Read/Edit로 enhance** | **없음** ✓ |
+| **(B) 외부 CLI 직접** | `$ slaminar init` | 설정된 provider(Cloudflare/Anthropic) 또는 `--no-ai` | provider 설정 시 필요 |
+
+#### 경로 (A) — Claude Code에서
+
+Claude Code에서 `/slaminar`를 입력하면 SKILL.md 워크플로가 실행됩니다. Outer Claude(지금 대화 중인 Claude)가:
+
+1. `slaminar init --dry-run --no-ai <path>` → 분석 미리보기
+2. 사용자에게 진행 확인
+3. `slaminar init --no-ai <path>` → ownership marker가 박힌 CLAUDE.md 생성 (로컬 규칙)
+4. **Read + Edit로 CLAUDE.md 개선** ← 핵심: 실제 코드베이스를 읽고 섹션별로 깊이 있게 보강
+5. `slaminar check <path>` → 검증
+
+이 경로는 Anthropic API 키도, Cloudflare 토큰도 필요 없습니다. Claude Code가 이미 실행 중인 자신의 AI 자원을 그대로 재사용합니다.
+
+#### 경로 (B) — 터미널에서 직접
+
+```bash
+$ slaminar init ~/my-project
+```
+
+이 경로는 Phase 2의 `slaminar setup` 결과(`~/.config/slaminar/auth.json`)를 읽어 설정된 provider로 AI enhancement를 수행합니다. 설정이 없으면 자동 `--no-ai` 모드로 fallback되어 로컬 규칙 CLAUDE.md를 만듭니다.
+
+**둘 다 동일한 CLAUDE.md 포맷**을 생성하며, ownership markers도 양쪽에서 똑같이 작동합니다. 따라서 경로 (A)로 만든 CLAUDE.md를 나중에 터미널에서 `slaminar update`로 갱신해도, 또 그 반대도 완벽히 호환됩니다.
 
 ---
 

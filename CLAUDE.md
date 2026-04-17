@@ -53,4 +53,11 @@ Each phase produces a JSON-serializable IR passed to the next.
 - TypeScript ESM (`"type": "module"`)
 - Vitest for testing (TDD pattern)
 - Types centralized in `src/types/index.ts`
-- Korean-first documentation
+- Korean-first documentation (narrative). User-facing CLI prompts are English-only (since v0.8.1)
+
+## Release Policy
+
+- **Version bumps are patch-only** (`0.8.1 → 0.8.2 → 0.8.3 …`). Never auto-bump minor/major unless the user explicitly asks. User-level directive recorded 2026-04-17.
+- Keep both `package.json:version` and `src/version.ts:SLAMINAR_VERSION` in sync
+- CHANGELOG entries stack per patch release; use the same release commit style: `chore(release): vX.Y.Z — <theme>`
+- `prepublishOnly` runs build+test automatically on `npm publish` — treat it as the safety gate, not a manual checklist

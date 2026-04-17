@@ -21,15 +21,17 @@ In every command below, substitute `<path>` with the value you determined.
 
 ## Workflow
 
+**Important:** Every pipeline step inside Claude Code passes `--no-ai`. The outer Claude (you) handles enhancement in Step 5 using the agent's own project context — no Anthropic API key or Cloudflare token is required.
+
 ### Step 1: Check if the slaminar CLI is available
 
 Run: `which slaminar || npx slaminar --version`
 
 If it is missing, advise the user to install globally: `npm install -g slaminar`.
 
-### Step 2: Dry-run analysis
+### Step 2: Dry-run analysis with local rules
 
-Run: `slaminar init --dry-run <path>`
+Run: `slaminar init --dry-run --no-ai <path>`
 
 Report to the user:
 - Project profile (language, framework, pattern, maturity)
@@ -42,13 +44,36 @@ Report to the user:
 Present the dry-run results and ask:
 > "Shall I proceed with this configuration? Let me know if anything should change."
 
-### Step 4: Execute
+### Step 4: Execute the local-rules pipeline
 
-If approved, run: `slaminar init <path>`
+If approved, run: `slaminar init --no-ai <path>`
 
-Show the verification output after completion.
+This generates CLAUDE.md with slaminar ownership markers using local rules only. No external AI provider is called.
 
-### Step 5: (Optional) Install recommended tools
+### Step 5: Enhance with your own project context
+
+slaminar has written a rule-based CLAUDE.md. Your job is to raise it to Claude-grade quality using the project context you can see:
+
+1. `Read` `<path>/CLAUDE.md` to see what slaminar generated.
+2. `Read` key project files to build understanding: `package.json` / `pyproject.toml` / `Cargo.toml`, src/ entry points, existing docs, recent `git log --oneline -20`.
+3. For each section delimited by `<!-- slaminar:begin:SECTION -->` and `<!-- slaminar:end:SECTION -->`, use `Edit` to improve the content. Section-specific guidance:
+   - **overview** — replace generic framework labels with the actual domain and purpose you infer from the code
+   - **architecture** — add real module relationships and data flows the local rules missed
+   - **commands** — list the workflows actually used, not just every `npm run` script
+   - **conventions** — extract naming, testing, and lint patterns from real code samples
+   - **notes** — flag project-specific quirks, legacy areas, or TODOs worth warning future maintainers about
+
+**Invariants — do not break these:**
+- NEVER remove or alter the `<!-- slaminar:begin:X -->` / `<!-- slaminar:end:X -->` marker lines themselves. They are load-bearing for `slaminar update` incremental merges — touching them breaks future regeneration.
+- NEVER edit content outside the markers. That region belongs to the human user — slaminar and you must both leave it alone.
+
+### Step 6: Verify
+
+Run: `slaminar check <path>`
+
+Exit code 0 means CLAUDE.md, plugin, and markers are all well-formed. If non-zero, inspect the reported issues and fix them (typically a missing marker or a referenced `npm run` command that doesn't exist).
+
+### Step 7: (Optional) Install recommended tools
 
 For each recommended tool, ask if the user wants to install it. Run the install commands printed in the recommendation output.
 

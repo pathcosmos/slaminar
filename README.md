@@ -1153,7 +1153,24 @@ Added `catalog config` command for persisting custom catalog URL and mode (exten
 
 **Cross-refs.** [CHANGELOG v0.8.0](./CHANGELOG.md#080--2026-04-17) · [spec: `2026-04-16-custom-catalog-plan.md`](./docs/superpowers/specs/2026-04-16-custom-catalog-plan.md) + [spec §v0.8](./docs/superpowers/specs/2026-04-17-global-setup-plan.md) · tests: `tests/recommender/{catalog-sources,catalog-source-persistence,catalog-merger,catalog-resolver}.test.ts`.
 
-### Cross-Reference Index (v0.5 → v0.8)
+### Phase 15: Claude Code Passthrough (v0.8.2)
+
+**Motivation.** Up to v0.8.1, invoking `/slaminar` inside Claude Code forced users to configure a separate AI provider (Cloudflare or Anthropic) even though an outer Claude agent was already running. This duplicated AI calls and demanded an API key that users with a Max/Pro Claude subscription should never have needed.
+
+**Shipped.**
+- `src/skill/SKILL.md` — 7-step workflow rewrite that forces `--no-ai` in Steps 2 and 4 and adds Step 5 (outer Claude enhances in place) and Step 6 (verify with `slaminar check`)
+- `docs/getting-started-walkthrough.md` — new §1.5 explaining the two execution contexts
+- Core TypeScript code unchanged — this release reuses the existing `--no-ai` flag and ownership marker system
+
+**Decisions.**
+
+- **D15.1 — Force `--no-ai` inside Claude Code; slaminar never calls an external provider from the skill path.** Alternative: let the outer agent decide per-invocation. Rationale: an outer Claude is already the best available model and already running; nested AI calls add latency, cost, and configuration friction for zero marginal quality. Evidence: `src/skill/SKILL.md` Steps 2 & 4 both pass `--no-ai`; `src/cli.ts` `--no-ai` flag handling.
+- **D15.2 — Enhancement boundary is slaminar's existing ownership markers.** Alternative: introduce a new "agent-editable region" primitive. Rationale: markers are already load-bearing for `slaminar update` incremental merges and already enforce the "slaminar region vs user region" split. Adding another layer would risk contract drift. Evidence: `src/placer/markers.ts`, `src/core/updater.ts`.
+- **D15.3 — SKILL.md is the sole "Claude Code context" carrier; no env-var auto-detection.** Alternative: read `SLAMINAR_AGENT_MODE=1` or inspect parent process to force the passthrough mode. Rationale: SKILL.md already defines "this was invoked via Claude Code" precisely — being inside a Claude Code skill call is exactly the signal we need, no extra channel required. Env-var detection would add false-positive risk without new capability. Evidence: `src/skill/SKILL.md` frontmatter + workflow.
+
+**Cross-refs.** [CHANGELOG v0.8.2](./CHANGELOG.md#082--2026-04-17) · [spec: `2026-04-17-claude-code-passthrough-design.md`](./docs/superpowers/specs/2026-04-17-claude-code-passthrough-design.md) · no new tests (existing 338 continue to pass).
+
+### Cross-Reference Index (v0.5 → v0.8.2)
 
 Every numbered decision above appears in three places — README (here), CHANGELOG (release notes), and design spec (when one exists). Decision IDs are **identical between `README.md` and `README.ko.md`** — use `grep -n "D14\.3" README*.md` to verify parity. File paths can be opened directly to audit claims; test files can be run in isolation with `npm test -- --run <path>`.
 
@@ -1184,6 +1201,9 @@ Every numbered decision above appears in three places — README (here), CHANGEL
 | D14.6 | trust persisted, not enforced | v0.8.0 | same | `src/types/index.ts` | — |
 | D14.7 | CLI `--catalog` as adhoc source | v0.8.0 | same | `src/recommender/catalog-sources.ts` | `tests/recommender/catalog-resolver.test.ts` |
 | D14.8 | Stable `cli-adhoc` ID vs hashed env IDs | v0.8.0 | same | `src/recommender/catalog-sources.ts` | `tests/recommender/catalog-sources.test.ts` |
+| D15.1 | Force `--no-ai` in Claude Code context | v0.8.2 | `2026-04-17-claude-code-passthrough-design.md` | `src/skill/SKILL.md` | — |
+| D15.2 | Enhancement boundary = ownership markers | v0.8.2 | same | `src/placer/markers.ts`, `src/core/updater.ts` | — |
+| D15.3 | SKILL.md carrier, no env-var auto-detection | v0.8.2 | same | `src/skill/SKILL.md` | — |
 
 ### Quality Passes
 
