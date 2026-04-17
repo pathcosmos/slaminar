@@ -181,12 +181,13 @@ function checkDefaults(): DoctorCheck[] {
   }
   try {
     const d = loadDefaults();
+    const tier = d.defaults.tokenTier ?? 'smart';
     return [
       {
         name: 'defaults.json',
         category: 'Configuration',
         status: 'pass',
-        detail: `version ${d.version}, savedAt ${d.savedAt}`,
+        detail: `version ${d.version}, tokenTier ${tier}, savedAt ${d.savedAt}`,
       },
     ];
   } catch {

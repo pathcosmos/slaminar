@@ -13,7 +13,7 @@ import { runCheck } from './ci/check.js';
 import { detectAiProvider } from './generator/ai-provider.js';
 import { resolveCatalog } from './recommender/catalog-resolver.js';
 import { loadTeamConfig, saveTeamConfig } from './team/config.js';
-import type { CatalogMode, CatalogSource } from './types/index.js';
+import type { CatalogMode, CatalogSource, TokenTier } from './types/index.js';
 import { loadCache, backupCache, rollbackCache, isCacheValid } from './recommender/catalog-cache.js';
 import { diffCatalogs, formatDiff } from './recommender/catalog-diff.js';
 import { fetchRemoteCatalog } from './recommender/catalog-remote.js';
@@ -44,6 +44,20 @@ import { loadDefaults } from './setup/defaults.js';
 import { SLAMINAR_VERSION } from './version.js';
 import Table from 'cli-table3';
 
+const VALID_TIERS: readonly TokenTier[] = ['conservative', 'smart', 'rich'];
+
+function resolveTokenTier(cliValue: string | undefined): TokenTier {
+  if (cliValue) {
+    if (!VALID_TIERS.includes(cliValue as TokenTier)) {
+      throw new Error(
+        `--token-tier must be one of: ${VALID_TIERS.join(', ')} (got '${cliValue}')`,
+      );
+    }
+    return cliValue as TokenTier;
+  }
+  return loadDefaults().defaults.tokenTier ?? 'smart';
+}
+
 const program = new Command();
 
 program
@@ -66,7 +80,8 @@ program
   .option('--no-ai', 'Disable AI enhancement (use local rules only)')
   .option('--catalog <url>', 'Use custom catalog URL')
   .option('--catalog-mode <mode>', 'Catalog mode: extend or replace')
-  .action(async (path: string | undefined, options: { dryRun?: boolean; ai?: boolean; catalog?: string; catalogMode?: string }) => {
+  .option('--token-tier <tier>', 'Tool recommendation tier: conservative | smart | rich')
+  .action(async (path: string | undefined, options: { dryRun?: boolean; ai?: boolean; catalog?: string; catalogMode?: string; tokenTier?: string }) => {
     try {
       const verbose = program.opts().verbose || false;
       const timer = new PhaseTimer(verbose);
@@ -95,8 +110,10 @@ program
         saveDefaults(builtInDefaults());
       }
 
+      const tokenTier = resolveTokenTier(options.tokenTier);
+
       timer.start('Initializing');
-      const result = await init(targetPath, { dryRun: options.dryRun, useAi: options.ai, catalogUrl: options.catalog, catalogMode: options.catalogMode as CatalogMode | undefined });
+      const result = await init(targetPath, { dryRun: options.dryRun, useAi: options.ai, catalogUrl: options.catalog, catalogMode: options.catalogMode as CatalogMode | undefined, tokenTier });
       timer.end(`${result.writtenFiles.length} files written (${result.aiProvider.provider})`);
 
       if (result.aiProvider.available && options.ai !== false) {
@@ -197,7 +214,8 @@ program
   .description('Analyze project and recommend Claude Code tools')
   .option('--catalog <url>', 'Use custom catalog URL')
   .option('--catalog-mode <mode>', 'Catalog mode: extend or replace')
-  .action(async (path: string | undefined, options: { catalog?: string; catalogMode?: string }) => {
+  .option('--token-tier <tier>', 'Tool recommendation tier: conservative | smart | rich')
+  .action(async (path: string | undefined, options: { catalog?: string; catalogMode?: string; tokenTier?: string }) => {
     try {
       const verbose = program.opts().verbose || false;
       const timer = new PhaseTimer(verbose);
@@ -205,12 +223,14 @@ program
 
       if (verbose) console.log('\nslaminar recommend — verbose mode\n');
 
+      const tokenTier = resolveTokenTier(options.tokenTier);
+
       timer.start('Analyzing');
       const { profile } = analyze(targetPath);
       timer.end();
 
       timer.start('Recommending');
-      const plan = await recommend(profile, { catalogUrl: options.catalog, catalogMode: options.catalogMode as CatalogMode | undefined, projectRoot: targetPath });
+      const plan = await recommend(profile, { catalogUrl: options.catalog, catalogMode: options.catalogMode as CatalogMode | undefined, projectRoot: targetPath, tokenTier });
       timer.end(`${plan.recommended.length} tools recommended`);
 
       console.log(JSON.stringify(plan, null, 2));

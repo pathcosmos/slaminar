@@ -1295,7 +1295,56 @@ CLAUDE.md 유효성 검증, plugin.json 스키마 검증, 터미널 컬러 테�
 
 **교차 링크.** [CHANGELOG v0.8.4](./CHANGELOG.md#084--2026-04-17) · [spec: `2026-04-17-v0-8-4-init-first-design.md`](./docs/superpowers/specs/2026-04-17-v0-8-4-init-first-design.md) · 테스트: `tests/setup/inline-prompt.test.ts`.
 
-### 교차 참조 인덱스 (v0.5 → v0.8.4)
+### Phase 17: Catalog Ecosystem (v0.8.5)
+
+**동기.** v0.8.0 은 카탈로그 소스 federation — bundled / official / user / project / env / CLI 스택 — 을 도입했고, `CatalogSource.type: 'file' | 'url' | 'github' | 'official'` 스키마와 머지/캐시 기반도 갖췄습니다. 그런데 한 분기가 실제로는 선언만 된 상태였습니다: `source.type === 'file'` 이 `fetchRemoteCatalog()` 로 전달됐는데, 이 함수는 Node 의 네이티브 `fetch()` 에 위임 — Node 의 fetch 는 experimental 플래그 없이는 `file:` URI 를 거부합니다. 그래서 공유 드라이브나 모노레포에서 팀이 쓰려 했던 local-file 카탈로그 소스가 소리 없이 작동하지 않았습니다. 별개로, presentation 생성 워크플로를 만들려는 사용자는 카탈로그가 해당 생태계를 seed 하지 않아 출발점이 없었고, 자체 JSON 카탈로그를 작성하려는 사람에게도 소스 코드 외에는 참고 자료가 없었습니다.
+
+**산출물.**
+- `src/recommender/catalog-remote.ts` — 신규 `fetchLocalCatalog(uri)` 가 `file://`, `~/`, `./`, 절대 경로를 `node:fs` 로 읽음. 신규 `fetchCatalogBySource(source, etag?)` 디스패처가 `source.type` 으로 분기: `file` → local, `url`/`official` → HTTP, `github:owner/repo/path` → `raw.githubusercontent.com` URL 로 확장 후 HTTP
+- `src/recommender/catalog-resolver.ts` — 한 줄 교체: `fetchRemoteCatalog` 대신 디스패처 호출
+- `tests/recommender/catalog-remote.test.ts` — 절대 경로, `file://` URI, `~/` 확장, 스키마 거부를 커버하는 신규 테스트 4 개 (343 → 347)
+- `catalog/catalog.json` — presentation 도구 10 개 추가 (`python-pptx`, `md2pptx`, `powerpointer`, `pymupdf`, `pdf2image`, `playwright`, `slidev`, `marp`, `reveal.js`, `presenton`), 관계 6 개 추가, 카탈로그 버전 `2.0.0` → `2.1.0` (도구 46 → 56)
+- `docs/catalog-tools-reference.md` (신규, ~655 줄) — 수작업 큐레이션 "무엇이고 언제 쓰나 / 어떻게 설치하나" 인덱스. presentation 카테고리는 완전 수록, 기존 카테고리는 카테고리당 대표 1 개로 시작
+- `docs/catalog-authoring-guide.md` (신규, ~266 줄) — 단계별 작성 가이드: local file 등록을 포함한 5 분 튜토리얼, 전체 스키마 표 (`CatalogTool` / `CatalogSuggestion` / `ToolConflict`), 실전 패턴, extend vs replace 결정 가이드, 검증, 호스팅 비교, deprecation 흐름, 트러블슈팅
+
+**의사결정.**
+
+- **D17.1 — `fetchRemoteCatalog` 확장 대신 신규 `fetchCatalogBySource` 디스패처.** 대안: `fetchRemoteCatalog` 가 모든 소스 타입을 처리하도록 바꾸고 이름 변경. 근거: `fetchRemoteCatalog` 는 downstream 코드가 직접 호출하기 때문에 의미를 바꾸면 조용한 동작 변경 위험. 디스패처를 위에 한 겹 두면 기존 시그니처가 유지되고, 소스 타입별 transport 로직이 한곳에서 읽기 쉬워집니다. 디스패처 자체는 `source.type` 에 대한 단일 switch — 새 transport 추가 (예: 향후 S3) 시 한 분기만 늘리면 됩니다. 증거: `src/recommender/catalog-remote.ts:fetchCatalogBySource`.
+- **D17.2 — 로컬 파일은 `fs.readFile`, `fetch('file://...')` 아님.** 대안: Node 의 experimental-fetch 플래그를 `file:` URI 에 활성화. 근거: experimental 플래그는 사용자의 Node 버전 차이마다 보이지 않는 실패 모드를 만듭니다. slaminar 는 Node ≥ 20 을 지원하며, 이 범위 대부분에서 `fetch('file://')` 는 사용자별 플래그 관리 없이는 실패합니다. `fs.readFile` 로 읽는 것은 단순하고 명시적이며 어디서나 동작합니다. 비용은 URI 정규화 로직 ~30 줄 (`file://`, `~/`, `./`, 절대) — 플래그 문서화보다 저렴. 증거: `src/recommender/catalog-remote.ts:fetchLocalCatalog`.
+- **D17.3 — Presentation 카테고리는 OSS 만; 상업 AI API 는 의도적 제외.** 대안: 상업 API (Gamma, 2Slides, Beautiful.ai, SlideSpeak, Aspose.Slides) 도 포함하고 설치 안내를 API-key 가입 링크로. 근거: slaminar 파이프라인은 기본적으로 오프라인 실행이며, bundled 카탈로그는 모든 사용자에게 배포 — CI 박스와 air-gapped 환경 포함. 유료 SaaS 가입을 요구하는 `recommender` 결과물은 그 계약에 반합니다. 작성 가이드가 사용자/팀이 자신의 custom 카탈로그에 상업 항목을 추가하는 방법을 상세히 문서화하므로 정보는 사라지지 않고 — 단지 언번들될 뿐입니다. 증거: `catalog/catalog.json` (상업 항목 없음), `docs/catalog-authoring-guide.md` "patterns" 섹션.
+- **D17.4 — 참고 문서는 100% 수록 대기 없이 점진 배포.** 대안: 56 개 도구 전부 상세 기술이 완료될 때까지 `docs/catalog-tools-reference.md` 배포 연기. 근거: presentation 카테고리는 지금 사용자가 가장 안내를 필요로 하는 곳입니다 (10 개 도구, 역할 중복 다수). 기존 카테고리당 대표 1 개로 스키마-실전-매핑을 보여주면 기여자들이 나머지를 이어서 채울 수 있습니다. 전체 커버리지를 기준으로 gate 하면 문서 배포가 v0.9+로 밀리고, 그 사이 사용자는 소스 코드로 돌아가야 합니다. 증거: `docs/catalog-tools-reference.md` 의 TODO 마커가 나머지 작업 범위를 v0.8.6+ 로 명시.
+
+**교차 링크.** [CHANGELOG v0.8.5](./CHANGELOG.md#085--2026-04-17) · 설계 계획: `0-8-jiggly-ullman.md` (승인됨) · 테스트: `tests/recommender/catalog-remote.test.ts` · 신규 문서: [`docs/catalog-tools-reference.md`](./docs/catalog-tools-reference.md), [`docs/catalog-authoring-guide.md`](./docs/catalog-authoring-guide.md).
+
+### Phase 18: Token-Cost Tier for Tool Recommendations (v0.9.0)
+
+**동기.** v0.8.x 까지 AI·생태계 비용을 관리하는 축은 binary — `--no-ai` on/off — 뿐이었습니다. "AI 는 쓰되 Claude Code 세션을 무겁게 만들지 않는 구성만 추천해달라" 는 중간 지점이 없었습니다. MCP 서버, LSP attachment, 지속적인 knowledge-graph 플러그인, multi-agent 오케스트레이터 같은 생태계 도구들은 outer Claude 세션의 토큰 풋프린트를 의미 있게 늘립니다. 경량 셋업을 원하는 사용자는 slaminar 의 전체 추천을 받거나 수동으로 걸러내야 했습니다. conservative / smart / rich 3단 tier 를 도입해 사용자의 의도를 존중하면서도 추천 파이프라인은 카탈로그 기반으로 유지합니다.
+
+**산출물.**
+- `src/recommender/token-cost.ts` (신규) — `inferTokenCost(tool)` 태그·카테고리 휴리스틱, `resolveTokenCost(tool) = tool.tokenCost ?? inferTokenCost(tool)` 하이브리드 API. 번들 56 개 분포: **low 9 / medium 34 / high 13** (override 0 건)
+- `src/recommender/tier-filter.ts` (신규) — `filterByTier(scored, tier)` 순수함수. Conservative 는 `low` 전부 + `medium` score ≥ 80; Smart 는 `high` score ≥ 70 빼고 전부; Rich 는 전부 통과
+- `src/recommender/recommender.ts` — overlap 해결 뒤·maturity `maxTools` 앞에서 tier 필터 실행. tier 로 비워진 슬롯은 차순위 도구로 채워짐
+- `src/types/index.ts` — `TokenCost` / `TokenTier` 타입, `CatalogTool.tokenCost` / `tokenCostRationale` 선택 override 필드, `UserDefaults.defaults.tokenTier`, `ExcludedTool` 인터페이스 + `tier` / `cost` / `score` 메타
+- `src/setup/defaults.ts` / `src/setup/wizard.ts` — `builtInDefaults.defaults.tokenTier = 'smart'`, Step 4 select 질문, `--yes` 용 `SLAMINAR_DEFAULT_TOKEN_TIER` env var
+- `src/cli.ts` — `init` / `recommend` 양쪽에 `--token-tier <tier>`, CLI > defaults > built-in 순으로 해석하는 `resolveTokenTier()` 헬퍼
+- `src/core/pipeline.ts` / `src/setup/doctor.ts` / `src/reporter/terminal.ts` — 파이프라인이 `tokenTier` 를 recommender 까지 전달, doctor 가 현재 tier 표시, terminal reporter 에 "Excluded by tier filter" 미니 표 추가
+- `tests/recommender/{token-cost,tier-filter}.test.ts` (신규, ~15 케이스) + `recommender.test.ts` 에 tier 통합 케이스 3 개. 총 347 → 365 tests
+
+**의사결정.**
+
+- **D18.1 — 하이브리드 cost 모델: 휴리스틱 기본 + 카탈로그 override 선택.** 대안: 모든 카탈로그 항목에 `tokenCost` 필수. 근거: 카탈로그는 진화하므로, 작성자가 cost 를 신경쓰지 않아도 신규 도구가 안전하게 분류돼야 합니다. 휴리스틱이 일반적인 형태(hook=low, MCP 유사=high)를 커버하고, 드문 예외만 한 줄 override 로 교정. override 개수가 휴리스틱 품질의 지표로 작동 — 56 개에 >10 개 override 가 필요하다면 휴리스틱을 고쳐야 한다는 신호. 증거: `src/recommender/token-cost.ts:resolveTokenCost`.
+- **D18.2 — 휴리스틱 기본값은 `medium`.** 대안: `low`. 근거: 알려지지 않은 도구에 대해 `medium` 이 conservative-safe — Conservative tier 에서는 score ≥ 80 일 때만 통과하므로 분류되지 않은 도구도 품질 게이트를 거칩니다. `low` 기본이면 알려지지 않은 도구가 Conservative 필터를 조용히 통과해 목적을 무효화. 증거: `inferTokenCost()` 의 fallthrough.
+- **D18.3 — Tier policy 는 코드 상수 (v0.9.0 에 `catalog.json tierPolicy` override 없음).** 대안: 카탈로그 스키마에 `tierPolicy` 를 바로 노출. 근거: 요청 전까지 YAGNI. 배포 표면이 단순해짐. 필드는 스키마에 예약되어 있어 후속 릴리스에서 마이그레이션 없이 추가 가능. 증거: `src/recommender/tier-filter.ts` 의 `MEDIUM_THRESHOLD_CONSERVATIVE = 80` / `HIGH_THRESHOLD_SMART = 70` 하드코딩.
+- **D18.4 — 제외된 도구는 숨기지 않고 보여줌.** dry-run 과 init 리포트에 "Excluded by tier filter (N)" 표 등장. 근거: 투명성 — Playwright 가 추천에 있어야 한다고 기대한 사용자가 왜 사라졌는지 즉시 이해하고, `rich` 로 전환하고 싶으면 그 방법을 알 수 있어야 합니다. 숨기면 slaminar 가 거짓말하는 느낌.
+- **D18.5 — Score 기반 예외 (Conservative medium ≥ 80, Smart high ≥ 70).** 대안: 순수 cost 필터. 근거: scorer 가 이미 "이 도구가 프로파일에 얼마나 잘 맞는지"를 수치화했습니다. 완벽히 맞는 도구(score 95)가 우연히 `medium` 이라고 Conservative 에서 빠지면 자의적으로 느껴짐. score threshold 가 "cheap-and-useful" 신호를 보호. 증거: `tier-filter.ts` 의 `shouldInclude()`.
+- **D18.6 — Inline mini-setup 에 tokenTier 질문 추가 안 함 (D16.2 계약 유지).** 첫 실행 UX 는 1 개 질문(AI provider)만. `builtInDefaults` 가 조용히 `tokenTier: 'smart'` 저장. 다른 tier 원하는 사용자는 `slaminar setup` 또는 `--token-tier` 로 변경. 증거: `src/setup/inline-prompt.ts` 변경 없음.
+- **D18.7 — tier 필터는 추천만 게이트, 설치는 게이트 안 함.** 대안: Conservative 에서 사용자가 `slaminar install <high-cost-tool>` 실행 시 경고/차단. 근거: 추천은 slaminar 의 의견, 설치는 사용자의 결정. 게이트는 가부장적이고 자기 선택을 아는 사용자와 충돌. 투명한 제외 리포트로 신호는 충분. 증거: 필터가 `recommender.ts` 안에만 존재, `src/rollback/uninstaller.ts` 변경 없음.
+- **D18.8 — 56 개 전수 휴리스틱 검토 + 최소 override.** 목표: override ≤ 10. 실제: 0 건. 검토 중 휴리스틱 구멍 1 개 발견(`lsp` / `static-analysis` 태그) — override 로 처리하지 않고 휴리스틱 자체를 고쳐서 향후 LSP 류 도구가 자동으로 올바르게 분류되도록. 증거: `token-cost.ts` 의 `HEAVY_TAGS`.
+- **D18.9 — Custom catalog 도구도 동일 하이브리드 파이프라인으로 자동 분류.** `resolveTokenCost()` 는 catalog-agnostic 하게 실행 — bundled / official / user / project / env / CLI 모든 도구가 동일 경로. Custom 카탈로그 설정한 사용자는 `tokenCost` 를 명시할 필요 없고, 동의하지 않는 경우에만 선택적으로 override. 이는 tier 필터를 카탈로그 머지 *뒤* 단계에 둔 **의도된** 속성 — 우연한 부수효과가 아님.
+
+**교차 링크.** [CHANGELOG v0.9.0](./CHANGELOG.md#090--2026-04-17) · 설계 계획: `harmonic-wishing-pumpkin.md` (승인됨) · 테스트: `tests/recommender/token-cost.test.ts`, `tests/recommender/tier-filter.test.ts`, `tests/recommender/recommender.test.ts`.
+
+### 교차 참조 인덱스 (v0.5 → v0.9.0)
 
 위의 번호 붙은 모든 의사결정은 3곳에 기록되어 있습니다 — README(여기), CHANGELOG(릴리스 노트), 설계 spec(있을 때). 의사결정 ID는 **`README.md`와 `README.ko.md`에서 동일** — `grep -n "D14\.3" README*.md`로 패리티 검증 가능. 파일 경로는 직접 열어 주장 감사 가능; 테스트 파일은 `npm test -- --run <path>`로 격리 실행.
 
@@ -1334,6 +1383,19 @@ CLAUDE.md 유효성 검증, plugin.json 스키마 검증, 터미널 컬러 테�
 | D16.3 | Auth 실패 시 init 중단, graceful fallback 없음 | v0.8.4 | same | `src/cli.ts` | — |
 | D16.4 | `slaminar setup` 변경 없음; mini-setup 독립 경로 | v0.8.4 | same | `src/setup/wizard.ts`, `src/auth/wizard.ts` | — |
 | D16.5 | `claude` CLI 감지는 v0.9.0으로 (YAGNI) | v0.8.4 | same | `src/setup/inline-prompt.ts` | — |
+| D17.1 | 카탈로그 소스 타입별 디스패처 패턴 | v0.8.5 | `0-8-jiggly-ullman.md` | `src/recommender/catalog-remote.ts` | `tests/recommender/catalog-remote.test.ts` |
+| D17.2 | 로컬 파일은 `fs.readFile`, `fetch('file://')` 아님 | v0.8.5 | same | `src/recommender/catalog-remote.ts:fetchLocalCatalog` | `tests/recommender/catalog-remote.test.ts` |
+| D17.3 | Presentation 카테고리는 OSS만, 상업 API 제외 | v0.8.5 | same | `catalog/catalog.json` | — |
+| D17.4 | 참고 문서는 점진 배포, 전체 커버리지 gate 없음 | v0.8.5 | same | `docs/catalog-tools-reference.md` | — |
+| D18.1 | 하이브리드 cost: 휴리스틱 + 선택적 override | v0.9.0 | `harmonic-wishing-pumpkin.md` | `src/recommender/token-cost.ts` | `tests/recommender/token-cost.test.ts` |
+| D18.2 | 휴리스틱 기본값은 `medium` (conservative-safe) | v0.9.0 | same | `src/recommender/token-cost.ts` | `tests/recommender/token-cost.test.ts` |
+| D18.3 | Tier policy 는 코드 상수 (v0.9.0 override 없음) | v0.9.0 | same | `src/recommender/tier-filter.ts` | `tests/recommender/tier-filter.test.ts` |
+| D18.4 | 제외된 도구는 리포트 표에 명시 | v0.9.0 | same | `src/reporter/terminal.ts` | — |
+| D18.5 | Score threshold (med ≥ 80 / high ≥ 70) 예외 | v0.9.0 | same | `src/recommender/tier-filter.ts` | `tests/recommender/tier-filter.test.ts` |
+| D18.6 | Inline mini-setup 에 tokenTier 질문 없음 (D16.2 유지) | v0.9.0 | same | `src/setup/inline-prompt.ts` (변경 없음) | — |
+| D18.7 | Tier 필터는 추천만 게이트, 설치는 게이트 안 함 | v0.9.0 | same | `src/recommender/recommender.ts` | `tests/recommender/recommender.test.ts` |
+| D18.8 | 휴리스틱 감사 우선 (v0.9.0 override 0) | v0.9.0 | same | `src/recommender/token-cost.ts:HEAVY_TAGS` | — |
+| D18.9 | Custom catalog 도 동일 하이브리드 파이프라인 | v0.9.0 | same | `src/recommender/recommender.ts` | `tests/recommender/tier-filter.test.ts` |
 
 ### 품질 개선 (3차례 리뷰)
 

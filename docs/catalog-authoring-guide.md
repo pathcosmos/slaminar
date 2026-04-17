@@ -97,6 +97,8 @@ v0.8.5 이전에는 로컬 파일이 HTTP fetch만 시도하다 실패했지만,
 | `deprecatedReason` | string | N | 왜 deprecate됐는지 |
 | `lastVerified` | string | N | 최근 검증 날짜 (ISO) |
 | `replacedBy` | string | N | 후임 도구의 `name` |
+| `tokenCost` | string | N | v0.9.0+ 추가. `low` \| `medium` \| `high`. 휴리스틱 자동 분류를 override. 이 필드를 **생략하면** slaminar 가 태그·카테고리 기반 `inferTokenCost()` 로 자동 분류하므로 custom catalog 작성자가 매번 채울 필요 없음. 휴리스틱이 틀릴 때만 명시 |
+| `tokenCostRationale` | string | N | v0.9.0+ 추가. `tokenCost` override 사유 한 줄 (감사 가능성). 예: `"triggers auto-load on every session via MCP schema injection"` |
 
 ### 3.3 `CatalogSuggestion` 필드 (미래 후보)
 

@@ -1192,7 +1192,56 @@ Added `catalog config` command for persisting custom catalog URL and mode (exten
 
 **Cross-refs.** [CHANGELOG v0.8.4](./CHANGELOG.md#084--2026-04-17) · [spec: `2026-04-17-v0-8-4-init-first-design.md`](./docs/superpowers/specs/2026-04-17-v0-8-4-init-first-design.md) · test file: `tests/setup/inline-prompt.test.ts`.
 
-### Cross-Reference Index (v0.5 → v0.8.4)
+### Phase 17: Catalog Ecosystem (v0.8.5)
+
+**Motivation.** v0.8.0 shipped federated catalog sources — the bundled / official / user / project / env / CLI stack — with a `CatalogSource.type: 'file' | 'url' | 'github' | 'official'` schema and the merge/cache plumbing to back it. In practice one branch was declared-only: `source.type === 'file'` went through `fetchRemoteCatalog()`, which delegates to Node's native `fetch()` — and Node's fetch refuses `file:` URIs without an experimental flag. So local-file catalog sources, the escape hatch for teams that wanted a shared catalog over a network drive or inside a monorepo, silently didn't work. Separately, users building presentation-generation workflows had no starting point — the catalog didn't seed that ecosystem at all — and catalog authors writing their own JSON had no reference beyond source code.
+
+**Shipped.**
+- `src/recommender/catalog-remote.ts` — new `fetchLocalCatalog(uri)` reads `file://`, `~/`, `./`, and absolute paths via `node:fs`. New `fetchCatalogBySource(source, etag?)` dispatcher routes by `source.type`: `file` → local, `url`/`official` → HTTP, `github:owner/repo/path` → expanded to `raw.githubusercontent.com` URL and routed through HTTP
+- `src/recommender/catalog-resolver.ts` — one-line swap: calls the dispatcher instead of `fetchRemoteCatalog` directly
+- `tests/recommender/catalog-remote.test.ts` — 4 new tests covering absolute paths, `file://` URIs, `~/` expansion, and schema rejection (343 → 347)
+- `catalog/catalog.json` — 10 new presentation tools (`python-pptx`, `md2pptx`, `powerpointer`, `pymupdf`, `pdf2image`, `playwright`, `slidev`, `marp`, `reveal.js`, `presenton`), 6 new relations, catalog version `2.0.0` → `2.1.0` (tools 46 → 56)
+- `docs/catalog-tools-reference.md` (new, ~655 lines) — hand-curated "what is this tool / when to use it / how to install" index; presentation category fully covered, one representative per existing category as a starter
+- `docs/catalog-authoring-guide.md` (new, ~266 lines) — step-by-step authoring guide: 5-minute tutorial with local-file registration, full schema tables (`CatalogTool` / `CatalogSuggestion` / `ToolConflict`), practical patterns, extend vs replace decision guide, validation, hosting comparison, deprecation flow, troubleshooting
+
+**Decisions.**
+
+- **D17.1 — New `fetchCatalogBySource` dispatcher instead of extending `fetchRemoteCatalog`.** Alternative: teach `fetchRemoteCatalog` to handle all source types and rename it. Rationale: `fetchRemoteCatalog` is called directly by downstream code paths; changing its semantics risks silent behavior shifts. A dispatcher layered above keeps the existing signature intact and makes transport logic per-source-type easy to read. The dispatcher is a single switch on `source.type` — adding a new transport (e.g., S3 in a future release) is a one-branch change. Evidence: `src/recommender/catalog-remote.ts:fetchCatalogBySource`.
+- **D17.2 — Local files read via `fs.readFile`, not `fetch('file://...')`.** Alternative: enable Node's experimental-fetch flag for file URIs. Rationale: experimental flags are invisible failure modes across Node versions; slaminar supports Node ≥ 20 and `fetch('file://')` would fail on most of that range without per-user flag hygiene. Reading through `fs.readFile` is boring, explicit, and works everywhere. The cost is ~30 lines of URI-normalization logic (`file://`, `~/`, `./`, absolute) — cheaper than documenting a flag. Evidence: `src/recommender/catalog-remote.ts:fetchLocalCatalog`.
+- **D17.3 — Presentation category is OSS-only; commercial AI APIs deliberately excluded.** Alternative: include commercial APIs (Gamma, 2Slides, Beautiful.ai, SlideSpeak, Aspose.Slides) with install instructions pointing to API-key signup. Rationale: slaminar's pipeline runs offline by default, and the bundled catalog ships to every user — including CI boxes and air-gapped environments. A `recommender` output that requires signing up for a paid SaaS contradicts that contract. The authoring guide documents how a user or team can add commercial entries to their own custom catalog, so the information isn't lost — just unbundled. Evidence: `catalog/catalog.json` (no commercial entries), `docs/catalog-authoring-guide.md` "patterns" section.
+- **D17.4 — Reference docs ship incrementally, not gated on 100% catalog coverage.** Alternative: delay `docs/catalog-tools-reference.md` until all 56 tools have full write-ups. Rationale: the presentation category is the one users most need a guide for right now (10 tools, many with overlapping roles). One representative per existing category documents the schema-in-action so contributors can continue filling in the rest; gating on full coverage would push the doc to v0.9+ and force users back to reading source code in the meantime. Evidence: TODO markers in `docs/catalog-tools-reference.md` explicitly scope the remaining work to v0.8.6+.
+
+**Cross-refs.** [CHANGELOG v0.8.5](./CHANGELOG.md#085--2026-04-17) · design plan: `0-8-jiggly-ullman.md` (approved) · tests: `tests/recommender/catalog-remote.test.ts` · new docs: [`docs/catalog-tools-reference.md`](./docs/catalog-tools-reference.md), [`docs/catalog-authoring-guide.md`](./docs/catalog-authoring-guide.md).
+
+### Phase 18: Token-Cost Tier for Tool Recommendations (v0.9.0)
+
+**Motivation.** Until v0.8.x the only axis for governing AI/ecosystem cost was binary: `--no-ai` on or off. There was no middle ground for "use AI, but don't bring me tools that bloat every Claude Code session." Many popular ecosystem tools (MCP servers, LSP attachments, persistent knowledge-graph plugins, multi-agent orchestrators) meaningfully change the outer-Claude session's token footprint. Users who wanted a lean setup had to either accept slaminar's full recommendation or manually filter the output themselves. A tier axis — conservative / smart / rich — lets slaminar honor intent while keeping the recommender catalog-driven.
+
+**Shipped.**
+- `src/recommender/token-cost.ts` (new) — `inferTokenCost(tool)` heuristic (tag/category rules), `resolveTokenCost(tool) = tool.tokenCost ?? inferTokenCost(tool)` hybrid API. Distribution on the bundled 56-tool catalog: **low 9 / medium 34 / high 13** with zero manual overrides.
+- `src/recommender/tier-filter.ts` (new) — `filterByTier(scored, tier)` pure function. Conservative keeps all `low` + `medium` with score ≥ 80; Smart keeps all except `high` below score 70; Rich keeps everything.
+- `src/recommender/recommender.ts` — tier filter runs after overlap resolution and before the maturity `maxTools` cap, so tier-excluded slots can be backfilled by the next-best tool.
+- `src/types/index.ts` — new `TokenCost` / `TokenTier` types, `CatalogTool.tokenCost` / `tokenCostRationale` optional override fields, `UserDefaults.defaults.tokenTier`, `ExcludedTool` extended with `tier` / `cost` / `score` metadata.
+- `src/setup/defaults.ts` / `src/setup/wizard.ts` — `builtInDefaults.defaults.tokenTier = 'smart'`, Step 4 select question, `SLAMINAR_DEFAULT_TOKEN_TIER` env var for `--yes`.
+- `src/cli.ts` — `--token-tier <tier>` on both `init` and `recommend`, `resolveTokenTier()` helper that layers CLI over defaults over built-in.
+- `src/core/pipeline.ts` / `src/setup/doctor.ts` / `src/reporter/terminal.ts` — pipeline carries `tokenTier` through to the recommender, doctor prints current tier, terminal reporter adds an "Excluded by tier filter" mini-table for transparency.
+- `tests/recommender/{token-cost,tier-filter}.test.ts` (new, ~15 cases) + 3 new cases in `recommender.test.ts` covering tier integration. Total: 347 → 365 tests.
+
+**Decisions.**
+
+- **D18.1 — Hybrid cost model: heuristic by default, catalog override optional.** Alternative: require every catalog entry to specify `tokenCost` explicitly. Rationale: catalogs evolve; new tools should be classified safely even if the author never thinks about cost. The heuristic covers the common shape (hook=low, MCP-ish=high), and rare edge cases get a one-line override. Override count itself becomes a proxy for heuristic quality — if you need >10 overrides on 56 tools, fix the heuristic. Evidence: `src/recommender/token-cost.ts:resolveTokenCost`.
+- **D18.2 — Heuristic default is `medium`.** Alternative: `low`. Rationale: for an unknown tool, `medium` is the conservative-safe default — Conservative tier only passes it at score ≥ 80, so unclassified tools still get a quality gate. A `low` default would let unknown tools through Conservative filter silently, defeating the purpose. Evidence: fallthrough branch in `inferTokenCost()`.
+- **D18.3 — Tier policy is a code constant (no `catalog.json tierPolicy` override in v0.9.0).** Alternative: expose `tierPolicy` in the catalog schema immediately so enterprise hosts can customize thresholds. Rationale: YAGNI until someone asks. Simpler shipping surface. The field is reserved in the schema sketch so a future release can add override without migration. Evidence: `src/recommender/tier-filter.ts` uses hardcoded `MEDIUM_THRESHOLD_CONSERVATIVE = 80` / `HIGH_THRESHOLD_SMART = 70`.
+- **D18.4 — Excluded tools are shown, not hidden.** "Excluded by tier filter (N)" table appears in dry-run and init reports. Rationale: transparency — a user who expected to see Playwright in the recommendations should immediately understand why it's gone and how to flip to `rich` if they want it back. Hiding would feel like slaminar is lying.
+- **D18.5 — Score-based escape hatches (Conservative medium ≥ 80, Smart high ≥ 70).** Alternative: pure cost filter with no score consideration. Rationale: the scorer already encodes "how well this tool fits the profile." If a tool is a perfect fit (score 95) but happens to be classified `medium`, excluding it under Conservative feels arbitrary. The score threshold protects "cheap-and-useful" signal from being lost. Evidence: `shouldInclude()` in `tier-filter.ts`.
+- **D18.6 — Inline mini-setup does NOT ask tokenTier (D16.2 contract preserved).** First-run UX stays one question (AI provider). `builtInDefaults` silently sets `tokenTier: 'smart'`. Users who want a different tier can change it in `slaminar setup` or pass `--token-tier`. Evidence: `src/setup/inline-prompt.ts` unchanged.
+- **D18.7 — Tier filter gates recommendations only, not installs.** Alternative: warn or block when a user runs `slaminar install <high-cost-tool>` under Conservative. Rationale: recommendations are slaminar's opinion; installation is the user's decision. A gate would feel paternalistic and fight users who know what they're doing. The transparent exclusion report is enough signal. Evidence: filter lives in `recommender.ts` alone; `src/rollback/uninstaller.ts` is untouched.
+- **D18.8 — 56-tool full heuristic audit, minimal overrides.** Target: ≤10 overrides. Actual: 0. The audit found one heuristic gap (`lsp` / `static-analysis` tags), fixed in the heuristic itself (not as overrides) so future LSP-style tools are auto-classified correctly. Evidence: `HEAVY_TAGS` in `token-cost.ts`.
+- **D18.9 — Custom catalog tools get the same automatic classification.** `resolveTokenCost()` runs catalog-agnostic: bundled / official / user / project / env / CLI tools all go through the same hybrid pipeline. Users setting up a custom catalog don't need to annotate `tokenCost` — the heuristic handles it, and they can selectively override when they disagree. This is an **intentional** property of layering the tier filter *after* catalog merge, not an accidental side-effect.
+
+**Cross-refs.** [CHANGELOG v0.9.0](./CHANGELOG.md#090--2026-04-17) · design plan: `harmonic-wishing-pumpkin.md` (approved) · tests: `tests/recommender/token-cost.test.ts`, `tests/recommender/tier-filter.test.ts`, `tests/recommender/recommender.test.ts`.
+
+### Cross-Reference Index (v0.5 → v0.9.0)
 
 Every numbered decision above appears in three places — README (here), CHANGELOG (release notes), and design spec (when one exists). Decision IDs are **identical between `README.md` and `README.ko.md`** — use `grep -n "D14\.3" README*.md` to verify parity. File paths can be opened directly to audit claims; test files can be run in isolation with `npm test -- --run <path>`.
 
@@ -1231,6 +1280,19 @@ Every numbered decision above appears in three places — README (here), CHANGEL
 | D16.3 | Auth failure aborts init, no graceful fallback | v0.8.4 | same | `src/cli.ts` | — |
 | D16.4 | `slaminar setup` untouched; mini-setup independent | v0.8.4 | same | `src/setup/wizard.ts`, `src/auth/wizard.ts` | — |
 | D16.5 | No `claude` CLI detection (YAGNI until v0.9.0) | v0.8.4 | same | `src/setup/inline-prompt.ts` | — |
+| D17.1 | Dispatcher pattern for catalog source types | v0.8.5 | `0-8-jiggly-ullman.md` | `src/recommender/catalog-remote.ts` | `tests/recommender/catalog-remote.test.ts` |
+| D17.2 | Local files via `fs.readFile`, not `fetch('file://')` | v0.8.5 | same | `src/recommender/catalog-remote.ts:fetchLocalCatalog` | `tests/recommender/catalog-remote.test.ts` |
+| D17.3 | Presentation category: OSS-only, commercial APIs excluded | v0.8.5 | same | `catalog/catalog.json` | — |
+| D17.4 | Reference docs ship incrementally, not gated on full coverage | v0.8.5 | same | `docs/catalog-tools-reference.md` | — |
+| D18.1 | Hybrid cost model: heuristic + optional override | v0.9.0 | `harmonic-wishing-pumpkin.md` | `src/recommender/token-cost.ts` | `tests/recommender/token-cost.test.ts` |
+| D18.2 | Heuristic default is `medium` (conservative-safe) | v0.9.0 | same | `src/recommender/token-cost.ts` | `tests/recommender/token-cost.test.ts` |
+| D18.3 | Tier policy is a code constant (no override in v0.9.0) | v0.9.0 | same | `src/recommender/tier-filter.ts` | `tests/recommender/tier-filter.test.ts` |
+| D18.4 | Excluded tools shown in a dedicated report table | v0.9.0 | same | `src/reporter/terminal.ts` | — |
+| D18.5 | Score thresholds (med ≥ 80 / high ≥ 70) protect cheap-and-useful | v0.9.0 | same | `src/recommender/tier-filter.ts` | `tests/recommender/tier-filter.test.ts` |
+| D18.6 | Inline mini-setup does NOT ask tokenTier (preserves D16.2) | v0.9.0 | same | `src/setup/inline-prompt.ts` (unchanged) | — |
+| D18.7 | Tier filter gates recommendations only, not installs | v0.9.0 | same | `src/recommender/recommender.ts` | `tests/recommender/recommender.test.ts` |
+| D18.8 | Heuristic audit over overrides (0 overrides in v0.9.0) | v0.9.0 | same | `src/recommender/token-cost.ts:HEAVY_TAGS` | — |
+| D18.9 | Custom catalog tools classified via same hybrid pipeline | v0.9.0 | same | `src/recommender/recommender.ts` | `tests/recommender/tier-filter.test.ts` |
 
 ### Quality Passes
 

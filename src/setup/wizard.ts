@@ -24,6 +24,7 @@ import type {
   BatchApplyResult,
   CatalogMode,
   DiscoveryResult,
+  TokenTier,
   UserDefaults,
 } from '../types/index.js';
 import { formatDoctorReport, runDoctor } from './doctor.js';
@@ -307,6 +308,7 @@ async function stepDefaults(
   console.log(header('Step 4 — Defaults for new projects'));
 
   if (options.yes) {
+    const envTier = process.env.SLAMINAR_DEFAULT_TOKEN_TIER as TokenTier | undefined;
     return {
       defaults: {
         aiMode: (process.env.SLAMINAR_DEFAULT_AI_MODE as AiMode | undefined) ?? current.defaults.aiMode,
@@ -317,6 +319,10 @@ async function stepDefaults(
           ? parseInt(process.env.SLAMINAR_FILE_COUNT_CAP, 10) || current.defaults.fileCountCap
           : current.defaults.fileCountCap,
         verbose: current.defaults.verbose,
+        tokenTier:
+          envTier && ['conservative', 'smart', 'rich'].includes(envTier)
+            ? envTier
+            : current.defaults.tokenTier ?? 'smart',
       },
       telemetry: {
         optedIn: current.telemetry.optedIn,
@@ -349,13 +355,29 @@ async function stepDefaults(
   });
   const fileCountCap = Math.max(100, parseInt(fileCountStr, 10));
 
+  const tokenTier = (await select({
+    message: 'Token cost tier for recommended tools',
+    choices: [
+      { name: 'smart        — balanced (default)', value: 'smart' },
+      { name: 'conservative — lightweight tools only (low cost)', value: 'conservative' },
+      { name: 'rich         — include heavy tools (MCP servers, etc.)', value: 'rich' },
+    ],
+    default: current.defaults.tokenTier ?? 'smart',
+  })) as TokenTier;
+
   const versionCheck = await confirm({
     message: 'Enable weekly version check (reads npm registry only, no telemetry)?',
     default: current.telemetry.versionCheck,
   });
 
   return {
-    defaults: { aiMode, excludeAuthTools, fileCountCap, verbose: current.defaults.verbose },
+    defaults: {
+      aiMode,
+      excludeAuthTools,
+      fileCountCap,
+      verbose: current.defaults.verbose,
+      tokenTier,
+    },
     telemetry: { optedIn: current.telemetry.optedIn, versionCheck },
   };
 }

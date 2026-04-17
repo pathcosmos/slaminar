@@ -5,6 +5,71 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.0] — 2026-04-17
+
+### Added — Token-Cost Tier for Tool Recommendations
+
+slaminar 의 추천 파이프라인에 **토큰 소비 정도**를 기준으로 한 필터 축을 도입합니다. 사용자는 `defaults.tokenTier` (또는 `--token-tier`) 로 **conservative / smart / rich** 세 단계 중 하나를 고르고, 이에 따라 카탈로그의 각 도구가 outer Claude 세션에서 소비할 것으로 예상되는 토큰 양(low/medium/high)을 기반으로 추천이 필터링됩니다. v0.8.x 까지는 `--no-ai` on/off 만 있었고 "AI 를 쓰되 가볍게" 중간 지점이 없었습니다.
+
+**휴리스틱 기반 자동 분류 + 선택적 override (`src/recommender/token-cost.ts`, 신규):**
+- `inferTokenCost(tool)` — 타입·태그 기반 휴리스틱. 규칙:
+  - `browser` / `e2e` / `playwright` / `lsp` / `static-analysis` / `knowledge-graph` / `large-codebase` / `codebase-mapping` / `orchestration` / `multi-agent` / `multi-model` / `dashboard` / `monitoring` / `metrics` / `long-running` / `html-to-pdf` 태그 — 무조건 `high`
+  - `token-saving` / `lightweight` / `notification` / `alerts` / `safety` / `onboarding` / `simplicity` / `optimization` 태그 — `low` (hook 은 무조건 low)
+  - 나머지는 카테고리 기본값: `hook` → low, `skill`/`agent`/`plugin`/`workflow` → medium
+- `resolveTokenCost(tool)` = `tool.tokenCost ?? inferTokenCost(tool)`. 카탈로그의 명시적 `tokenCost` 필드가 우선, 없으면 휴리스틱.
+- 이 설계 덕분에 **custom catalog** 도구도 bundle 카탈로그와 동일 파이프라인으로 자동 분류됩니다 (D18.9).
+- 번들 카탈로그 56 개 분포: **low 9, medium 34, high 13** — override 0 건으로 합리적 분류.
+
+**Tier 필터 매트릭스 (`src/recommender/tier-filter.ts`, 신규):**
+
+| tier | low | medium | high |
+|---|---|---|---|
+| conservative | ✅ 전부 | score ≥ 80 만 | ❌ 전부 제외 |
+| smart (기본) | ✅ 전부 | ✅ 전부 | score ≥ 70 만 |
+| rich | ✅ 전부 | ✅ 전부 | ✅ 전부 |
+
+Score threshold 는 "cheap-and-useful" 도구를 보호하기 위한 안전장치 (D18.5). 필터는 overlap 해결 뒤·maxTools 제한 앞에서 작동하므로, tier 로 제외된 슬롯에 다른 도구가 채워집니다.
+
+**설정·CLI·UX:**
+- `UserDefaults.defaults.tokenTier?` — `~/.config/slaminar/defaults.json` 에 저장. 기본값 `'smart'`
+- `slaminar setup` → Step 4 (Defaults for new projects) 에 새 select 질문 추가
+- `--yes` 모드 env var `SLAMINAR_DEFAULT_TOKEN_TIER=conservative|smart|rich`
+- `slaminar init --token-tier <tier>` / `slaminar recommend --token-tier <tier>` — CLI 플래그가 저장된 기본값을 일시 override
+- Inline mini-setup (v0.8.4) 에는 질문 **추가하지 않음** — D16.2 "1 질문만" 계약 유지 (D18.6)
+- `slaminar doctor` defaults.json 체크 detail 에 현재 tokenTier 표시
+- dry-run / init 리포트에 **"Excluded by tier filter"** 미니 표 추가 — 어떤 도구가 어떤 이유로 제외됐는지 투명 공개
+
+**의도적 범위 제한:**
+- **설치 경로는 게이트하지 않음** (D18.7) — tier 필터는 *추천* 목록에만 작용. 사용자가 수동으로 `slaminar install <tool>` 하는 것은 tier 무관. 추천은 slaminar 의견이고 설치는 사용자 결정이라는 분리.
+- **Tier policy 는 코드 상수 (override 미노출)** (D18.3) — `catalog.json tierPolicy` 필드는 설계만 해두고 노출은 v0.9.1+ 로 연기. 초기 릴리스는 단순 고정 정책.
+- **설치된 high-cost 도구 자동 uninstall 제안 없음** — 사용자가 Conservative 로 바꿔도 기존 설치는 유지. D18.7 원칙의 연장.
+
+### Changed
+
+- `src/types/index.ts` — `TokenCost` / `TokenTier` 타입 신규, `CatalogTool.tokenCost?` / `CatalogTool.tokenCostRationale?` 선택 필드, `UserDefaults.defaults.tokenTier?` 선택 필드, `ExcludedTool` 인터페이스 분리 + `tier` / `cost` / `score` 필드 추가
+- `src/recommender/recommender.ts` — `RecommendOptions.tokenTier` 추가, tier 필터를 overlap 해결 뒤·maxTools 앞에서 적용
+- `src/setup/defaults.ts:builtInDefaults` — `tokenTier: 'smart'` 기본값 추가
+- `src/setup/wizard.ts:stepDefaults` — select 질문 추가 + `SLAMINAR_DEFAULT_TOKEN_TIER` env var 처리
+- `src/cli.ts` — `init` / `recommend` 커맨드에 `--token-tier` 옵션, `resolveTokenTier(cliValue)` 헬퍼
+- `src/core/pipeline.ts:InitOptions` — `tokenTier?: TokenTier`
+- `src/setup/doctor.ts:checkDefaults` — defaults.json detail 에 `tokenTier` 표기
+- `src/reporter/terminal.ts:formatInitReport` — "Excluded by tier filter" 미니 표 추가
+
+### Not Changed (deliberate)
+
+- 기존 `--no-ai` 플래그·`aiMode` 필드 의미 그대로. Tier 와 직교 축.
+- Claude Code passthrough (SKILL.md) 변경 없음 — tier 는 direct-CLI 경로의 추천 필터에만 영향.
+- 카탈로그 `tokenCost` override 0 건 — 휴리스틱만으로 모든 56 개 도구가 합리적으로 분류됨 (스키마는 준비됐고, 실제 필요 시 후속 릴리스에서 추가).
+
+### Stats
+
+- 64 source modules (+2 신규: `token-cost.ts`, `tier-filter.ts`), 58 test files (+2 신규), **365 tests passing** (+18 for tier/cost coverage)
+- Catalog 분포: low 9, medium 34, high 13 (override 0 건)
+- CLI 28 commands + `--token-tier` 2 커맨드에 추가
+- 설계 문서: `/Users/lanco/.claude/plans/harmonic-wishing-pumpkin.md` (승인된 플랜)
+
+[0.9.0]: https://github.com/pathcosmos/slaminar/compare/v0.8.5...v0.9.0
+
 ## [0.8.5] — 2026-04-17
 
 ### Added — Catalog Ecosystem Expansion (local sources + presentation category + reference docs)

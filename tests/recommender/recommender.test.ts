@@ -49,4 +49,32 @@ describe('recommend', () => {
   it('detects conflicts', async () => {
     expect(Array.isArray((await recommend(makeProfile())).conflicts)).toBe(true);
   });
+
+  // v0.9 — token-tier filter integration
+  it('tokenTier=rich recommends more or equal tools than conservative', async () => {
+    const profile = makeProfile({ maturity: 'mature' });
+    const conservative = await recommend(profile, { tokenTier: 'conservative' });
+    const rich = await recommend(profile, { tokenTier: 'rich' });
+    expect(rich.recommended.length).toBeGreaterThanOrEqual(conservative.recommended.length);
+  });
+
+  it('tokenTier=conservative populates tier-filter exclusions', async () => {
+    const plan = await recommend(makeProfile({ maturity: 'mature' }), { tokenTier: 'conservative' });
+    const tierExclusions = plan.excluded.filter((e) => e.tier === 'conservative');
+    // Conservative against a mature profile will filter at least some non-low tools.
+    expect(tierExclusions.length).toBeGreaterThan(0);
+    for (const e of tierExclusions) {
+      expect(['low', 'medium', 'high']).toContain(e.cost);
+      expect(typeof e.score).toBe('number');
+    }
+  });
+
+  it('tokenTier defaults to smart when not specified', async () => {
+    const profile = makeProfile({ maturity: 'growing' });
+    const defaulted = await recommend(profile);
+    const explicit = await recommend(profile, { tokenTier: 'smart' });
+    expect(defaulted.recommended.map((r) => r.tool.name)).toEqual(
+      explicit.recommended.map((r) => r.tool.name),
+    );
+  });
 });

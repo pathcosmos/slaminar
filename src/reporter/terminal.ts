@@ -54,7 +54,7 @@ export function formatInitReport(result: InitResult): string {
   }
 
   // Recommended tools table
-  const { recommended } = result.recommendation;
+  const { recommended, excluded } = result.recommendation;
   if (recommended.length > 0) {
     const toolsTable = new Table({
       head: ['Tool', 'Score', 'Install'],
@@ -71,6 +71,29 @@ export function formatInitReport(result: InitResult): string {
 
     lines.push('  Recommended Tools:');
     for (const line of toolsTable.toString().split('\n')) {
+      lines.push('  ' + line);
+    }
+    lines.push('');
+  }
+
+  // v0.9 — Tier-filter exclusions (only show if at least one tool was filtered by tier)
+  const tierFiltered = excluded.filter((e) => e.tier !== undefined);
+  if (tierFiltered.length > 0) {
+    const tier = tierFiltered[0].tier!;
+    const excludedTable = new Table({
+      head: ['Tool', 'Cost', 'Score', 'Reason'],
+      style: { head: ['dim'], border: [] },
+    });
+    for (const e of tierFiltered) {
+      excludedTable.push([
+        e.tool.name,
+        e.cost ?? '-',
+        e.score !== undefined ? String(e.score) : '-',
+        e.reason,
+      ]);
+    }
+    lines.push(chalk.dim(`  Excluded by tier filter (tier=${tier}, ${tierFiltered.length} tools):`));
+    for (const line of excludedTable.toString().split('\n')) {
       lines.push('  ' + line);
     }
     lines.push('');

@@ -172,6 +172,10 @@ export interface ProjectProfile {
 
 // ─── Recommender types ─────────────────────────────────────
 
+// v0.9 — token-cost tier feature
+export type TokenCost = 'low' | 'medium' | 'high';
+export type TokenTier = 'conservative' | 'smart' | 'rich';
+
 export interface CatalogTool {
   name: string;
   repo: string;
@@ -188,6 +192,10 @@ export interface CatalogTool {
   deprecatedReason?: string;
   lastVerified?: string;
   replacedBy?: string;
+  // v0.9 — optional override for automatic token-cost classification.
+  // When absent, inferTokenCost() supplies a heuristic value.
+  tokenCost?: TokenCost;
+  tokenCostRationale?: string;
 }
 
 export interface ScoredTool {
@@ -203,9 +211,18 @@ export interface ToolConflict {
   winner?: string;
 }
 
+export interface ExcludedTool {
+  tool: CatalogTool;
+  reason: string;
+  // v0.9 — populated when the exclusion came from the tier filter.
+  tier?: TokenTier;
+  cost?: TokenCost;
+  score?: number;
+}
+
 export interface RecommendationPlan {
   recommended: ScoredTool[];
-  excluded: { tool: CatalogTool; reason: string }[];
+  excluded: ExcludedTool[];
   conflicts: ToolConflict[];
   maxTools: number;
 }
@@ -319,6 +336,9 @@ export interface UserDefaults {
     excludeAuthTools: boolean;
     fileCountCap: number;
     verbose: boolean;
+    // v0.9 — governs which catalog tools get recommended based on their
+    // expected token footprint in the user's Claude Code session.
+    tokenTier?: TokenTier;
   };
   catalog: {
     autoRefreshHours: number;

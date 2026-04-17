@@ -31,6 +31,7 @@ export function builtInDefaults(): UserDefaults {
       excludeAuthTools: true,
       fileCountCap: 10000,
       verbose: false,
+      tokenTier: 'smart',
     },
     catalog: {
       autoRefreshHours: 24,
