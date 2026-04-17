@@ -1273,7 +1273,27 @@ CLAUDE.md 유효성 검증, plugin.json 스키마 검증, 터미널 컬러 테�
 
 **교차 링크.** [CHANGELOG v0.8.2](./CHANGELOG.md#082--2026-04-17) · [spec: `2026-04-17-claude-code-passthrough-design.md`](./docs/superpowers/specs/2026-04-17-claude-code-passthrough-design.md) · 신규 테스트 없음 (기존 338개 계속 통과).
 
-### 교차 참조 인덱스 (v0.5 → v0.8.2)
+### Phase 16: Init-First Mini-Setup (v0.8.4)
+
+**동기.** v0.8.3까지 `slaminar init <path>`를 처음 실행하면 "Run `slaminar setup` once"라는 소극적 안내만 뜨고 local rules로 지나갔습니다. 사용자가 AI를 원하든 안 원하든 같은 결과. 15결정의 `slaminar setup` wizard는 실제 목적(init)을 위한 관문처럼 느껴졌습니다. 시뮬레이션으로 격차가 확인됐습니다: 경로 A(Claude Code `/slaminar`) 2결정, 경로 B(터미널 setup+init) 15결정. `init` 자체가 첫 실행을 처리하여 대부분의 사용자가 `setup` 명령을 쓸 필요가 없게 합니다.
+
+**산출물.**
+- `src/setup/inline-prompt.ts` — 신규 `runInlineAuthPrompt()`가 1개 select 질문을 띄우고 Skip / Cloudflare / Anthropic 중 하나로 분기
+- `src/auth/wizard.ts` — 신규 `runLoginWizardForProvider()` export. provider 선택 단계를 건너뛰고 기존 `setupCloudflare()` / `setupAnthropic()` 재사용
+- `src/cli.ts` init 액션 — 기존 passive nudge를 active mini-setup 호출로 교체. auth 실패 시 3갈래 복구 경로 안내 + exit 1. Skip이나 auth 성공 시 `defaults.json` 저장하여 이후 실행 자동 조용
+- `tests/setup/inline-prompt.test.ts` — 5개 신규 unit test (338 → 343)
+
+**의사결정.**
+
+- **D16.1 — 첫 실행 판정은 `~/.config/slaminar/defaults.json` 유무만으로.** 대안: 여러 신호(defaults + auth + env vars) 조합. 근거: `slaminar setup`이든 새 mini-setup이든 완료 시 `defaults.json`을 만듭니다. 단일 파일 존재 체크가 확정적이고 오탐이 없습니다. 증거: `src/setup/defaults.ts:defaultsExist`, `src/cli.ts`의 init 액션 게이트.
+- **D16.2 — Mini-setup은 정확히 1개 질문(AI provider)만.** 대안: 2–3개 질문(도구 설치, catalog 등). 근거: 시뮬레이션 결과 setup wizard의 15결정 중 14개는 합리적 기본값으로 충분함을 확인. 첫 실행 사용자에게 1개 이상 질문을 강제하면 우리가 제거하려던 마찰이 다시 생깁니다. Catalog / 도구 설치 / 주간 버전 체크 등은 사용자가 명시적으로 재설정할 때까지 built-in default 유지. 증거: `src/setup/inline-prompt.ts:runInlineAuthPrompt`, `src/setup/defaults.ts:builtInDefaults`.
+- **D16.3 — Auth 실패 시 init 중단 + 3갈래 복구 경로 (graceful fallback 없음).** 대안: 조용히 local rules로 내려감. 근거: 사용자가 Cloudflare나 Anthropic을 고른 것은 AI를 쓰겠다는 의사 표시입니다. 조용히 local rules로 바꾸면 기대와 다른 결과물이 나오고 복구 방법도 막막해집니다. 중단 + "뭘 할지" 명시 목록이 의도를 존중하고 디버깅도 쉽습니다. Skip은 별개의 성공 경로이며 이 결정의 대상이 아닙니다. 증거: `src/cli.ts` init 액션의 auth-failure 분기.
+- **D16.4 — `slaminar setup`은 손대지 않음 — mini-setup은 독립 코드 경로.** 대안: `setup`을 mini-setup에 위임하거나 `setup → setup --advanced`로 이름 변경. 근거: 기존 사용자와 CI 스크립트를 위한 하위 호환이 엄격한 제약. 두 경로가 공유하는 기본 단위는 `runLoginWizardForProvider()` 하나뿐. 증거: `src/setup/wizard.ts` 변경 없음, `src/auth/wizard.ts`는 신규 export 1개만 추가.
+- **D16.5 — v0.8.4에는 `claude` CLI 감지 없음 — v0.9.0에서 도입.** 대안: 지금 감지해서 "Use Claude Code subscription" 옵션 추가. 근거: YAGNI. choices 배열 구조상 추후 릴리스에서 한 줄 추가로 passthrough 옵션을 맨 앞에 넣을 수 있게 설계되어 있습니다. passthrough를 별도 배포하면 v0.8.4 리뷰가 쉬워지고 v0.9.0은 감지/서브프로세스 설계 미지수에 집중할 수 있습니다. 증거: `inline-prompt.ts`의 `choices` 구조.
+
+**교차 링크.** [CHANGELOG v0.8.4](./CHANGELOG.md#084--2026-04-17) · [spec: `2026-04-17-v0-8-4-init-first-design.md`](./docs/superpowers/specs/2026-04-17-v0-8-4-init-first-design.md) · 테스트: `tests/setup/inline-prompt.test.ts`.
+
+### 교차 참조 인덱스 (v0.5 → v0.8.4)
 
 위의 번호 붙은 모든 의사결정은 3곳에 기록되어 있습니다 — README(여기), CHANGELOG(릴리스 노트), 설계 spec(있을 때). 의사결정 ID는 **`README.md`와 `README.ko.md`에서 동일** — `grep -n "D14\.3" README*.md`로 패리티 검증 가능. 파일 경로는 직접 열어 주장 감사 가능; 테스트 파일은 `npm test -- --run <path>`로 격리 실행.
 
@@ -1307,6 +1327,11 @@ CLAUDE.md 유효성 검증, plugin.json 스키마 검증, 터미널 컬러 테�
 | D15.1 | Claude Code 맥락에 `--no-ai` 강제 | v0.8.2 | `2026-04-17-claude-code-passthrough-design.md` | `src/skill/SKILL.md` | — |
 | D15.2 | Enhancement 경계 = ownership markers | v0.8.2 | same | `src/placer/markers.ts`, `src/core/updater.ts` | — |
 | D15.3 | SKILL.md가 carrier, env-var 자동 감지 없음 | v0.8.2 | same | `src/skill/SKILL.md` | — |
+| D16.1 | `defaults.json` 유무가 첫 실행 판정 기준 | v0.8.4 | `2026-04-17-v0-8-4-init-first-design.md` | `src/cli.ts`, `src/setup/defaults.ts` | `tests/setup/inline-prompt.test.ts` |
+| D16.2 | Mini-setup은 1개 질문만 | v0.8.4 | same | `src/setup/inline-prompt.ts` | `tests/setup/inline-prompt.test.ts` |
+| D16.3 | Auth 실패 시 init 중단, graceful fallback 없음 | v0.8.4 | same | `src/cli.ts` | — |
+| D16.4 | `slaminar setup` 변경 없음; mini-setup 독립 경로 | v0.8.4 | same | `src/setup/wizard.ts`, `src/auth/wizard.ts` | — |
+| D16.5 | `claude` CLI 감지는 v0.9.0으로 (YAGNI) | v0.8.4 | same | `src/setup/inline-prompt.ts` | — |
 
 ### 품질 개선 (3차례 리뷰)
 

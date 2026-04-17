@@ -1170,7 +1170,27 @@ Added `catalog config` command for persisting custom catalog URL and mode (exten
 
 **Cross-refs.** [CHANGELOG v0.8.2](./CHANGELOG.md#082--2026-04-17) · [spec: `2026-04-17-claude-code-passthrough-design.md`](./docs/superpowers/specs/2026-04-17-claude-code-passthrough-design.md) · no new tests (existing 338 continue to pass).
 
-### Cross-Reference Index (v0.5 → v0.8.2)
+### Phase 16: Init-First Mini-Setup (v0.8.4)
+
+**Motivation.** Up to v0.8.3, a user running `slaminar init <path>` for the first time saw only a passive nudge — "Run `slaminar setup` once" — then got local rules whether they wanted AI or not. The 15-decision `slaminar setup` wizard felt like a gate before doing the actual thing (init). Simulation data made the gap concrete: path A (Claude Code `/slaminar`) needed 2 decisions, path B (terminal wizard + init) needed 15. We want `init` itself to handle first-run gracefully so most users never need to type `setup`.
+
+**Shipped.**
+- `src/setup/inline-prompt.ts` — new `runInlineAuthPrompt()` asks a single select question and branches into Skip / Cloudflare / Anthropic
+- `src/auth/wizard.ts` — new `runLoginWizardForProvider()` export that skips provider selection (already chosen) and delegates to the existing `setupCloudflare()` / `setupAnthropic()` flows
+- `src/cli.ts` init action — passive nudge replaced with the active mini-setup; auth failure aborts init with three recovery paths; successful Skip or auth persists `defaults.json` so future runs stay silent
+- `tests/setup/inline-prompt.test.ts` — 5 new unit tests (338 → 343)
+
+**Decisions.**
+
+- **D16.1 — First-run gate is presence/absence of `~/.config/slaminar/defaults.json`.** Alternative: combine multiple signals (defaults + auth + env vars). Rationale: both `slaminar setup` and the new mini-setup write `defaults.json` when they finish. A single file-exists check is deterministic and false-positive-free. Evidence: `src/setup/defaults.ts:defaultsExist`, `src/cli.ts` init-action gate.
+- **D16.2 — Mini-setup asks exactly one question (AI provider).** Alternative: ask 2–3 questions (tool install, catalog, etc.). Rationale: simulation showed 14 of the setup wizard's 15 decisions had reasonable silent defaults. Forcing the first-run user to navigate more than one question re-creates the friction we wanted to remove. Catalog / tool install / weekly version check all stay at their built-in defaults until the user explicitly reconfigures. Evidence: `src/setup/inline-prompt.ts:runInlineAuthPrompt`, `src/setup/defaults.ts:builtInDefaults`.
+- **D16.3 — Auth failure aborts init with three recovery paths (no graceful fallback).** Alternative: fall back to local rules silently. Rationale: a user who actively picked Cloudflare or Anthropic is expressing intent to use AI. Silently demoting to local rules would produce an output different from what they asked for, with no obvious way to recover. Aborting with a clear "what to do" list respects the intent and is easier to debug. Skip is its own success path; this decision only covers explicit-provider + auth-fail. Evidence: `src/cli.ts` init-action auth-failure branch.
+- **D16.4 — `slaminar setup` is untouched — mini-setup is an independent code path.** Alternative: rework `setup` to delegate to mini-setup, or rename `setup → setup --advanced`. Rationale: backward compatibility is a hard constraint for existing users and CI scripts. The only shared primitive is `runLoginWizardForProvider()`, which both paths call. Evidence: `src/setup/wizard.ts` unchanged, `src/auth/wizard.ts` diff limited to one new exported function.
+- **D16.5 — No `claude` CLI detection in v0.8.4 — reserved for v0.9.0.** Alternative: detect `claude` now and offer a 4th "Use Claude Code subscription" option. Rationale: YAGNI. The choices array is structured so a future release can prepend the passthrough option with a single line change. Shipping passthrough separately keeps v0.8.4 reviewable and lets v0.9.0 focus on the detection + subprocess design unknowns. Evidence: structure of `choices` in `inline-prompt.ts`.
+
+**Cross-refs.** [CHANGELOG v0.8.4](./CHANGELOG.md#084--2026-04-17) · [spec: `2026-04-17-v0-8-4-init-first-design.md`](./docs/superpowers/specs/2026-04-17-v0-8-4-init-first-design.md) · test file: `tests/setup/inline-prompt.test.ts`.
+
+### Cross-Reference Index (v0.5 → v0.8.4)
 
 Every numbered decision above appears in three places — README (here), CHANGELOG (release notes), and design spec (when one exists). Decision IDs are **identical between `README.md` and `README.ko.md`** — use `grep -n "D14\.3" README*.md` to verify parity. File paths can be opened directly to audit claims; test files can be run in isolation with `npm test -- --run <path>`.
 
@@ -1204,6 +1224,11 @@ Every numbered decision above appears in three places — README (here), CHANGEL
 | D15.1 | Force `--no-ai` in Claude Code context | v0.8.2 | `2026-04-17-claude-code-passthrough-design.md` | `src/skill/SKILL.md` | — |
 | D15.2 | Enhancement boundary = ownership markers | v0.8.2 | same | `src/placer/markers.ts`, `src/core/updater.ts` | — |
 | D15.3 | SKILL.md carrier, no env-var auto-detection | v0.8.2 | same | `src/skill/SKILL.md` | — |
+| D16.1 | `defaults.json` presence is the first-run gate | v0.8.4 | `2026-04-17-v0-8-4-init-first-design.md` | `src/cli.ts`, `src/setup/defaults.ts` | `tests/setup/inline-prompt.test.ts` |
+| D16.2 | Mini-setup asks exactly one question | v0.8.4 | same | `src/setup/inline-prompt.ts` | `tests/setup/inline-prompt.test.ts` |
+| D16.3 | Auth failure aborts init, no graceful fallback | v0.8.4 | same | `src/cli.ts` | — |
+| D16.4 | `slaminar setup` untouched; mini-setup independent | v0.8.4 | same | `src/setup/wizard.ts`, `src/auth/wizard.ts` | — |
+| D16.5 | No `claude` CLI detection (YAGNI until v0.9.0) | v0.8.4 | same | `src/setup/inline-prompt.ts` | — |
 
 ### Quality Passes
 

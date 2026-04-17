@@ -5,6 +5,49 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.4] — 2026-04-17
+
+### Changed — Init-First Mini-Setup (Wave 2 of UX Reduction)
+
+`slaminar init <path>` now handles first-run gracefully on its own. The passive nudge shipped in v0.8.3 ("Run `slaminar setup` once — continuing with local rules") is replaced by an **active one-question prompt** that lets the user pick an AI provider (or Skip) right there and then proceed with the same init they were already running. After this single question, `~/.config/slaminar/defaults.json` is written and every subsequent `slaminar init` stays silent.
+
+**New behavior:**
+- On first run (TTY + no `--no-ai` + no `defaults.json`), `init` prints one welcome line and one `select` prompt:
+  - `Skip — local rules only (you can add AI later)` ← default
+  - `Cloudflare Workers AI (free 10K/day · paste one token)`
+  - `Anthropic Claude API (paid · paste one key)`
+- Skip → init proceeds with local rules + `defaults.json` written → future runs silent.
+- Cloudflare / Anthropic → the existing login wizard runs (browser open, token paste, account auto-detect, model auto-pick, connection verify, `auth.json` saved) → init proceeds with AI → `defaults.json` written.
+- Cloudflare / Anthropic + auth failure → init **aborts with exit 1** and prints three concrete recovery paths: fix-and-retry, `--no-ai` fallback, or `setup --reconfigure auth`. Neither `defaults.json` nor `auth.json` is written, so the next attempt starts clean.
+
+**New files:**
+- `src/setup/inline-prompt.ts` — single export `runInlineAuthPrompt()` returning `{ choice, authSucceeded }`
+- `tests/setup/inline-prompt.test.ts` — 5 unit tests covering Skip / Cloudflare / Anthropic / auth-failure / banner
+
+**Modified files:**
+- `src/auth/wizard.ts` — new export `runLoginWizardForProvider(provider)` that skips the provider-selection question (the mini-setup already asked). Reuses `setupCloudflare()` / `setupAnthropic()` unchanged.
+- `src/cli.ts` — init action now routes through the mini-setup; the v0.8.3 passive nudge is removed.
+
+**Backward compatibility — 100%:**
+- `slaminar setup` (6-step wizard) untouched
+- `slaminar setup --reconfigure <section>` untouched
+- `slaminar init --no-ai <path>` → never triggers the prompt (flag already signals intent)
+- Users with an existing `defaults.json` never see the new prompt
+- CI and piped-stdin contexts (`process.stdin.isTTY === false`) skip the prompt
+- Core pipeline (`scan → analyze → recommend → generate → place → verify`) has **zero line changes**
+
+**Design context:**
+- Spec: [`docs/superpowers/specs/2026-04-17-v0-8-4-init-first-design.md`](./docs/superpowers/specs/2026-04-17-v0-8-4-init-first-design.md)
+- Decision IDs D16.1–D16.5 added to README Implementation History and Cross-Reference Index
+- Forward compatibility: v0.9.0 `claude` CLI passthrough will slot in as a new top choice without touching this plumbing
+
+### Stats
+
+- 61 source modules, 56 test files, **343 tests passing** (+5 for inline-prompt)
+- 28 CLI commands (no change — `init` just got smarter on first run)
+
+[0.8.4]: https://github.com/pathcosmos/slaminar/compare/v0.8.3...v0.8.4
+
 ## [0.8.3] — 2026-04-17
 
 ### Changed — Login Wizard Polish (Wave 1 of UX Reduction)

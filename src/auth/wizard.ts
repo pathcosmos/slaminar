@@ -234,3 +234,18 @@ export async function runLoginWizard(): Promise<boolean> {
   if (provider === 'cloudflare') return setupCloudflare();
   return setupAnthropic();
 }
+
+/**
+ * Entry point used by the v0.8.4 inline mini-setup. The caller has already
+ * chosen the provider, so this skips the provider-selection step that
+ * `runLoginWizard()` starts with. Everything else (browser open, token paste,
+ * account detection, model auto-pick, connection verification, auth.json save)
+ * is identical — we just dispatch straight to `setupCloudflare()` or
+ * `setupAnthropic()`.
+ */
+export async function runLoginWizardForProvider(
+  provider: 'cloudflare' | 'anthropic',
+): Promise<boolean> {
+  console.log(chalk.bold('\n━━━ slaminar Login ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n'));
+  return provider === 'cloudflare' ? setupCloudflare() : setupAnthropic();
+}

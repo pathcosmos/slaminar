@@ -30,6 +30,8 @@ import { installSkill, uninstallSkill, getSkillStatus, getUserSkillPath } from '
 import { runSetupWizard, type SetupSection } from './setup/wizard.js';
 import { runDoctor, formatDoctorReport, doctorExitCode } from './setup/doctor.js';
 import { maybePrintUpdateNotice } from './setup/update-check.js';
+import { runInlineAuthPrompt } from './setup/inline-prompt.js';
+import { defaultsExist, saveDefaults, builtInDefaults } from './setup/defaults.js';
 import { discoverProjects, parseRootsInput } from './discover/scanner.js';
 import { formatDiscoveryTable } from './reporter/discovery-table.js';
 import {
@@ -38,7 +40,7 @@ import {
   isDiscoveryCacheValid,
 } from './discover/cache.js';
 import { batchApply } from './discover/batch.js';
-import { loadDefaults, saveDefaults } from './setup/defaults.js';
+import { loadDefaults } from './setup/defaults.js';
 import { SLAMINAR_VERSION } from './version.js';
 import Table from 'cli-table3';
 
@@ -72,14 +74,25 @@ program
 
       if (verbose) console.log('\nslaminar init — verbose mode\n');
 
-      // If AI isn't configured, nudge the user toward `slaminar setup` but don't block.
-      if (options.ai !== false && process.stdin.isTTY) {
-        const aiStatus = detectAiProvider();
-        if (!aiStatus.available) {
-          console.log(chalk.yellow('\n⚠  No AI provider configured.'));
-          console.log(chalk.dim('   Run `slaminar setup` once — the config is reused across every project afterwards.'));
-          console.log(chalk.dim('   Continuing with local rules for this run.\n'));
+      // v0.8.4 — first-run inline mini-setup. Three gates all must pass:
+      //   1. User did not explicitly pass --no-ai (respect their intent).
+      //   2. Stdin is a TTY (skip in CI / piped contexts).
+      //   3. No ~/.config/slaminar/defaults.json yet (this is the user's first run).
+      if (options.ai !== false && process.stdin.isTTY && !defaultsExist()) {
+        const result = await runInlineAuthPrompt();
+        if (result.choice !== 'skip' && !result.authSucceeded) {
+          // User picked a provider but auth failed → abort init, surface recovery
+          // paths. defaults.json stays unwritten so next run prompts again.
+          const pathForMsg = path ?? '.';
+          console.log(chalk.red('\n  ✗ Auth setup didn\'t complete.\n'));
+          console.log('  What to do:');
+          console.log(`    • Fix the token issue and re-run: ${chalk.bold(`slaminar init ${pathForMsg}`)}`);
+          console.log(`    • Or proceed with local rules:    ${chalk.bold(`slaminar init --no-ai ${pathForMsg}`)}`);
+          console.log(`    • Or retry auth alone:            ${chalk.bold('slaminar setup --reconfigure auth')}\n`);
+          process.exit(1);
         }
+        // Skip or provider+success → persist defaults so future runs stay silent.
+        saveDefaults(builtInDefaults());
       }
 
       timer.start('Initializing');
