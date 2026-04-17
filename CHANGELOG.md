@@ -5,6 +5,32 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.1] — 2026-04-17
+
+### Changed — User-Facing Prompt i18n (all prompts now English)
+
+Every user-facing CLI prompt, validation message, and status line that previously mixed Korean with English is now consistently in English. This fixes a v0.7.0 → v0.8.0 gap where the Cloudflare/Anthropic login wizard (`src/auth/wizard.ts`) and model catalog (`src/auth/models.ts`) were originally authored in Korean while the rest of the CLI shipped in English.
+
+**Files updated:**
+- `src/auth/wizard.ts` — ~20 strings: provider/browser/token/account/model prompts, validation messages, success banners
+- `src/auth/models.ts` — 6 model descriptions (5 Cloudflare + 1 Anthropic)
+- `src/cli.ts` — top-level `--help` description and the `init` command's AI-not-configured nudge
+- `src/skill/SKILL.md` — Step 3 proceed-confirmation prompt template plus routing phrasing examples
+- `docs/getting-started-walkthrough.md` — quoted CLI prompt examples synchronised to the new English strings (narrative prose still Korean for Korean readers)
+
+**Routing impact:** none. Korean-speaking users invoking `/slaminar` in Claude Code continue to route correctly — the skill's English description plus the current-generation LLMs' multilingual matching cover the previous Korean example phrasings.
+
+**Verification:**
+- `dist/` has zero Korean characters after rebuild (full i18n coverage at the shipped artifact, not just source)
+- 338 tests still pass (i18n changes do not touch test fixtures)
+
+### Stats
+
+- 61 source modules, 55 test files, **338 tests passing** (no change from v0.8.0)
+- Package size unchanged (same shape, only string content)
+
+[0.8.1]: https://github.com/pathcosmos/slaminar/compare/v0.8.0...v0.8.1
+
 ## [0.8.0] — 2026-04-17
 
 ### Added — Catalog Federation (Multi-Source) Phase 1–3

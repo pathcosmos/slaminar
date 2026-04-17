@@ -1,6 +1,6 @@
 ---
 name: slaminar
-description: Analyze a project and set up Claude Code with tailored CLAUDE.md, plugins, and ecosystem tool recommendations. Accepts an optional target path — defaults to the current working directory. Use when the user asks to set up Claude Code for a project, wants CLAUDE.md generated, or asks for Claude Code tool recommendations. Phrasings like "slaminar 돌려줘", "set up this project", "analyze this repo" should trigger this skill.
+description: Analyze a project and set up Claude Code with tailored CLAUDE.md, plugins, and ecosystem tool recommendations. Accepts an optional target path — defaults to the current working directory. Use when the user asks to set up Claude Code for a project, wants CLAUDE.md generated, or asks for Claude Code tool recommendations. Phrasings like "set up slaminar", "set up this project", "analyze this repo", or "run slaminar on this folder" should trigger this skill.
 ---
 
 # slaminar — Claude Code Project Setup
@@ -13,7 +13,7 @@ Analyze a project directory and automatically configure Claude Code with:
 ## Determining the Target Path
 
 **Step 0 — identify `<path>`**:
-- If the user explicitly names a folder (e.g., "slaminar `../legacy-app` 에 돌려줘", "set up `~/work/other-repo`"), extract that path and use it as `<path>`.
+- If the user explicitly names a folder (e.g., "run slaminar on `../legacy-app`", "set up `~/work/other-repo`"), extract that path and use it as `<path>`.
 - Otherwise, use `.` (the current working directory).
 - Accept absolute paths, relative paths, and `~`-prefixed paths.
 
@@ -40,7 +40,7 @@ Report to the user:
 ### Step 3: Ask the user to proceed
 
 Present the dry-run results and ask:
-> "이 설정으로 진행할까요? 수정할 부분이 있으면 말씀해 주세요."
+> "Shall I proceed with this configuration? Let me know if anything should change."
 
 ### Step 4: Execute
 

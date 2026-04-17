@@ -46,7 +46,7 @@ const program = new Command();
 
 program
   .name('slaminar')
-  .description('Claude Code 전용 프로젝트 분석 및 지능형 세팅 도구')
+  .description('Intelligent project analyzer and setup tool for Claude Code')
   .version(SLAMINAR_VERSION)
   .option('-v, --verbose', 'Show detailed output')
   .option('--no-update-check', 'Skip the weekly npm registry version check')
@@ -76,9 +76,9 @@ program
       if (options.ai !== false && process.stdin.isTTY) {
         const aiStatus = detectAiProvider();
         if (!aiStatus.available) {
-          console.log(chalk.yellow('\n⚠  AI 프로바이더가 설정되지 않았습니다.'));
-          console.log(chalk.dim('   `slaminar setup`으로 한 번 설정하면 이후 모든 프로젝트에서 재사용됩니다.'));
-          console.log(chalk.dim('   이번에는 로컬 규칙으로 진행합니다.\n'));
+          console.log(chalk.yellow('\n⚠  No AI provider configured.'));
+          console.log(chalk.dim('   Run `slaminar setup` once — the config is reused across every project afterwards.'));
+          console.log(chalk.dim('   Continuing with local rules for this run.\n'));
         }
       }
 
