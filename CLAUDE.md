@@ -27,16 +27,19 @@ Each phase produces a JSON-serializable IR passed to the next.
 
 - `src/scanner/` — 4 modules: file-tree, git-info, ai-files, package-info
 - `src/analyzer/` — 5 modules: language-detector, structure-mapper, convention-extractor, dependency-analyzer, maturity-detector
-- `src/recommender/` — 10 modules: catalog, catalog-resolver, catalog-cache, catalog-remote, catalog-diff, catalog-merger, scorer, conflict-detector, recommender, installer
+- `src/recommender/` — 11 modules: catalog, catalog-resolver, catalog-cache (per-source in v0.8), catalog-remote, catalog-diff, catalog-merger (N-way stack merge in v0.8), catalog-sources (v0.8 federation), scorer, conflict-detector, recommender, installer
 - `src/generator/` — claude-md (with ownership markers), claude-plugin, ai-provider (Claude API fallback)
 - `src/placer/` — backup (obfuscated .dat), markers (section merge), writer
 - `src/validator/` — claude-md validator, plugin-schema validator
-- `src/reporter/` — terminal (chalk tables), markdown reports
+- `src/reporter/` — terminal (chalk tables), markdown reports, discovery-table (v0.7)
 - `src/team/` — config split (team/local)
 - `src/rollback/` — uninstaller, removeTool
 - `src/ci/` — check with exit codes
 - `src/runtime/` — prerequisite checker, runtime detector (Node/Python/uv/volta)
-- `src/skill/` — SKILL.md (Claude Code `/slaminar` skill definition)
+- `src/skill/` — SKILL.md (Claude Code `/slaminar` skill, path-parameterized) + installer.ts + post-install.ts (auto-deploys to `~/.claude/skills/slaminar/`)
+- `src/setup/` — 전역 첫 실행 경험: wizard.ts (`slaminar setup`, 6단계 — Step 6는 discovery), defaults.ts (`~/.config/slaminar/defaults.json` I/O), doctor.ts (`slaminar doctor`), update-check.ts (주간 npm 버전 체크)
+- `src/discover/` — v0.7 프로젝트 발견/일괄 적용: scanner.ts (루트 워커), detector.ts (분류기), cache.ts (24h TTL), batch.ts (sequential init/update + 감사 로그), team-import.ts (팀 `catalogUrl`을 사용자 defaults로 복사)
+- `src/version.ts` — runtime 버전 문자열 단일 소스
 
 ### Key Patterns
 

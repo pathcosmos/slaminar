@@ -1,9 +1,45 @@
-import { loadCache, saveCache, isCacheValid } from './catalog-cache.js';
-import { fetchRemoteCatalog, DEFAULT_CATALOG_URL } from './catalog-remote.js';
+/**
+ * Multi-source catalog resolver (v0.8).
+ *
+ * Flow:
+ *   1. Build the effective source list via `loadEffectiveSources()`
+ *   2. Fetch each enabled source with per-source fallback
+ *        cache → remote → stale → failed
+ *      The bundled source skips fetching and always succeeds.
+ *   3. Merge via `mergeCatalogStack()` which handles `replace` floors and
+ *      N-way extend-style layering.
+ *
+ * Backward compatibility:
+ *   - `ResolveCatalogOptions.catalogUrl` / `catalogMode` still work — they're
+ *     synthesized into a CLI adhoc source at priority 999.
+ *   - When the effective source set is only [bundled, official], the result
+ *     shape matches v0.7 (source: 'remote' | 'cache' | 'bundled').
+ */
+
+import { isCacheValid, loadSourceCache, saveSourceCache, DEFAULT_TTL_MS } from './catalog-cache.js';
+import { fetchRemoteCatalog } from './catalog-remote.js';
 import { getCatalog } from './catalog.js';
-import { mergeCatalogs } from './catalog-merger.js';
-import { loadTeamConfig } from '../team/config.js';
-import type { ResolvedCatalog, CatalogCacheEntry, CatalogMode } from '../types/index.js';
+import { mergeCatalogStack, type MergeLayer } from './catalog-merger.js';
+import { loadEffectiveSources, makeCliAdhocSource, BUNDLED_SOURCE_ID } from './catalog-sources.js';
+import { loadDefaults } from '../setup/defaults.js';
+import type {
+  CatalogCacheEntry,
+  CatalogFetchState,
+  CatalogMode,
+  CatalogSource,
+  ResolvedCatalog,
+} from '../types/index.js';
+
+function resolveTtlMs(): number {
+  try {
+    const hours = loadDefaults().catalog.autoRefreshHours;
+    if (hours < 0) return DEFAULT_TTL_MS;
+    if (hours === 0) return Number.POSITIVE_INFINITY;
+    return hours * 60 * 60 * 1000;
+  } catch {
+    return DEFAULT_TTL_MS;
+  }
+}
 
 export interface ResolveCatalogOptions {
   forceRefresh?: boolean;
@@ -11,198 +47,155 @@ export interface ResolveCatalogOptions {
   catalogUrl?: string;
   catalogMode?: CatalogMode;
   projectRoot?: string;
+  /**
+   * Optionally inject an explicit source list. When provided, bypasses
+   * `loadEffectiveSources()` entirely — used by tests and by the
+   * `catalog source test` command.
+   */
+  sources?: CatalogSource[];
 }
 
-async function resolveOfficialCatalog(options: { forceRefresh: boolean; silent: boolean }): Promise<ResolvedCatalog> {
-  const { forceRefresh, silent } = options;
-
-  // 1. Check cache
-  const cached = loadCache();
-  if (cached && isCacheValid(cached) && !forceRefresh) {
-    return {
-      tools: cached.catalog.tools,
-      relations: cached.catalog.relations ?? [],
-      suggestions: cached.catalog.suggestions ?? [],
-      source: 'cache',
-      version: cached.catalog.version,
-      stale: false,
-    };
-  }
-
-  // 2. Try remote fetch
-  try {
-    const result = await fetchRemoteCatalog(DEFAULT_CATALOG_URL, cached?.etag);
-    if (result.notModified && cached) {
-      const updated: CatalogCacheEntry = { ...cached, fetchedAt: new Date().toISOString() };
-      saveCache(updated);
-      return {
-        tools: cached.catalog.tools,
-        relations: cached.catalog.relations ?? [],
-        suggestions: cached.catalog.suggestions ?? [],
-        source: 'cache',
-        version: cached.catalog.version,
-        stale: false,
-      };
-    }
-    const entry: CatalogCacheEntry = {
-      fetchedAt: new Date().toISOString(),
-      sourceUrl: DEFAULT_CATALOG_URL,
-      etag: result.etag,
-      catalog: result.catalog,
-    };
-    saveCache(entry);
-    return {
-      tools: result.catalog.tools,
-      relations: result.catalog.relations ?? [],
-      suggestions: result.catalog.suggestions ?? [],
-      source: 'remote',
-      version: result.catalog.version,
-      stale: false,
-    };
-  } catch {
-    // Remote failed
-  }
-
-  // 3. Stale cache fallback
-  if (cached) {
-    if (!silent) console.warn('⚠ Using stale catalog cache (remote fetch failed)');
-    return {
-      tools: cached.catalog.tools,
-      relations: cached.catalog.relations ?? [],
-      suggestions: cached.catalog.suggestions ?? [],
-      source: 'cache',
-      version: cached.catalog.version,
-      stale: true,
-    };
-  }
-
-  // 4. Bundled fallback
-  if (!silent) console.warn('⚠ Using bundled catalog (no cache, remote failed)');
+function bundledLayer(source: CatalogSource): MergeLayer {
   return {
-    tools: getCatalog(),
-    relations: [],
-    suggestions: [],
-    source: 'bundled',
-    version: '0.0.0',
-    stale: false,
-  };
-}
-
-async function resolveCustomCatalog(url: string, silent: boolean): Promise<ResolvedCatalog | null> {
-  try {
-    const result = await fetchRemoteCatalog(url);
-    return {
-      tools: result.catalog.tools,
-      relations: result.catalog.relations ?? [],
-      suggestions: result.catalog.suggestions ?? [],
-      source: 'remote',
-      version: result.catalog.version,
-      stale: false,
-    };
-  } catch {
-    if (!silent) console.warn(`⚠ Custom catalog fetch failed (${url})`);
-    return null;
-  }
-}
-
-export async function resolveCatalog(options?: ResolveCatalogOptions): Promise<ResolvedCatalog> {
-  const forceRefresh = options?.forceRefresh ?? false;
-  const silent = options?.silent ?? false;
-
-  // Determine effective URL and mode (CLI flag > config > defaults)
-  let effectiveUrl = options?.catalogUrl ?? '';
-  let effectiveMode: CatalogMode = options?.catalogMode ?? 'replace';
-
-  if (options?.projectRoot && !options?.catalogUrl) {
-    const config = loadTeamConfig(options.projectRoot);
-    if (!effectiveUrl && config.catalogUrl) effectiveUrl = config.catalogUrl;
-    if (!options?.catalogMode && config.catalogMode) effectiveMode = config.catalogMode;
-  }
-
-  // No custom URL → resolve official catalog (original behavior)
-  if (!effectiveUrl) {
-    return resolveOfficialCatalog({ forceRefresh, silent });
-  }
-
-  // Replace mode: use custom URL as the sole source (original --catalog behavior)
-  if (effectiveMode === 'replace') {
-    // Use the custom URL through the same fallback chain
-    const cached = loadCache();
-    if (cached && isCacheValid(cached) && !forceRefresh) {
-      return {
-        tools: cached.catalog.tools,
-        relations: cached.catalog.relations ?? [],
-        suggestions: cached.catalog.suggestions ?? [],
-        source: 'cache',
-        version: cached.catalog.version,
-        stale: false,
-      };
-    }
-
-    try {
-      const result = await fetchRemoteCatalog(effectiveUrl, cached?.etag);
-      if (result.notModified && cached) {
-        const updated: CatalogCacheEntry = { ...cached, fetchedAt: new Date().toISOString() };
-        saveCache(updated);
-        return {
-          tools: cached.catalog.tools,
-          relations: cached.catalog.relations ?? [],
-          suggestions: cached.catalog.suggestions ?? [],
-          source: 'cache',
-          version: cached.catalog.version,
-          stale: false,
-        };
-      }
-      const entry: CatalogCacheEntry = {
-        fetchedAt: new Date().toISOString(),
-        sourceUrl: effectiveUrl,
-        etag: result.etag,
-        catalog: result.catalog,
-      };
-      saveCache(entry);
-      return {
-        tools: result.catalog.tools,
-        relations: result.catalog.relations ?? [],
-        suggestions: result.catalog.suggestions ?? [],
-        source: 'remote',
-        version: result.catalog.version,
-        stale: false,
-      };
-    } catch {
-      // Remote failed
-    }
-
-    if (cached) {
-      if (!silent) console.warn('⚠ Using stale catalog cache (remote fetch failed)');
-      return {
-        tools: cached.catalog.tools,
-        relations: cached.catalog.relations ?? [],
-        suggestions: cached.catalog.suggestions ?? [],
-        source: 'cache',
-        version: cached.catalog.version,
-        stale: true,
-      };
-    }
-
-    if (!silent) console.warn('⚠ Using bundled catalog (no cache, remote failed)');
-    return {
+    source,
+    resolved: {
       tools: getCatalog(),
       relations: [],
       suggestions: [],
       source: 'bundled',
       version: '0.0.0',
       stale: false,
+    },
+    state: 'bundled',
+  };
+}
+
+async function fetchSource(
+  source: CatalogSource,
+  options: { forceRefresh: boolean; silent: boolean },
+): Promise<MergeLayer> {
+  if (source.id === BUNDLED_SOURCE_ID) return bundledLayer(source);
+  if (!source.enabled) {
+    return { source, resolved: null, state: 'failed' };
+  }
+
+  const ttl = resolveTtlMs();
+  const cached = loadSourceCache(source.id);
+
+  if (cached && isCacheValid(cached, ttl) && !options.forceRefresh) {
+    return {
+      source,
+      resolved: {
+        tools: cached.catalog.tools,
+        relations: cached.catalog.relations ?? [],
+        suggestions: cached.catalog.suggestions ?? [],
+        source: 'cache',
+        version: cached.catalog.version,
+        stale: false,
+      },
+      state: 'cache',
     };
   }
 
-  // Extend mode: resolve official, then fetch custom, then merge
-  const official = await resolveOfficialCatalog({ forceRefresh, silent });
-  const custom = await resolveCustomCatalog(effectiveUrl, silent);
-
-  if (!custom) {
-    // Custom failed — return official alone
-    return official;
+  try {
+    const result = await fetchRemoteCatalog(source.uri, cached?.etag);
+    if (result.notModified && cached) {
+      const updated: CatalogCacheEntry = { ...cached, fetchedAt: new Date().toISOString() };
+      try { saveSourceCache(source.id, updated); } catch { /* non-fatal */ }
+      return {
+        source,
+        resolved: {
+          tools: cached.catalog.tools,
+          relations: cached.catalog.relations ?? [],
+          suggestions: cached.catalog.suggestions ?? [],
+          source: 'cache',
+          version: cached.catalog.version,
+          stale: false,
+        },
+        state: 'cache',
+      };
+    }
+    const entry: CatalogCacheEntry = {
+      fetchedAt: new Date().toISOString(),
+      sourceUrl: source.uri,
+      etag: result.etag,
+      catalog: result.catalog,
+    };
+    try { saveSourceCache(source.id, entry); } catch { /* non-fatal */ }
+    return {
+      source,
+      resolved: {
+        tools: result.catalog.tools,
+        relations: result.catalog.relations ?? [],
+        suggestions: result.catalog.suggestions ?? [],
+        source: 'remote',
+        version: result.catalog.version,
+        stale: false,
+      },
+      state: 'remote',
+    };
+  } catch {
+    // Remote failed — try stale cache.
   }
 
-  return mergeCatalogs(official, custom);
+  if (cached) {
+    if (!options.silent) console.warn(`⚠ Using stale cache for ${source.id} (remote fetch failed)`);
+    return {
+      source,
+      resolved: {
+        tools: cached.catalog.tools,
+        relations: cached.catalog.relations ?? [],
+        suggestions: cached.catalog.suggestions ?? [],
+        source: 'cache',
+        version: cached.catalog.version,
+        stale: true,
+      },
+      state: 'stale',
+    };
+  }
+
+  if (!options.silent) console.warn(`⚠ Source ${source.id} failed (no cache, remote unreachable)`);
+  return { source, resolved: null, state: 'failed' };
+}
+
+export async function resolveCatalog(options?: ResolveCatalogOptions): Promise<ResolvedCatalog> {
+  const forceRefresh = options?.forceRefresh ?? false;
+  const silent = options?.silent ?? false;
+
+  const cliSource =
+    options?.sources !== undefined
+      ? null
+      : makeCliAdhocSource(options?.catalogUrl, options?.catalogMode);
+
+  const sources =
+    options?.sources !== undefined
+      ? [...options.sources].sort((a, b) => a.priority - b.priority)
+      : loadEffectiveSources({
+          projectRoot: options?.projectRoot,
+          cliSource,
+        });
+
+  const layers: MergeLayer[] = [];
+  for (const src of sources) {
+    layers.push(await fetchSource(src, { forceRefresh, silent }));
+  }
+
+  const merged = mergeCatalogStack(layers);
+
+  // If the only successful layer was bundled, preserve the pre-v0.8 warning
+  // to keep the human-facing UX consistent when custom sources all fail.
+  const successfulStates = layers
+    .filter((l) => l.state !== 'failed')
+    .map((l) => l.source.id);
+  const onlyBundled = successfulStates.length === 1 && successfulStates[0] === BUNDLED_SOURCE_ID;
+  if (onlyBundled && !silent) {
+    const anyNonBundled = layers.some(
+      (l) => l.source.id !== BUNDLED_SOURCE_ID && l.source.enabled,
+    );
+    if (anyNonBundled) {
+      console.warn('⚠ Using bundled catalog (all remote/custom sources failed)');
+    }
+  }
+
+  return merged;
 }

@@ -10,15 +10,36 @@ import { verify } from './core/verifier.js';
 import { update } from './core/updater.js';
 import { uninstall, removeTool } from './rollback/uninstaller.js';
 import { runCheck } from './ci/check.js';
-import { runLoginWizard } from './auth/wizard.js';
-import { loadAuthConfig, clearAuthConfig, getAuthFilePath } from './auth/config.js';
-import { runCloudflareDiagnostics, runAnthropicDiagnostics } from './auth/diagnostics.js';
 import { detectAiProvider } from './generator/ai-provider.js';
 import { resolveCatalog } from './recommender/catalog-resolver.js';
 import { loadTeamConfig, saveTeamConfig } from './team/config.js';
-import type { CatalogMode } from './types/index.js';
+import type { CatalogMode, CatalogSource } from './types/index.js';
 import { loadCache, backupCache, rollbackCache, isCacheValid } from './recommender/catalog-cache.js';
 import { diffCatalogs, formatDiff } from './recommender/catalog-diff.js';
+import { fetchRemoteCatalog } from './recommender/catalog-remote.js';
+import {
+  addSource,
+  removeSource,
+  setSourceEnabled,
+  listAllSources,
+  type PersistentSourceScope,
+} from './recommender/catalog-sources.js';
+import { existsSync } from 'node:fs';
+import { join } from 'node:path';
+import { installSkill, uninstallSkill, getSkillStatus, getUserSkillPath } from './skill/installer.js';
+import { runSetupWizard, type SetupSection } from './setup/wizard.js';
+import { runDoctor, formatDoctorReport, doctorExitCode } from './setup/doctor.js';
+import { maybePrintUpdateNotice } from './setup/update-check.js';
+import { discoverProjects, parseRootsInput } from './discover/scanner.js';
+import { formatDiscoveryTable } from './reporter/discovery-table.js';
+import {
+  loadDiscoveryCache,
+  saveDiscoveryCache,
+  isDiscoveryCacheValid,
+} from './discover/cache.js';
+import { batchApply } from './discover/batch.js';
+import { loadDefaults, saveDefaults } from './setup/defaults.js';
+import { SLAMINAR_VERSION } from './version.js';
 import Table from 'cli-table3';
 
 const program = new Command();
@@ -26,8 +47,15 @@ const program = new Command();
 program
   .name('slaminar')
   .description('Claude Code 전용 프로젝트 분석 및 지능형 세팅 도구')
-  .version('0.4.0')
-  .option('-v, --verbose', 'Show detailed output');
+  .version(SLAMINAR_VERSION)
+  .option('-v, --verbose', 'Show detailed output')
+  .option('--no-update-check', 'Skip the weekly npm registry version check')
+  .hook('preAction', async (thisCommand) => {
+    const opts = thisCommand.opts();
+    await maybePrintUpdateNotice(SLAMINAR_VERSION, {
+      disabledViaFlag: opts.updateCheck === false,
+    });
+  });
 
 program
   .command('init [path]')
@@ -44,23 +72,13 @@ program
 
       if (verbose) console.log('\nslaminar init — verbose mode\n');
 
-      // Inline prompt if AI not configured and user hasn't opted out
+      // If AI isn't configured, nudge the user toward `slaminar setup` but don't block.
       if (options.ai !== false && process.stdin.isTTY) {
         const aiStatus = detectAiProvider();
         if (!aiStatus.available) {
           console.log(chalk.yellow('\n⚠  AI 프로바이더가 설정되지 않았습니다.'));
-          console.log(chalk.dim('   설정하면 CLAUDE.md가 AI로 자동 개선됩니다 (Cloudflare 무료 옵션 제공).\n'));
-          const { confirm } = await import('@inquirer/prompts');
-          const wantSetup = await confirm({
-            message: '지금 설정할까요? (건너뛰면 로컬 규칙으로 진행)',
-            default: true,
-          });
-          if (wantSetup) {
-            const loginOk = await runLoginWizard();
-            if (!loginOk) {
-              console.log(chalk.yellow('\n설정을 완료하지 못했습니다. 로컬 모드로 계속 진행합니다.\n'));
-            }
-          }
+          console.log(chalk.dim('   `slaminar setup`으로 한 번 설정하면 이후 모든 프로젝트에서 재사용됩니다.'));
+          console.log(chalk.dim('   이번에는 로컬 규칙으로 진행합니다.\n'));
         }
       }
 
@@ -345,15 +363,36 @@ program
     }
   });
 
-// ─── Auth commands (login/whoami/logout) ──────────────────
+// ─── Setup & Doctor ──────────────────────────────────────
 
 program
-  .command('login')
-  .description('Set up AI provider (Cloudflare Workers AI or Anthropic Claude)')
-  .action(async () => {
+  .command('setup')
+  .description('Interactive global setup — AI provider, catalog, defaults, skill, discovery')
+  .option('--yes', 'Non-interactive mode (reads SLAMINAR_* env vars)')
+  .option('--reconfigure <section>', 'Re-run a single section (auth | catalog | defaults | skill)')
+  .option('--apply-to-discovered', 'In --yes mode, apply init/update to every discovered project')
+  .option('--no-discovery', 'Skip the optional project discovery step')
+  .action(async (options: {
+    yes?: boolean;
+    reconfigure?: string;
+    applyToDiscovered?: boolean;
+    discovery?: boolean;
+  }) => {
     try {
-      const ok = await runLoginWizard();
-      if (!ok) process.exitCode = 1;
+      const section = options.reconfigure as SetupSection | undefined;
+      if (section && !['auth', 'catalog', 'defaults', 'skill'].includes(section)) {
+        console.error(
+          chalk.red(`\nInvalid section: ${section}. Use one of: auth, catalog, defaults, skill.\n`),
+        );
+        process.exitCode = 1;
+        return;
+      }
+      await runSetupWizard({
+        yes: options.yes,
+        reconfigureSection: section,
+        applyToDiscovered: options.applyToDiscovered,
+        noDiscovery: options.discovery === false,
+      });
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       if (!message.includes('User force closed')) {
@@ -364,173 +403,125 @@ program
   });
 
 program
-  .command('whoami')
-  .description('Show current AI provider authentication status')
-  .action(async () => {
+  .command('doctor')
+  .description('Read-only diagnostic — environment, auth, catalog, skill, defaults')
+  .option('--json', 'Emit machine-readable JSON output')
+  .action((options: { json?: boolean }) => {
     try {
-      const status = detectAiProvider();
-      const config = loadAuthConfig();
-
-      if (!status.available) {
-        console.log(chalk.yellow('\nNot logged in. Run `slaminar login` to set up AI enhancement.\n'));
-        return;
-      }
-
-      console.log('');
-      console.log(chalk.green('✓') + ` Logged in to ${chalk.bold(status.provider)}`);
-
-      if (status.provider === 'cloudflare' && config?.providers.cloudflare) {
-        const cf = config.providers.cloudflare;
-        if (cf.accountName) console.log(`  Account:  ${cf.accountName}`);
-        console.log(`  Model:    ${cf.model}`);
-      } else if (status.provider === 'anthropic' && config?.providers.anthropic) {
-        console.log(`  Model:    ${config.providers.anthropic.model}`);
-      }
-      if (status.source === 'env') {
-        console.log(`  Source:   environment variable`);
+      const result = runDoctor();
+      if (options.json) {
+        console.log(JSON.stringify(result, null, 2));
       } else {
-        console.log(`  Config:   ${getAuthFilePath()}`);
+        console.log(formatDoctorReport(result));
       }
-      console.log('');
+      process.exitCode = doctorExitCode(result);
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       console.error(`\nError: ${message}\n`);
       process.exitCode = 1;
     }
   });
+
+// ─── Discovery (v0.7) ────────────────────────────────────
 
 program
-  .command('logout')
-  .description('Remove stored AI provider credentials')
-  .action(async () => {
+  .command('discover [roots...]')
+  .description('Scan user-specified roots for Claude Code projects')
+  .option('--json', 'Emit machine-readable JSON output')
+  .option('--dry-run', 'When combined with --apply, run init/update in dry-run mode')
+  .option('--apply', 'Run init/update on every non-skipped discovered project')
+  .option('--only-new', 'With --apply, operate only on projects classified as "new"')
+  .option('--no-cache', 'Ignore any existing discovery cache and re-scan')
+  .option('--catalog <url>', 'Forward a custom catalog URL to batch-apply')
+  .option('--catalog-mode <mode>', 'Forward catalog mode (extend | replace) to batch-apply')
+  .action(async (
+    roots: string[] | undefined,
+    options: {
+      json?: boolean;
+      dryRun?: boolean;
+      apply?: boolean;
+      onlyNew?: boolean;
+      cache?: boolean;
+      catalog?: string;
+      catalogMode?: string;
+    },
+  ) => {
     try {
-      const removed = clearAuthConfig();
-      if (removed) {
-        console.log(chalk.green('\n✓') + ' Logged out. Auth config removed.\n');
-      } else {
-        console.log(chalk.dim('\nNo auth config to remove.\n'));
-      }
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      console.error(`\nError: ${message}\n`);
-      process.exitCode = 1;
-    }
-  });
-
-const authCmd = program.command('auth').description('AI provider authentication management');
-
-authCmd
-  .command('status')
-  .description('Detailed authentication status')
-  .action(async () => {
-    try {
-      const status = detectAiProvider();
-      const config = loadAuthConfig();
-
-      console.log('\n' + chalk.bold('━━━ slaminar Authentication Status ━━━━━━━━━━━━━━━━'));
-      console.log('');
-      if (!status.available) {
-        console.log(chalk.yellow('  No AI provider configured.'));
-        console.log(chalk.dim('  Run `slaminar login` to set one up.\n'));
+      const defaults = loadDefaults();
+      const providedRoots = (roots && roots.length ? roots : defaults.discovery.lastRoots) ?? [];
+      if (providedRoots.length === 0) {
+        console.error(
+          chalk.red(
+            '\nNo roots to scan. Pass them as arguments (e.g. `slaminar discover ~/work ~/projects`) or run `slaminar setup` once to remember them.\n',
+          ),
+        );
+        process.exitCode = 1;
         return;
       }
-      console.log(`  Active provider: ${chalk.green(status.provider)} ✓`);
-      console.log(`  Source: ${status.source}`);
-      console.log(`  Model:  ${status.model}`);
 
-      if (config) {
-        if (config.providers.cloudflare) {
-          const cf = config.providers.cloudflare;
-          console.log('');
-          console.log('  Cloudflare Workers AI');
-          if (cf.accountName) console.log(`    Account:    ${cf.accountName}`);
-          console.log(`    Account ID: ${cf.accountId}`);
-          console.log(`    Model:      ${cf.model}`);
+      const parsed = parseRootsInput(providedRoots);
+
+      const useCache = options.cache !== false;
+      const cached = useCache ? loadDiscoveryCache() : null;
+      const cacheFresh = cached !== null && isDiscoveryCacheValid(cached);
+
+      let discovery = cacheFresh && cached ? cached.result : null;
+      if (!discovery) {
+        if (!options.json) console.log(chalk.dim(`\n🔍 Scanning ${parsed.length} root(s)...`));
+        discovery = await discoverProjects(parsed, {
+          maxDepth: defaults.discovery.maxDepth,
+          excludePatterns: defaults.discovery.excludePatterns,
+        });
+        try {
+          saveDiscoveryCache(discovery);
+        } catch {
+          // non-fatal
         }
-        if (config.providers.anthropic) {
-          console.log('');
-          console.log('  Anthropic Claude');
-          console.log(`    Model: ${config.providers.anthropic.model}`);
+        try {
+          saveDefaults({
+            ...defaults,
+            discovery: { ...defaults.discovery, lastRoots: parsed },
+          });
+        } catch {
+          // non-fatal
         }
+      } else if (!options.json) {
+        console.log(chalk.dim('\n(using cached discovery result — pass `--no-cache` to re-scan)'));
+      }
+
+      if (options.json) {
+        console.log(JSON.stringify(discovery, null, 2));
+      } else {
+        console.log(formatDiscoveryTable(discovery));
+      }
+
+      if (!options.apply) return;
+
+      if (discovery.projects.length === 0) {
+        if (!options.json) console.log(chalk.dim('Nothing to apply — no projects found.\n'));
+        return;
+      }
+
+      const batch = await batchApply(discovery.projects, {
+        dryRun: options.dryRun ?? false,
+        onlyNew: options.onlyNew,
+        catalogUrl: options.catalog,
+        catalogMode: options.catalogMode as CatalogMode | undefined,
+      });
+
+      if (options.json) {
+        console.log(JSON.stringify(batch, null, 2));
+      } else {
         console.log('');
-        console.log(`  Config file: ${getAuthFilePath()}`);
-      }
-      console.log('');
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      console.error(`\nError: ${message}\n`);
-      process.exitCode = 1;
-    }
-  });
-
-authCmd
-  .command('test')
-  .description('Run diagnostic tests on configured AI provider')
-  .action(async () => {
-    try {
-      const config = loadAuthConfig();
-      if (!config?.active) {
-        console.log(chalk.yellow('\nNo AI provider configured. Run `slaminar login` first.\n'));
-        process.exitCode = 1;
-        return;
+        console.log(
+          chalk.bold(
+            `Batch ${options.dryRun ? 'dry-run' : 'apply'} complete: ${chalk.green(`${batch.succeeded.length} succeeded`)}, ${chalk.red(`${batch.failed.length} failed`)}, ${chalk.dim(`${batch.skipped.length} skipped`)}`,
+          ),
+        );
+        if (batch.summaryPath) console.log(chalk.dim(`  Audit log: ${batch.summaryPath}\n`));
       }
 
-      console.log('\n' + chalk.bold('━━━ AI Provider Diagnostics ━━━━━━━━━━━━━━━━━━━━━━'));
-      console.log(`  Provider: ${config.active}\n`);
-
-      let result;
-      if (config.active === 'cloudflare' && config.providers.cloudflare) {
-        const cf = config.providers.cloudflare;
-        result = await runCloudflareDiagnostics(cf.apiToken, cf.accountId, cf.model);
-      } else if (config.active === 'anthropic' && config.providers.anthropic) {
-        result = await runAnthropicDiagnostics(config.providers.anthropic.apiKey);
-      } else {
-        console.log(chalk.red('\nConfig is in an invalid state.\n'));
-        process.exitCode = 1;
-        return;
-      }
-
-      for (const c of result.checks) {
-        const icon =
-          c.status === 'pass' ? chalk.green('✓')
-          : c.status === 'skip' ? chalk.yellow('○')
-          : chalk.red('✗');
-        const elapsed = c.elapsedMs ? chalk.dim(` (${c.elapsedMs}ms)`) : '';
-        console.log(`  ${icon} ${c.name}: ${c.detail}${elapsed}`);
-      }
-      console.log('');
-      if (!result.overallPass) process.exitCode = 2;
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      console.error(`\nError: ${message}\n`);
-      process.exitCode = 1;
-    }
-  });
-
-authCmd
-  .command('switch <provider>')
-  .description('Switch active AI provider (cloudflare|anthropic)')
-  .action(async (provider: string) => {
-    try {
-      const config = loadAuthConfig();
-      if (!config) {
-        console.log(chalk.yellow('\nNo auth config found. Run `slaminar login` first.\n'));
-        process.exitCode = 1;
-        return;
-      }
-      if (provider !== 'cloudflare' && provider !== 'anthropic') {
-        console.log(chalk.red(`\nInvalid provider: ${provider}. Use cloudflare or anthropic.\n`));
-        process.exitCode = 1;
-        return;
-      }
-      if (!config.providers[provider]) {
-        console.log(chalk.yellow(`\n${provider} is not configured. Run \`slaminar login\` to add it.\n`));
-        process.exitCode = 1;
-        return;
-      }
-      const { saveAuthConfig } = await import('./auth/config.js');
-      saveAuthConfig({ ...config, active: provider, savedAt: new Date().toISOString() });
-      console.log(chalk.green(`\n✓ Switched to ${provider}\n`));
+      if (batch.failed.length > 0) process.exitCode = 1;
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       console.error(`\nError: ${message}\n`);
@@ -720,12 +711,17 @@ catalogCmd.command('rollback')
   });
 
 catalogCmd.command('config')
-  .description('View or set persistent catalog configuration')
+  .description('[deprecated in v0.8 — use `catalog source`] View or set single-URL catalog configuration')
   .option('--url <url>', 'Set custom catalog URL')
   .option('--mode <mode>', 'Set catalog mode: extend or replace')
   .option('--clear', 'Clear custom catalog configuration')
   .action(async (options: { url?: string; mode?: string; clear?: boolean }) => {
     try {
+      console.warn(
+        chalk.yellow(
+          '⚠ `catalog config` is deprecated as of v0.8. Prefer `catalog source add/list/remove/enable/disable` for multi-source management.',
+        ),
+      );
       const root = process.cwd();
       const config = loadTeamConfig(root);
 
@@ -763,6 +759,257 @@ catalogCmd.command('config')
       console.log('');
     } catch (err) {
       console.error(`\nError: ${err instanceof Error ? err.message : String(err)}\n`);
+      process.exitCode = 1;
+    }
+  });
+
+// ─── Catalog source subcommands (v0.8 multi-source federation) ──
+
+const sourceCmd = catalogCmd
+  .command('source')
+  .description('Manage multi-source catalog federation (v0.8+)');
+
+sourceCmd
+  .command('add <uri>')
+  .description('Register a new catalog source (file / URL / github:)')
+  .option('--mode <mode>', 'Mode: extend (default) or replace', 'extend')
+  .option('--priority <n>', 'Override priority (default: 100 user / 200 project)')
+  .option('--scope <scope>', 'Where to store: user (default) or project', 'user')
+  .option('--name <id>', 'Custom source id (auto-generated if omitted)')
+  .option('--trust <level>', 'Trust: trusted | untrusted (default) | verified')
+  .action(async (
+    uri: string,
+    options: { mode?: string; priority?: string; scope?: string; name?: string; trust?: string },
+  ) => {
+    try {
+      const scope = (options.scope ?? 'user') as PersistentSourceScope;
+      if (scope !== 'user' && scope !== 'project') {
+        console.error(chalk.red(`\nError: --scope must be "user" or "project" (got "${scope}")\n`));
+        process.exitCode = 1;
+        return;
+      }
+      const mode = (options.mode ?? 'extend') as CatalogMode;
+      if (mode !== 'extend' && mode !== 'replace') {
+        console.error(chalk.red(`\nError: --mode must be "extend" or "replace" (got "${options.mode}")\n`));
+        process.exitCode = 1;
+        return;
+      }
+      const trust = (options.trust ?? 'untrusted') as CatalogSource['trust'];
+      if (!['trusted', 'untrusted', 'verified'].includes(trust)) {
+        console.error(chalk.red(`\nError: --trust must be trusted | untrusted | verified\n`));
+        process.exitCode = 1;
+        return;
+      }
+      const priority = options.priority !== undefined ? parseInt(options.priority, 10) : undefined;
+      if (priority !== undefined && Number.isNaN(priority)) {
+        console.error(chalk.red(`\nError: --priority must be an integer\n`));
+        process.exitCode = 1;
+        return;
+      }
+      const projectRoot = scope === 'project' ? process.cwd() : undefined;
+      if (scope === 'project' && !existsSync(join(process.cwd(), '.slaminar'))) {
+        console.error(
+          chalk.red(
+            `\nError: scope=project requires a \`.slaminar/\` directory in the current working dir. Run \`slaminar init\` first.\n`,
+          ),
+        );
+        process.exitCode = 1;
+        return;
+      }
+      const src = addSource({ uri, mode, scope, id: options.name, priority, trust, projectRoot });
+      console.log(chalk.green(`\n✓ Source added: ${src.id}`));
+      console.log(`  uri:      ${src.uri}`);
+      console.log(`  scope:    ${src.scope}  priority: ${src.priority}  mode: ${src.mode}  trust: ${src.trust}`);
+      console.log('');
+    } catch (err) {
+      console.error(`\nError: ${err instanceof Error ? err.message : String(err)}\n`);
+      process.exitCode = 1;
+    }
+  });
+
+sourceCmd
+  .command('list')
+  .description('Show every layer (bundled → official → user → project → env)')
+  .action(() => {
+    try {
+      const sources = listAllSources(process.cwd());
+      const table = new Table({
+        head: [
+          chalk.bold('id'),
+          chalk.bold('scope'),
+          chalk.bold('prio'),
+          chalk.bold('mode'),
+          chalk.bold('on'),
+          chalk.bold('trust'),
+          chalk.bold('uri'),
+        ],
+      });
+      for (const s of sources) {
+        table.push([
+          s.id,
+          s.scope,
+          s.priority,
+          s.mode,
+          s.enabled ? chalk.green('yes') : chalk.dim('no'),
+          s.trust,
+          s.uri.length > 60 ? s.uri.slice(0, 57) + '...' : s.uri,
+        ]);
+      }
+      console.log(`\n${chalk.bold('Catalog sources')} (${sources.length} total — sorted by priority)`);
+      console.log(table.toString());
+      console.log('');
+    } catch (err) {
+      console.error(`\nError: ${err instanceof Error ? err.message : String(err)}\n`);
+      process.exitCode = 1;
+    }
+  });
+
+sourceCmd
+  .command('remove <idOrUri>')
+  .description('Delete a source by id or uri')
+  .option('--scope <scope>', 'user (default) or project', 'user')
+  .action((identifier: string, options: { scope?: string }) => {
+    try {
+      const scope = (options.scope ?? 'user') as PersistentSourceScope;
+      const projectRoot = scope === 'project' ? process.cwd() : undefined;
+      const ok = removeSource({ identifier, scope, projectRoot });
+      if (ok) console.log(chalk.green(`\n✓ Removed \`${identifier}\` from ${scope} scope.\n`));
+      else {
+        console.log(chalk.yellow(`\nNo match for \`${identifier}\` in ${scope} scope.\n`));
+        process.exitCode = 1;
+      }
+    } catch (err) {
+      console.error(`\nError: ${err instanceof Error ? err.message : String(err)}\n`);
+      process.exitCode = 1;
+    }
+  });
+
+sourceCmd
+  .command('enable <idOrUri>')
+  .description('Enable a source')
+  .option('--scope <scope>', 'user (default) or project', 'user')
+  .action((identifier: string, options: { scope?: string }) => {
+    try {
+      const scope = (options.scope ?? 'user') as PersistentSourceScope;
+      const projectRoot = scope === 'project' ? process.cwd() : undefined;
+      const ok = setSourceEnabled(identifier, true, scope, projectRoot);
+      if (ok) console.log(chalk.green(`\n✓ Enabled \`${identifier}\`.\n`));
+      else console.log(chalk.dim(`\nNo change — already enabled (or not found).\n`));
+    } catch (err) {
+      console.error(`\nError: ${err instanceof Error ? err.message : String(err)}\n`);
+      process.exitCode = 1;
+    }
+  });
+
+sourceCmd
+  .command('disable <idOrUri>')
+  .description('Disable a source (kept in config but skipped during resolve)')
+  .option('--scope <scope>', 'user (default) or project', 'user')
+  .action((identifier: string, options: { scope?: string }) => {
+    try {
+      const scope = (options.scope ?? 'user') as PersistentSourceScope;
+      const projectRoot = scope === 'project' ? process.cwd() : undefined;
+      const ok = setSourceEnabled(identifier, false, scope, projectRoot);
+      if (ok) console.log(chalk.green(`\n✓ Disabled \`${identifier}\`.\n`));
+      else console.log(chalk.dim(`\nNo change — already disabled (or not found).\n`));
+    } catch (err) {
+      console.error(`\nError: ${err instanceof Error ? err.message : String(err)}\n`);
+      process.exitCode = 1;
+    }
+  });
+
+sourceCmd
+  .command('test <uri>')
+  .description('One-shot fetch + schema check for a uri (not persisted)')
+  .action(async (uri: string) => {
+    try {
+      console.log(chalk.dim(`\nFetching ${uri}...`));
+      const result = await fetchRemoteCatalog(uri);
+      console.log(chalk.green(`✓ Valid — ${result.catalog.tools.length} tools, version ${result.catalog.version}`));
+      if (result.etag) console.log(chalk.dim(`  etag: ${result.etag}`));
+      console.log('');
+    } catch (err) {
+      console.error(chalk.red(`\n✗ Fetch failed: ${err instanceof Error ? err.message : String(err)}\n`));
+      process.exitCode = 1;
+    }
+  });
+
+// ─── Skill commands (Claude Code /slaminar skill management) ────────────────
+
+const skillCmd = program.command('skill').description('Manage Claude Code skill installation');
+
+skillCmd
+  .command('install')
+  .description('Install slaminar as a Claude Code skill at ~/.claude/skills/slaminar/')
+  .option('--force', 'Overwrite existing SKILL.md even if content differs')
+  .action(async (options: { force?: boolean }) => {
+    try {
+      const result = installSkill({ force: options.force });
+      switch (result.status) {
+        case 'installed':
+          console.log(chalk.green('\n✓') + ` Skill installed at ${result.path}\n`);
+          break;
+        case 'updated':
+          console.log(chalk.green('\n✓') + ` Skill updated at ${result.path}`);
+          if (result.backupPath) {
+            console.log(chalk.dim(`  Previous version backed up to ${result.backupPath}`));
+          }
+          console.log('');
+          break;
+        case 'unchanged':
+          console.log(chalk.dim(`\nSkill already up to date at ${result.path}\n`));
+          break;
+        case 'failed':
+          console.error(chalk.red(`\n✗ ${result.message ?? 'Install failed'}\n`));
+          process.exitCode = 1;
+          break;
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      console.error(`\nError: ${message}\n`);
+      process.exitCode = 1;
+    }
+  });
+
+skillCmd
+  .command('uninstall')
+  .description('Remove slaminar skill from ~/.claude/skills/slaminar/')
+  .action(async () => {
+    try {
+      const result = uninstallSkill();
+      if (result.removed) {
+        console.log(chalk.green('\n✓') + ` ${result.message}\n`);
+      } else {
+        console.log(chalk.dim(`\n${result.message ?? 'Nothing to remove'}\n`));
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      console.error(`\nError: ${message}\n`);
+      process.exitCode = 1;
+    }
+  });
+
+skillCmd
+  .command('status')
+  .description('Show Claude Code skill installation status')
+  .action(async () => {
+    try {
+      const status = getSkillStatus();
+      console.log('\n' + chalk.bold('Claude Code Skill Status'));
+      console.log(`  Path:      ${getUserSkillPath()}`);
+      console.log(`  Installed: ${status.installed ? chalk.green('yes') : chalk.yellow('no')}`);
+      if (status.installed) {
+        console.log(
+          `  Content:   ${status.contentMatches ? chalk.green('matches bundled version') : chalk.yellow('differs from bundled (run `slaminar skill install` to update)')}`,
+        );
+      }
+      console.log(
+        `  Bundled:   ${status.bundledAvailable ? chalk.green('available') : chalk.red('missing — reinstall slaminar via npm')}`,
+      );
+      console.log('');
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      console.error(`\nError: ${message}\n`);
       process.exitCode = 1;
     }
   });

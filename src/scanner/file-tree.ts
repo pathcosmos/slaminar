@@ -2,7 +2,7 @@ import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, extname, relative } from 'node:path';
 import type { FileNode } from '../types/index.js';
 
-const DEFAULT_EXCLUDES = new Set([
+export const DEFAULT_EXCLUDES = new Set([
   'node_modules', '.git', 'dist', 'build', '.next', '.nuxt',
   '__pycache__', '.venv', 'venv', 'target', '.gradle',
   '.idea', '.vscode', '.DS_Store',

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { mergeCatalogs } from '../../src/recommender/catalog-merger.js';
-import type { ResolvedCatalog, CatalogTool, ToolConflict } from '../../src/types/index.js';
+import { mergeCatalogs, mergeCatalogStack, type MergeLayer } from '../../src/recommender/catalog-merger.js';
+import type { CatalogSource, ResolvedCatalog, CatalogTool, ToolConflict } from '../../src/types/index.js';
 
 function makeTool(name: string, tags: string[] = []): CatalogTool {
   return {
@@ -90,5 +90,99 @@ describe('mergeCatalogs', () => {
 
     expect(merged.version).toBe('2.0.0');
     expect(merged.stale).toBe(true);
+  });
+});
+
+// ─── v0.8 — N-way stack merge ────────────────────────────────
+
+function makeSource(id: string, priority: number, mode: 'extend' | 'replace' = 'extend', scope: CatalogSource['scope'] = 'user'): CatalogSource {
+  return {
+    id,
+    type: 'url',
+    uri: `https://${id}.example/c.json`,
+    priority,
+    mode,
+    enabled: true,
+    trust: 'trusted',
+    addedAt: '1970-01-01T00:00:00.000Z',
+    scope,
+  };
+}
+
+function okLayer(id: string, priority: number, tools: CatalogTool[], mode: 'extend' | 'replace' = 'extend', scope: CatalogSource['scope'] = 'user'): MergeLayer {
+  return { source: makeSource(id, priority, mode, scope), resolved: makeResolved(tools), state: 'remote' };
+}
+
+function bundledLayer(tools: CatalogTool[]): MergeLayer {
+  return {
+    source: { ...makeSource('bundled', -1, 'extend'), scope: 'bundled' },
+    resolved: { ...makeResolved(tools), source: 'bundled' },
+    state: 'bundled',
+  };
+}
+
+describe('mergeCatalogStack', () => {
+  it('collapses to a single-source result when only bundled succeeds', () => {
+    const out = mergeCatalogStack([bundledLayer([makeTool('bundled-only')])]);
+    expect(out.source).toBe('bundled');
+    expect(out.tools.map((t) => t.name)).toEqual(['bundled-only']);
+    expect(out.sourceTrace).toHaveLength(1);
+  });
+
+  it('treats bundled as last-resort — higher layers eclipse it in the merge', () => {
+    const out = mergeCatalogStack([
+      bundledLayer([makeTool('fallback')]),
+      okLayer('official', 0, [makeTool('official-a'), makeTool('official-b')]),
+    ]);
+    expect(out.tools.map((t) => t.name).sort()).toEqual(['official-a', 'official-b']);
+    // Single non-bundled source means the result keeps that source label.
+    expect(out.source).toBe('remote');
+  });
+
+  it('stacks ascending priority — higher wins collisions', () => {
+    const out = mergeCatalogStack([
+      okLayer('official', 0, [makeTool('shared', ['low'])]),
+      okLayer('company', 200, [makeTool('shared', ['high']), makeTool('extra')]),
+    ]);
+    const shared = out.tools.find((t) => t.name === 'shared');
+    expect(shared!.tags).toEqual(['high']);
+    expect(out.source).toBe('multi');
+    expect(out.tools.map((t) => t.name).sort()).toEqual(['extra', 'shared']);
+  });
+
+  it('replace floor drops all lower-priority layers', () => {
+    const out = mergeCatalogStack([
+      okLayer('official', 0, [makeTool('official-only')]),
+      okLayer('security', 200, [makeTool('allowed')], 'replace'),
+      okLayer('personal', 100, [makeTool('dropped')]),
+    ]);
+    const names = out.tools.map((t) => t.name).sort();
+    expect(names).toEqual(['allowed']);
+  });
+
+  it('trace records every input layer, including failed ones', () => {
+    const failed: MergeLayer = {
+      source: makeSource('env-fail', 500),
+      resolved: null,
+      state: 'failed',
+    };
+    const out = mergeCatalogStack([
+      bundledLayer([makeTool('b')]),
+      okLayer('official', 0, [makeTool('o')]),
+      failed,
+    ]);
+    expect(out.sourceTrace).toHaveLength(3);
+    const states = out.sourceTrace!.map((t) => t.state).sort();
+    expect(states).toContain('failed');
+  });
+
+  it('surfaces stale flag when any contributing layer is stale', () => {
+    const staleLayer: MergeLayer = {
+      source: makeSource('team', 200),
+      resolved: { ...makeResolved([makeTool('t')]), stale: true, source: 'cache' },
+      state: 'stale',
+    };
+    const out = mergeCatalogStack([bundledLayer([]), staleLayer]);
+    expect(out.stale).toBe(true);
   });
 });

@@ -5,6 +5,280 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.0] — 2026-04-17
+
+### Added — Catalog Federation (Multi-Source) Phase 1–3
+
+Single `catalogUrl` + `catalogMode` (v0.3+) is now a thin compatibility layer on top of a full multi-source federation model. Up to six layers compose into one resolved catalog with priority-based merging and per-source caches.
+
+**Priority layers (ascending — higher wins collisions):**
+
+```
+-1   bundled       always present, ultimate fallback
+ 0   official      catalog.json on GitHub (implicit unless a replace-mode source shadows it)
+100  user          ~/.config/slaminar/defaults.json → catalog.sources[]
+200  project       .slaminar/config.json → catalogSources[]
+500  env           SLAMINAR_CATALOG_SOURCES (format: mode:uri[,mode:uri])
+999  CLI adhoc    `--catalog <url> [--catalog-mode <mode>]`
+```
+
+- `extend` layers stack additively on top of lower layers; tool name collisions award the higher layer.
+- A single `replace`-mode layer drops every lower-priority layer entirely (security-team whitelist pattern).
+- `relations` are collected from every layer and deduplicated; `suggestions` come from the official source only.
+
+**New types (`src/types/index.ts`):**
+
+- `CatalogSourceType = 'official' | 'url' | 'file' | 'github'`
+- `CatalogSourceScope = 'bundled' | 'official' | 'user' | 'project' | 'env' | 'cli'`
+- `CatalogSourceTrust = 'trusted' | 'untrusted' | 'verified'` (persisted but **not enforced** in v0.8 — hook is ready for v0.9 install-gating)
+- `CatalogSource { id, type, uri, priority, mode, enabled, trust, addedAt, scope }`
+- `CatalogSourceTrace { id, priority, scope, mode, state, uri }`
+- `ResolvedCatalog.source` now includes `'multi'`
+- `ResolvedCatalog.sourceTrace?` — which layers contributed and at what state
+- `TeamConfig.catalogSources?: CatalogSource[]` (optional — legacy `catalogUrl`/`catalogMode` still honored)
+- `UserDefaults.catalog.sources?: CatalogSource[]` (same)
+
+**New CLI subcommand group `slaminar catalog source`:**
+
+```bash
+slaminar catalog source add <uri> [--mode extend|replace] [--priority <n>] \
+                                  [--scope user|project] [--name <id>] [--trust <level>]
+slaminar catalog source list                                    # Every layer in priority order
+slaminar catalog source remove <id-or-uri> [--scope user|project]
+slaminar catalog source enable <id-or-uri> [--scope user|project]
+slaminar catalog source disable <id-or-uri> [--scope user|project]
+slaminar catalog source test <uri>                              # One-shot fetch + schema validation (not persisted)
+```
+
+- `--scope user` (default) writes to `~/.config/slaminar/defaults.json`
+- `--scope project` writes to `.slaminar/config.json` (requires `slaminar init` has already run)
+- Priority defaults to `100` (user) / `200` (project); customisable via `--priority`
+- Re-adding a source with the same id **or** same uri replaces the earlier entry (idempotent)
+- `slaminar catalog config` is kept but now prints a deprecation notice
+
+**New module `src/recommender/catalog-sources.ts`:**
+
+- `loadEffectiveSources({ projectRoot, cliSource, envVar })` composes every active layer
+- `migrateSingleUrlToSource({ url, mode, scope })` synthesizes a `CatalogSource` from legacy fields (read-path only — files aren't rewritten until the next explicit save)
+- `parseEnvSources(envVar)` parses `SLAMINAR_CATALOG_SOURCES="extend:https://a.json,replace:/b.json"`
+- `makeCliAdhocSource(url, mode)` lifts the `--catalog` flag into a layer
+- `addSource / removeSource / setSourceEnabled / listAllSources / readTeamSources / writeTeamSources / readUserSources / writeUserSources` — persistence helpers used by CLI and tests
+
+**Per-source catalog cache:**
+
+- `~/.config/slaminar/cache/<source-id>.json` — each layer gets its own TTL-controlled cache file
+- `backupSourceCache / rollbackSourceCache` per id; `saveSourceCache('official', ...)` writes to the legacy `catalog-cache.json` path for backward compatibility
+- Cache hit / stale / failed states surface in `ResolvedCatalog.sourceTrace`
+
+**Resolver rewrite (`src/recommender/catalog-resolver.ts`):**
+
+- New pipeline: `loadEffectiveSources` → per-source fetch (cache → remote → stale → failed) → `mergeCatalogStack`
+- `ResolveCatalogOptions.catalogUrl` / `catalogMode` still accepted — synthesized into a `cli-adhoc` layer at priority 999 (full backward compat for CLI and programmatic callers)
+- New `ResolveCatalogOptions.sources?: CatalogSource[]` lets tests and internal helpers bypass discovery
+
+**Wizard (`setup` Step 3):**
+
+- Keeps single-URL prompt for the common case; after save, prints: `Tip: layer additional sources via \`slaminar catalog source add <uri>\``
+- Non-interactive `--yes` mode honors `SLAMINAR_CATALOG_SOURCES` (overrides single `SLAMINAR_CATALOG_URL` when present); entries are persisted as user-scope sources
+
+### Changed
+
+- `mergeCatalogs` generalized to N-way via `mergeCatalogStack` — the existing binary helper is still exported and used by the new stack fold
+- `catalog-cache.ts` now exposes `getSourceCachePath / loadSourceCache / saveSourceCache / backupSourceCache / rollbackSourceCache`; the legacy `loadCache`/`saveCache` are preserved and delegate to `id='official'`
+- Config precedence: CLI flag (999) > env var (500) > project (200+) > user (100+) > official (0) > bundled (-1)
+
+### Migration
+
+- **Zero-action upgrade** from v0.7 — existing `catalogUrl`/`catalogMode` in `.slaminar/config.json` or `~/.config/slaminar/defaults.json` are synthesized into a `*-legacy` source at the appropriate scope on every resolve
+- No file is auto-rewritten. The next explicit `catalog source add` or `setup --reconfigure catalog` replaces the legacy fields naturally
+- Legacy single fields remain readable and writable until v0.9 (schema cleanup)
+
+### Deferred to v0.9
+
+- `trust` enforcement (untrusted source install-gating prompts)
+- Dangerous command detection (`rm`, `sudo`, `curl | bash` warnings)
+- HTTPS-required policy for `url` sources
+- Signed-catalog `verified` trust state
+- `npm:@scope/name` source type
+- Schema cleanup that drops legacy `catalogUrl`/`catalogMode` fields
+
+### Stats
+
+- 61 source modules, 55 test files, **338 tests passing** (+46 for sources / persistence / merger stack / resolver multi-source / cache per-source / team config round-trip)
+- 28 CLI commands (`catalog source {add,list,remove,enable,disable,test}` added)
+- Design spec: `docs/superpowers/specs/2026-04-16-custom-catalog-plan.md` + `docs/superpowers/specs/2026-04-17-global-setup-plan.md` §v0.8
+
+[0.8.0]: https://github.com/pathcosmos/slaminar/compare/v0.7.0...v0.8.0
+
+## [0.7.0] — 2026-04-17
+
+### Added — Project Discovery & Batch Apply
+
+**`slaminar discover [roots...]` — new command:**
+- Walks user-specified roots (e.g. `~/work`, `~/projects`) looking for Claude Code projects
+- Classifies each hit as `new` / `configured` / `existing` / `unsupported` with a suggested action (`init` / `update` / `init-merge` / `skip`)
+- Stops descending as soon as a project signature (`CLAUDE.md`, `.claude/`, `.slaminar/`) is found — `$HOME`-wide scans stay fast even across many nested repos
+- Skips `node_modules`, `.git`, `.venv`, `.cache`, `.turbo`, macOS `Library/` / `Applications/`, and other noisy directories by default
+- Symlinks are not followed; visited inodes are tracked via `realpath` as a secondary cycle guard
+- `--json` for machine-readable output; human output uses the same chalk + `cli-table3` style as the existing init reporter
+- `--no-cache` forces a fresh scan; otherwise results are cached at `~/.config/slaminar/discovery-cache.json` (24 h TTL)
+- Remembers the last roots in `defaults.json.discovery.lastRoots` — re-running `slaminar discover` with no arguments reuses them
+
+**`slaminar discover --apply` — batch-apply pipeline:**
+- Sequentially runs `init()` (for `new` / `existing` projects) or `update()` (for `configured` projects) across every approved project
+- `--dry-run` previews without writing files; default is dry-run-off when `--apply` is explicit
+- `--only-new` limits the run to `status === 'new'` projects
+- `--catalog` / `--catalog-mode` forwarded to each per-project `init`
+- Failure-tolerant: per-project errors are captured in `result.failed` but never stop the batch
+- Writes a markdown audit trail to `~/.config/slaminar/setup-logs/batch-<timestamp>.md`
+
+**`slaminar setup` integration:**
+- New Step 6 — "Project discovery (optional)" — prompts interactively or reads `SLAMINAR_DISCOVER_ROOTS` in `--yes` mode
+- After the scan, offers four batch actions: dry-run all / select specific projects (via checkbox) / apply immediately / skip
+- `--apply-to-discovered` flag drives the apply path in `--yes` mode (same effect as `SLAMINAR_BATCH_APPROVED` env in CI)
+- `--no-discovery` flag cleanly opts out — useful when running `setup --yes` on CI where you only want preferences saved
+- Team config auto-import (F6): when the cwd has a committed `.slaminar/config.json` with a different `catalogUrl`, Step 3 offers to copy it into `defaults.json` (`SLAMINAR_IMPORT_TEAM_CATALOG=true` in `--yes` mode)
+
+**New modules:**
+- `src/discover/scanner.ts` — filesystem walker (symlink-safe, depth-capped)
+- `src/discover/detector.ts` — cheap per-project classifier (reads at most a handful of files per candidate)
+- `src/discover/cache.ts` — discovery cache I/O with TTL
+- `src/discover/batch.ts` — sequential batch apply with markdown audit log
+- `src/discover/team-import.ts` — detect / import team-committed catalog settings into user defaults
+- `src/reporter/discovery-table.ts` — chalk + cli-table3 rendering mirroring the init reporter
+- Types: `DiscoveredProject`, `DiscoveryResult`, `DiscoveryCacheEntry`, `DiscoverOptions`, `BatchApplyOptions`, `BatchApplyResult`
+
+**New env vars (for `setup --yes` / CI):**
+- `SLAMINAR_DISCOVER_ROOTS` — comma/space-separated roots for Step 6
+- `SLAMINAR_BATCH_APPROVED` — explicit list of project roots to apply (subset of discovered)
+- `SLAMINAR_BATCH_DRY_RUN` — set to `true` to force dry-run in `--yes` mode
+- `SLAMINAR_ONLY_NEW` — set to `true` to restrict to `status === 'new'` projects
+- `SLAMINAR_IMPORT_TEAM_CATALOG` — set to `true` to auto-import the project's team catalog into user defaults
+
+### Changed
+
+- `runSetupWizard` now runs 6 steps (environment → auth → catalog → defaults → skill → discovery) and can skip the last one via `--no-discovery` or `SetupOptions.noDiscovery`
+- Wizard's internal `selectedAction` discriminant narrowed to a named `BatchAction` type to satisfy stricter TS narrowing rules
+- `src/version.ts` bumped to `0.7.0`
+- `package.json` version jumped from `0.4.0` → `0.7.0`; v0.5 (skill auto-deploy) and v0.6 (setup/doctor) entries already documented below and are shipped in this release
+
+### Stats
+
+- 60 source modules, 53 test files, **292 tests passing** (+42 for discover / batch / discovery-table / team-import)
+- 23 CLI commands (`discover` added)
+- 46 tools in online catalog, 14 in bundled fallback
+- Design spec: `docs/superpowers/specs/2026-04-17-global-setup-plan.md` (v0.7 = "Discovery & Batch" milestone)
+
+[0.7.0]: https://github.com/pathcosmos/slaminar/compare/v0.6.0...v0.7.0
+
+## [0.6.0] — 2026-04-17
+
+### Added — Global Setup Wizard, Doctor Diagnostic, Weekly Version Check
+
+**`slaminar setup` — unified first-run wizard:**
+- Single entry point for every global preference: AI provider, catalog URL/mode, project defaults, skill auto-install
+- 5-step progressive flow with environment summary up front
+- `--reconfigure <auth | catalog | defaults | skill>` revisits one step without touching the others
+- `--yes` mode reads `SLAMINAR_*` env vars for non-interactive CI installs
+- Writes a dated setup log to `~/.config/slaminar/setup-logs/`
+
+**`slaminar doctor` — read-only diagnostic:**
+- Categorized checks: Environment, Installation, Authentication, Catalog, Permissions, Configuration
+- Exit codes mirror `slaminar check`: `0` / `1` / `2` for all-pass / warns / fails
+- `--json` output for CI pipelines
+
+**`~/.config/slaminar/defaults.json` — user-global preferences (new):**
+- `defaults.aiMode` / `excludeAuthTools` / `fileCountCap` / `verbose`
+- `catalog.autoRefreshHours` / `url` / `mode`
+- `discovery.lastRoots` / `excludePatterns` / `maxDepth` (wired in v0.7)
+- `skill.autoInstall` / `scope`
+- `telemetry.optedIn` (schema only — no transmission) / `versionCheck`
+- `updateCheck.lastCheckedAt` / `latestKnownVersion` / `skipVersions`
+- Partial files tolerated — missing sections merged with built-in defaults
+- Malformed JSON falls back to defaults instead of crashing
+
+**Weekly npm registry version check (privacy-safe):**
+- Queries `registry.npmjs.org/slaminar/latest` once per 7 days (no payload, no user identifier)
+- Cached result reused between checks; semver-compared against running version
+- Opt-out: `--no-update-check` flag or `telemetry.versionCheck = false` in `defaults.json`
+- Runs on every command via Commander `preAction` hook; fail-soft on network errors
+- Skipped versions supported (future — user can snooze a version)
+
+**Other:**
+- `src/version.ts` — single source of truth for runtime version string
+- Catalog TTL now honors `defaults.catalog.autoRefreshHours` (was hardcoded 24h); `0` disables auto-refresh
+- 4 new test files, 27 new tests (223 → 250 total)
+- Design spec: `docs/superpowers/specs/2026-04-17-global-setup-plan.md` covering the v0.6 → v0.7 → v0.8 roadmap
+
+### Removed — Breaking
+
+The `auth` command group and its members are gone. Their capabilities moved into `setup` and `doctor`:
+
+| Old command | New equivalent |
+|---|---|
+| `slaminar login` | `slaminar setup --reconfigure auth` |
+| `slaminar whoami` | `slaminar doctor` (Authentication section) |
+| `slaminar logout` | `rm ~/.config/slaminar/auth.json` (rarely needed) |
+| `slaminar auth status` | `slaminar doctor` |
+| `slaminar auth test` | `slaminar doctor` (invokes live diagnostics) |
+| `slaminar auth switch <p>` | `slaminar setup --reconfigure auth` |
+
+`~/.config/slaminar/auth.json` from v0.5 is **fully compatible** — v0.6 reads it as-is. Existing users can run `slaminar setup` to populate `defaults.json`; the auth step offers to keep the existing credentials.
+
+### Changed
+
+- `src/cli.ts` version now read from `src/version.ts` (no more duplicated literal)
+- `init` no longer launches the login wizard inline — it prints a one-line hint directing users to `slaminar setup`
+- `catalog-resolver.ts` respects `defaults.catalog.autoRefreshHours`
+
+### Stats
+
+- 54 source modules, 47 test files, 250 tests passing
+- 22 CLI commands (3 `setup`/`doctor` replacing 6 `auth` commands)
+- 46 tools in online catalog, 14 in bundled fallback
+
+[0.6.0]: https://github.com/pathcosmos/slaminar/compare/v0.5.0...v0.6.0
+
+## [0.5.0] — 2026-04-17
+
+### Added — Claude Code Skill Auto-Deployment + Path Parameterization
+
+**Auto-deployed `/slaminar` skill:**
+- `npm install -g slaminar` now writes SKILL.md to `~/.claude/skills/slaminar/` via an npm postinstall hook, so Claude Code discovers the skill without any manual setup
+- `scripts/copy-assets.mjs` — copies `src/skill/SKILL.md` into `dist/skill/` at build time so the compiled `installer.js` can resolve it as a sibling via `import.meta.url`
+- postinstall hook is **defensively safe**: catches every error, always exits 0, and skips itself when `SLAMINAR_SKIP_POSTINSTALL=1`, `CI=true`, or the install is non-global/transitive
+
+**New CLI command group — `slaminar skill`:**
+- `slaminar skill install [--force]` — (re)install the skill, backing up any existing SKILL.md with different content
+- `slaminar skill uninstall` — remove the skill and restore the most recent backup if one exists
+- `slaminar skill status` — report installed / content-matches / bundled-available
+
+**SKILL.md path parameterization:**
+- `src/skill/SKILL.md` now instructs Claude to extract an optional `<path>` from the user's request (falling back to `.`), so phrasings like "slaminar `../other-repo` 에 돌려줘" route correctly to `slaminar init <path>`
+- Every workflow step and "Other Commands" entry uses `<path>` consistently
+- Frontmatter `description` updated so the skill router recognizes path-bearing phrasings
+
+**New module:** `src/skill/installer.ts`
+- `getUserSkillDir()`, `getUserSkillPath()`, `getBundledSkillPath()` — path resolvers
+- `installSkill({ force? })` — idempotent install with SHA-256 content comparison; automatic backup of pre-existing SKILL.md to `~/.config/slaminar/skill-backups/`
+- `uninstallSkill()` — removes the skill and restores the latest backup if present
+- `getSkillStatus()` — read-only probe
+
+### Changed
+
+- `build` script: `tsc` → `tsc && node scripts/copy-assets.mjs`
+- `package.json` gains a `postinstall` entry (`node dist/skill/post-install.js 2>/dev/null || true`) and ships `scripts/copy-assets.mjs` so `prepare` works for Git installs
+- `files`: added `scripts/copy-assets.mjs`
+- `src/cli.ts` registers a new `skill` subcommand group (mirrors the `auth` / `catalog` group pattern)
+
+### Stats
+
+- 48 source modules, 43 test files, 223 tests passing
+- 24 CLI commands (3 `skill` commands added)
+- 46 tools in online catalog, 14 in bundled fallback
+
+[0.5.0]: https://github.com/pathcosmos/slaminar/compare/v0.4.0...v0.5.0
+
 ## [0.4.0] — 2026-04-16
 
 ### Added — Persistent Catalog Config + Catalog Expansion (24 → 46 tools)

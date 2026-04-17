@@ -68,4 +68,65 @@ describe('team config', () => {
       expect(gi).toContain('.bk/');
     } finally { rmSync(dir, { recursive: true }); }
   });
+
+  // ─── v0.8 — catalogSources round-trip and legacy coexistence ──
+
+  it('round-trips the new catalogSources array', () => {
+    const dir = tmpDir();
+    try {
+      saveTeamConfig(dir, {
+        slaminarVersion: '0.8.0',
+        excludeAuthTools: true,
+        fileCountCap: 10000,
+        approvedTools: [],
+        catalogVersion: '',
+        catalogUrl: '',
+        catalogMode: 'replace',
+        catalogSources: [
+          {
+            id: 'company',
+            type: 'url',
+            uri: 'https://company.example/c.json',
+            priority: 200,
+            mode: 'extend',
+            enabled: true,
+            trust: 'trusted',
+            addedAt: '2026-04-17T00:00:00.000Z',
+            scope: 'project',
+          },
+        ],
+      });
+      const cfg = loadTeamConfig(dir);
+      expect(cfg.catalogSources).toBeDefined();
+      expect(cfg.catalogSources!).toHaveLength(1);
+      expect(cfg.catalogSources![0]!.id).toBe('company');
+      // Legacy URL remains empty when new sources are used.
+      expect(cfg.catalogUrl).toBe('');
+    } finally { rmSync(dir, { recursive: true }); }
+  });
+
+  it('leaves legacy catalogUrl alone when loading v0.7-shaped files (sources synthesized at read-use-site)', () => {
+    const dir = tmpDir();
+    try {
+      mkdirSync(join(dir, '.slaminar'), { recursive: true });
+      writeFileSync(
+        join(dir, '.slaminar', 'config.json'),
+        JSON.stringify({
+          slaminarVersion: '0.7.0',
+          excludeAuthTools: true,
+          fileCountCap: 10000,
+          approvedTools: [],
+          catalogVersion: '',
+          catalogUrl: 'https://legacy.example/c.json',
+          catalogMode: 'extend',
+        }),
+      );
+      const cfg = loadTeamConfig(dir);
+      expect(cfg.catalogUrl).toBe('https://legacy.example/c.json');
+      expect(cfg.catalogMode).toBe('extend');
+      // `catalogSources` stays undefined — migration happens in
+      // `catalog-sources.loadEffectiveSources`, not on read.
+      expect(cfg.catalogSources).toBeUndefined();
+    } finally { rmSync(dir, { recursive: true }); }
+  });
 });

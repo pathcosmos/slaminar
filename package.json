@@ -1,25 +1,27 @@
 {
   "name": "slaminar",
-  "version": "0.4.0",
+  "version": "0.8.0",
   "description": "Intelligent project analyzer and setup tool for Claude Code",
   "type": "module",
   "bin": {
     "slaminar": "dist/cli.js"
   },
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && node scripts/copy-assets.mjs",
     "dev": "tsx src/cli.ts",
     "test": "vitest run",
     "test:watch": "vitest",
     "prepare": "npm run build",
     "prepublishOnly": "npm run build && npm test",
+    "postinstall": "node dist/skill/post-install.js 2>/dev/null || true",
     "version": "echo \"📝 Don't forget to update CHANGELOG.md\" && git add CHANGELOG.md || true",
     "release:patch": "npm version patch -m \"chore(release): v%s\"",
     "release:minor": "npm version minor -m \"chore(release): v%s\"",
     "release:major": "npm version major -m \"chore(release): v%s\""
   },
   "files": [
-    "dist"
+    "dist",
+    "scripts/copy-assets.mjs"
   ],
   "engines": {
     "node": ">=18.0.0"

@@ -1,6 +1,6 @@
 # slaminar
 
-[![Tests](https://img.shields.io/badge/tests-204%20passing-brightgreen)](https://github.com/pathcosmos/slaminar)
+[![Tests](https://img.shields.io/badge/tests-250%20passing-brightgreen)](https://github.com/pathcosmos/slaminar)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.7-blue)](https://www.typescriptlang.org/)
 [![Node](https://img.shields.io/badge/Node-%3E%3D18-green)](https://nodejs.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
@@ -18,12 +18,18 @@
 - [데모](#slaminar)
 - [주요 기능](#주요-기능)
 - [설치](#설치)
+  - [Claude Code 스킬 자동 배포](#claude-code-스킬-자동-배포)
 - [사용법](#사용법)
+  - [첫 실행 세팅 (v0.6+)](#첫-실행-세팅-v06)
+  - [프로젝트 발견 & 일괄 적용 (v0.7+)](#프로젝트-발견--일괄-적용-v07)
+  - [환경 진단 (`slaminar doctor`)](#환경-진단-slaminar-doctor)
+  - [Claude Code 스킬 레퍼런스](#claude-code-스킬-레퍼런스)
 - [프로젝트 분석 능력](#프로젝트-분석-능력)
 - [생성물](#생성물)
 - [동적 카탈로그](#동적-카탈로그)
   - [커스텀 카탈로그 작성](#커스텀-카탈로그-작성)
   - [카탈로그 설정 영속화](#카탈로그-설정-영속화)
+  - [카탈로그 연합 (v0.8+)](#카탈로그-연합-v08)
 - [검증 시스템](#검증-시스템)
 - [에러 처리 및 안전장치](#에러-처리-및-안전장치)
 - [기술 스택](#기술-스택)
@@ -114,6 +120,17 @@ scan → analyze → recommend → plan → generate → place → verify
 - **증분 업데이트**: `slaminar update`는 변경된 섹션만 업데이트
 - **완전 롤백**: `slaminar uninstall`로 모든 변경 되돌리기
 
+### Claude Code 스킬 통합
+
+v0.5.0부터 slaminar 전역 설치 시 자동으로 Claude Code 스킬로 등록되어 `/slaminar`로 호출하거나 자연어("이 프로젝트 세팅해줘", "slaminar `../other-repo` 에 돌려줘")로도 트리거할 수 있습니다.
+
+- **자동 배포** — npm postinstall 훅이 SKILL.md를 `~/.claude/skills/slaminar/`에 배치. 수동 단계 불필요. 어떤 실패도 `npm install`을 중단시키지 않으며, CI와 전이적 설치(다른 패키지의 의존성으로 설치될 때)에서는 자동으로 건너뜁니다. `SLAMINAR_SKIP_POSTINSTALL=1`로 명시적 옵트아웃 가능.
+- **경로 파라미터화** — 스킬이 선택적 `<path>`를 수용. 사용자가 요청에 폴더를 언급하면 Claude가 `slaminar init <path>`로 전달하고, 지정이 없으면 현재 작업 디렉토리(`.`)를 사용.
+- **Content-hash 멱등성** — 번들된 SKILL.md와 설치된 사본이 동일하면 재설치는 no-op. 수정된 SKILL.md는 `~/.config/slaminar/skill-backups/`에 백업된 뒤 교체되며, `slaminar skill uninstall` 시 가장 최근 백업이 복원됩니다.
+- **명시적 명령어** — 수동 제어가 필요할 때 `slaminar skill install/uninstall/status`로 자동 설치와 동일한 흐름 실행.
+
+전체 명령어 표면은 [Claude Code 스킬 레퍼런스](#claude-code-스킬-레퍼런스), postinstall 동작 계약은 [Claude Code 스킬 자동 배포](#claude-code-스킬-자동-배포) 섹션을 참고하세요.
+
 ### 팀 협업
 
 | 파일 | Git 커밋 | 용도 |
@@ -180,6 +197,33 @@ npx slaminar init .
 - Node.js >= 18
 - Git (선택 — git 히스토리 분석용)
 
+### Claude Code 스킬 자동 배포
+
+전역 설치(`npm install -g slaminar`) 시, slaminar는 자기 자신을 Claude Code 스킬로도 등록하여 `/slaminar`로 호출하거나 "이 프로젝트 세팅해줘" 같은 자연어로도 트리거할 수 있게 해줍니다. 스킬은 다음 경로에 배치됩니다:
+
+```
+~/.claude/skills/slaminar/SKILL.md
+```
+
+**경로 파라미터** — 스킬은 선택적 타겟 경로를 지원합니다. 사용자가 폴더를 언급하면("`~/work/other-repo` 에 slaminar 돌려줘"), Claude가 `slaminar init <path>`로 전달합니다. 지정하지 않으면 현재 디렉토리를 사용합니다.
+
+**스킬 관리 명령어:**
+
+```bash
+slaminar skill status      # 스킬 설치 여부와 번들 버전 일치 여부 확인
+slaminar skill install     # 재설치 (기존 내용이 다르면 백업 생성)
+slaminar skill install --force
+slaminar skill uninstall   # 제거 (백업이 있으면 이전 SKILL.md 복원)
+```
+
+**자동 설치 옵트아웃**:
+
+```bash
+SLAMINAR_SKIP_POSTINSTALL=1 npm install -g slaminar
+```
+
+postinstall 훅은 CI 환경(`CI=true`)과 로컬/의존성 설치 시 자동으로 건너뛰며, **어떤 경우에도 `npm install`을 실패시키지 않습니다** — 오류 발생 시 경고만 출력하고 종료 코드 0으로 정상 종료합니다.
+
 ---
 
 ## 사용법
@@ -203,39 +247,90 @@ slaminar init --no-ai .
 slaminar init --catalog https://company.com/catalog.json .
 ```
 
-### AI 개선 (선택적)
+### 첫 실행 세팅 (v0.6+)
 
-`slaminar login`을 한 번만 실행하면 모든 프로젝트에서 AI 기반 CLAUDE.md 개선이 자동 적용됩니다.
+단일 명령어로 slaminar가 필요로 하는 모든 전역 설정을 순차적으로 진행합니다. 필요할 때 섹션만 재설정할 수 있습니다.
 
 ```bash
-slaminar login       # 인터랙티브 설정 (최초 1회)
-slaminar whoami      # 현재 로그인 상태 확인
-slaminar auth test   # 토큰 및 API 호출 진단
-slaminar auth switch cloudflare   # 프로바이더 전환
-slaminar logout      # 자격 증명 제거
+slaminar setup                          # 인터랙티브 6단계 위자드 (첫 실행)
+slaminar setup --reconfigure auth       # AI 프로바이더만 재설정
+slaminar setup --reconfigure catalog    # 카탈로그 URL/mode만 재설정
+slaminar setup --reconfigure defaults   # aiMode / excludeAuthTools / fileCountCap / versionCheck
+slaminar setup --reconfigure skill      # Claude Code 스킬 자동 설치 선호
+slaminar setup --yes                    # 비대화형 (CI) — SLAMINAR_* 환경변수 사용
+slaminar setup --no-discovery           # Step 6 프로젝트 스캔 단계를 건너뜀
+slaminar setup --yes --apply-to-discovered   # CI: 발견된 모든 프로젝트에 init/update 일괄 적용
 ```
 
-#### `slaminar login` 플로우
+비대화형 `--yes` 모드가 읽는 환경 변수:
 
+| 환경변수 | 용도 |
+|---|---|
+| `SLAMINAR_AI_PROVIDER` | `cloudflare` 또는 `anthropic` |
+| `SLAMINAR_CF_TOKEN`, `SLAMINAR_CF_ACCOUNT_ID`, `SLAMINAR_CF_MODEL` | Cloudflare 자격 증명 |
+| `SLAMINAR_ANTHROPIC_KEY`, `SLAMINAR_ANTHROPIC_MODEL` | Anthropic 자격 증명 |
+| `SLAMINAR_CATALOG_URL`, `SLAMINAR_CATALOG_MODE` | 커스텀 카탈로그 |
+| `SLAMINAR_DEFAULT_AI_MODE` | `auto` / `ai` / `local` |
+| `SLAMINAR_EXCLUDE_AUTH_TOOLS` | `true` / `false` |
+| `SLAMINAR_FILE_COUNT_CAP` | 정수 |
+| `SLAMINAR_VERSION_CHECK` | `true` / `false` — 주간 npm 버전 체크 |
+| `SLAMINAR_DISCOVER_ROOTS` | Step 6 discovery가 스캔할 루트들 (쉼표/공백 구분) |
+| `SLAMINAR_BATCH_APPROVED` | 배치 적용할 프로젝트 루트들 (발견된 항목의 부분 집합) |
+| `SLAMINAR_BATCH_DRY_RUN` | `true` — 배치 적용을 강제로 dry-run으로 |
+| `SLAMINAR_ONLY_NEW` | `true` — `status === 'new'` 프로젝트로 제한 |
+| `SLAMINAR_IMPORT_TEAM_CATALOG` | `true` — 팀 `catalogUrl`을 사용자 defaults로 자동 임포트 |
+
+### 프로젝트 발견 & 일괄 적용 (v0.7+)
+
+사용자가 지정한 루트들에서 Claude Code 프로젝트를 찾고, 선택적으로 모두에 대해 `init` / `update`를 일괄 실행합니다.
+
+```bash
+slaminar discover ~/work ~/projects              # 1회성 스캔 + ASCII 테이블
+slaminar discover                                # defaults.json의 마지막 루트 재사용
+slaminar discover ~/work --json                  # 기계 판독용 JSON 출력
+slaminar discover ~/work --apply --dry-run       # 스캔 + 모든 init/update 미리보기
+slaminar discover ~/work --apply --only-new      # "new"로 분류된 프로젝트만 처리
+slaminar discover ~/work --no-cache              # 캐시 무시하고 강제 재스캔 (TTL 24h)
 ```
-? 어떤 AI 프로바이더를 사용하시겠어요?
-❯ Cloudflare Workers AI  (무료 10K/일 · 추천)
-  Anthropic Claude API   (유료 · 최고 품질)
 
-→ 브라우저가 토큰 발급 페이지로 열림
-? 토큰 붙여넣기: *****
-  ✓ Token valid
-  ○ Account access: Workers AI-only 토큰 정상
-  ✓ Workers AI inference: 17 tokens used (956ms)
+**분류 기준:**
 
-? 사용할 모델:
-❯ Llama 3.3 70B ★  (추천)
-  Llama 3.1 8B
-  Mistral Small 3.1 24B
-  Gemma 3 12B
+| 상태 | 의미 | 제안 액션 |
+|---|---|---|
+| `new` | `.claude/`만 있고 `CLAUDE.md` 없음 | `init` |
+| `configured` | `.slaminar/config.json` 있음 | `update` |
+| `existing` | `CLAUDE.md`는 있으나 `.claude/` 없음 | `init-merge` (기존 내용 보존) |
+| `unsupported` | 언어나 signature 감지 불가 | `skip` |
 
-✓ ~/.config/slaminar/auth.json 저장 완료 (권한 0600)
+**안전성 참고:**
+
+- 프로젝트 signature가 확인되면 그 아래로 내려가지 않아 `$HOME` 전체 스캔도 빠릅니다.
+- `node_modules`, `.git`, `.venv`, `.cache`, `.turbo`, macOS `Library/`, `Applications/` 등은 기본적으로 제외됩니다.
+- 심볼릭 링크는 따라가지 않으며, `realpath` inode 추적으로 순환도 방지합니다.
+- 일괄 실행은 항상 `~/.config/slaminar/setup-logs/batch-<timestamp>.md`에 감사 로그를 남깁니다.
+- 스캔 결과는 `~/.config/slaminar/discovery-cache.json`에 캐시됩니다 (TTL 24h). 강제 갱신은 `--no-cache`.
+
+### 환경 진단 (`slaminar doctor`)
+
+읽기 전용 헬스 체크. 종료 코드는 `0` (모두 통과), `1` (경고), `2` (실패).
+
+```bash
+slaminar doctor            # 사람이 읽을 수 있는 보고서
+slaminar doctor --json     # CI용 기계 판독 가능 JSON
 ```
+
+체크 항목:
+
+- Node.js / git 버전
+- slaminar 버전 + 스킬 설치 상태
+- AI 프로바이더 가용성 (auth.json + env 변수)
+- 카탈로그 캐시 신선도
+- `~/.config/slaminar/`, `~/.claude/skills/slaminar/` 쓰기 권한
+- `defaults.json` 유효성
+
+### AI 개선 (선택적)
+
+AI 기반 CLAUDE.md 개선은 `slaminar setup` 진행 중에 설정되며, 이후 모든 프로젝트에 자동 적용됩니다.
 
 #### 설정 저장 위치
 
@@ -243,7 +338,7 @@ slaminar logout      # 자격 증명 제거
 |------|---------|------|
 | CLI 플래그 (`--no-ai`) | 1 (최고) | 일회성 비활성 |
 | 환경변수 (`CLOUDFLARE_*`, `ANTHROPIC_API_KEY`) | 2 | CI/일회성 |
-| `~/.config/slaminar/auth.json` (0600) | 3 | `slaminar login`으로 저장 |
+| `~/.config/slaminar/auth.json` (0600) | 3 | `slaminar setup`으로 저장 |
 | (없음) | 4 | 로컬 규칙만 사용 |
 
 #### 프로바이더 및 모델
@@ -335,27 +430,19 @@ slaminar catalog config                    # 카탈로그 URL + 모드 영속 �
 
 **사용 중단 감지:** 카탈로그의 도구에는 `deprecated: true` 플래그와 선택적으로 `deprecatedReason`(사유), `replacedBy`(대체 도구) 필드가 있을 수 있습니다. `slaminar catalog check`를 실행하면 추천된 도구 중 사용 중단된 것을 찾아 사유와 대체 도구를 안내합니다.
 
-### AI 인증 명령어
+### AI 인증 관리
+
+v0.6부터 `login` / `whoami` / `logout` / `auth` 명령어는 제거되었습니다. 아래 대체 경로를 사용하세요.
 
 ```bash
-# 인터랙티브 로그인 (프로바이더 선택 → 토큰 입력 → 모델 선택 → 검증)
-slaminar login
+# 인증 재설정 (프로바이더 선택 → 토큰 → 모델 → 검증)
+slaminar setup --reconfigure auth
 
-# 현재 로그인 상태 확인
-slaminar whoami
+# 현재 로그인 상태 확인 + 토큰/API 호출 진단
+slaminar doctor
 
-# 로그아웃 (자격 증명 삭제)
-slaminar logout
-
-# 상세 인증 상태
-slaminar auth status
-
-# 토큰 및 API 호출 진단
-slaminar auth test
-
-# 프로바이더 전환
-slaminar auth switch cloudflare
-slaminar auth switch anthropic
+# 로그아웃 (직접 파일 삭제 — 매우 드물게 필요)
+rm ~/.config/slaminar/auth.json
 ```
 
 ### 플래그
@@ -369,15 +456,80 @@ slaminar auth switch anthropic
 | `--catalog <url>` | 커스텀 카탈로그 URL 사용 | init, recommend, catalog update |
 | `--catalog-mode <mode>` | 카탈로그 모드: `extend` 또는 `replace` | init, recommend, catalog update |
 
-### Claude Code 스킬
+### Claude Code 스킬 레퍼런스
 
-Claude Code에서 `/slaminar`로 실행 가능:
+`npm install -g slaminar` (또는 수동으로 `slaminar skill install`) 이후 스킬 파일이 `~/.claude/skills/slaminar/SKILL.md`에 자리잡고, Claude Code가 자동으로 인식합니다.
 
+**Claude가 인식하는 호출 패턴:**
+
+| 사용자 발화 | Claude 실행 명령 |
+|---|---|
+| `/slaminar` | `slaminar init --dry-run .` → 승인 요청 → `slaminar init .` |
+| "이 프로젝트에 Claude Code 세팅해줘" | 위와 동일, 현재 CWD |
+| "slaminar 돌려줘" | 위와 동일, 현재 CWD |
+| "slaminar `../legacy-app` 에 돌려줘" | `slaminar init --dry-run ../legacy-app` → 승인 요청 → `slaminar init ../legacy-app` |
+| "`~/work/other-repo` 을 slaminar로 분석" | 위와 동일, 해석된 절대 경로 사용 |
+| "slaminar update this repo" | `slaminar update <path>` |
+| "slaminar status" | `slaminar status <path>` |
+
+SKILL.md 템플릿은 사용자 요청에서 `<path>`(절대/상대/`~`-프리픽스)를 추출하고, 언급이 없으면 `.`를 사용하도록 Claude에게 지시합니다.
+
+**스킬 관리 서브커맨드** (스킬 자체 관리용):
+
+```bash
+slaminar skill status                # 설치 상태 + 번들 버전과의 내용 일치 여부 보고
+slaminar skill install               # ~/.claude/skills/slaminar/SKILL.md에 설치/업데이트
+slaminar skill install --force       # 내용이 동일해도 강제 덮어쓰기 (백업은 여전히 생성)
+slaminar skill uninstall             # 제거 + 가장 최근 백업이 있으면 복원
 ```
-사용자: /slaminar
-Claude: 프로젝트 분석 중... (slaminar init --dry-run)
-       결과를 보여주고 승인 요청
+
+**예시 — 새 머신에 최초 설치:**
+
+```text
+$ slaminar skill status
+
+Claude Code Skill Status
+  Path:      /Users/me/.claude/skills/slaminar/SKILL.md
+  Installed: no
+  Bundled:   available
+
+$ slaminar skill install
+
+✓ Skill installed at /Users/me/.claude/skills/slaminar/SKILL.md
 ```
+
+**예시 — 수정한 SKILL.md 위에 재설치:**
+
+```text
+$ slaminar skill install
+
+✓ Skill updated at /Users/me/.claude/skills/slaminar/SKILL.md
+  Previous version backed up to /Users/me/.config/slaminar/skill-backups/SKILL_a1b2c3_1713412800.md
+```
+
+**예시 — 백업 복원이 동반되는 제거:**
+
+```text
+$ slaminar skill uninstall
+
+✓ Uninstalled and restored previous SKILL.md from /Users/me/.config/slaminar/skill-backups/SKILL_a1b2c3_1713412800.md
+```
+
+**`npm install -g` 중 옵트아웃:**
+
+```bash
+SLAMINAR_SKIP_POSTINSTALL=1 npm install -g slaminar   # 명시적 옵트아웃
+CI=true npm install -g slaminar                       # 자동 스킵
+```
+
+postinstall 훅은 추가로 **비-전역(로컬/전이적) 설치**도 자동으로 건너뜁니다. 즉 slaminar가 다른 프로젝트의 라이브러리 의존성으로 설치되는 경우 홈 디렉토리를 건드리지 않습니다.
+
+**안전 보장:**
+
+- postinstall은 모든 로직을 `try/catch`로 감싸 오류를 경고 1줄로 축약하고 종료 코드 `0`으로 끝 — `npm install` 체인이 깨질 수 없습니다.
+- SHA-256 내용 비교로 바이트 단위로 동일한 SKILL.md는 조용히 건너뜀 (멱등성 보장).
+- 기존 SKILL.md는 `~/.config/slaminar/skill-backups/`에 복사된 뒤에야 덮어써집니다.
+- `slaminar skill uninstall`은 스킬 파일을 제거하고, 백업이 있으면 가장 최근 것을 `SKILL.md`로 되돌려 씁니다 — 이전 사용자 정의 스킬이 자동 복원됩니다.
 
 ---
 
@@ -666,6 +818,61 @@ slaminar recommend (extend 모드)
         → suggestions: 공식만 취급
 ```
 
+### 카탈로그 연합 (v0.8+)
+
+v0.8부터 단일 `catalogUrl` 대신 **여러 소스를 우선순위로 적층**하는 multi-source 카탈로그 연합을 제공합니다. 회사 카탈로그 + 개인 카탈로그 + 보안팀 allowlist를 동시에 조합할 수 있고, 공식 카탈로그도 그대로 유지됩니다. 기존 v0.7의 단일 URL 설정은 로드 시점에 자동으로 `*-legacy` 소스 1개로 변환되어 기존 사용자는 **무조작 업그레이드** 가능합니다.
+
+**우선순위 레이어 (오름차순, 위가 이김):**
+
+| Priority | Scope | 저장 위치 |
+|---:|---|---|
+| `-1` | `bundled` | 번들 — 항상 존재하는 최종 폴백 |
+| `0` | `official` | 기본 GitHub 호스트 공식 카탈로그 |
+| `100+` | `user` | `~/.config/slaminar/defaults.json → catalog.sources[]` |
+| `200+` | `project` | `.slaminar/config.json → catalogSources[]` (git 커밋) |
+| `500` | `env` | `SLAMINAR_CATALOG_SOURCES` 환경변수 |
+| `999` | `cli` | `--catalog <url>` CLI 플래그 (adhoc) |
+
+`replace` 모드 레이어 하나가 있으면 그보다 낮은 레이어는 **전부 사라집니다**. `extend` 레이어는 누적되며 tool 이름이 충돌하면 높은 쪽이 이깁니다.
+
+**`slaminar catalog source`로 소스 관리:**
+
+```bash
+# 회사 카탈로그를 프로젝트 스코프로 추가 (git 커밋)
+slaminar catalog source add https://tools.company.com/catalog.json \
+  --scope project --mode extend --name company
+
+# 개인 카탈로그를 사용자 스코프로 추가 (기본값으로 gitignore됨)
+slaminar catalog source add ~/my-catalog.json --scope user --name personal
+
+# 보안팀이 모든 하위 레이어를 무효화
+slaminar catalog source add https://sec.company.com/approved.json \
+  --scope project --mode replace --priority 300 --name security-allowlist
+
+# 우선순위 순으로 모든 활성 레이어 확인
+slaminar catalog source list
+
+# URL을 저장 없이 한 번만 검증
+slaminar catalog source test https://example.com/catalog.json
+
+# 비활성화 (설정엔 남김) 또는 삭제
+slaminar catalog source disable company
+slaminar catalog source remove company
+```
+
+**CI 친화 환경변수:**
+
+```bash
+SLAMINAR_CATALOG_SOURCES="extend:https://a.example/c.json,replace:/etc/slaminar/approved.json" \
+  slaminar recommend .
+```
+
+**하위호환성:**
+
+- v0.7 사용자는 파일을 수정할 필요 없습니다. 기존 `catalogUrl` / `catalogMode`가 있으면 resolve 시마다 메모리에서 `*-legacy` 소스로 합성됩니다.
+- `slaminar catalog config`는 여전히 작동하지만 deprecation 경고를 출력합니다. `catalog source`로 전환 권장.
+- `--catalog <url>` 플래그도 계속 동작하며 priority 999 `cli-adhoc` 레이어로 주입됩니다.
+
 ---
 
 ## 검증 시스템
@@ -753,7 +960,8 @@ slaminar check --ci .
 
 ```
 src/
-├── cli.ts                        # CLI 진입점 (21 commands + global flags)
+├── cli.ts                        # CLI 진입점 (22 commands + global flags)
+├── version.ts                    # 런타임 버전 문자열 단일 소스
 ├── types/index.ts                # 모든 공유 타입
 │
 ├── core/                         # 파이프라인 코어
@@ -796,11 +1004,17 @@ src/
 │   ├── ai-provider.ts            # AI 라우팅 (Cloudflare/Anthropic/local)
 │   └── cloudflare-ai.ts          # Cloudflare Workers AI 어댑터 (native fetch)
 
-├── auth/                         # AI 프로바이더 인증 (login/whoami/logout)
+├── auth/                         # AI 프로바이더 인증 (내부용 — setup에서 호출)
 │   ├── config.ts                 # ~/.config/slaminar/auth.json (0600)
 │   ├── models.ts                 # Cloudflare/Anthropic 모델 카탈로그
 │   ├── diagnostics.ts            # 토큰 검증, /user, /memberships, 추론 테스트
-│   └── wizard.ts                 # 인터랙티브 login 플로우
+│   └── wizard.ts                 # 인터랙티브 login 플로우 (setup Step 2에서 호출)
+│
+├── setup/                        # 전역 첫 실행 경험 (v0.6)
+│   ├── wizard.ts                 # `slaminar setup` — 5단계 진행형 위자드
+│   ├── defaults.ts               # ~/.config/slaminar/defaults.json I/O
+│   ├── doctor.ts                 # `slaminar doctor` — 읽기 전용 진단
+│   └── update-check.ts           # 주간 npm registry 버전 체크 (프라이버시 안전)
 │
 ├── placer/                       # Phase 6: 배치
 │   ├── backup.ts                 # 난독 백업 (.dat) + manifest
@@ -830,8 +1044,12 @@ src/
 │   └── detector.ts               # 런타임 감지 (uv/volta 매니저 판별)
 │
 └── skill/                        # Claude Code 통합
-    └── SKILL.md                  # /slaminar 스킬 정의
+    ├── SKILL.md                  # /slaminar 스킬 정의 (경로 파라미터화)
+    ├── installer.ts              # ~/.claude/skills/slaminar/ 설치/제거/상태
+    └── post-install.ts           # npm postinstall 진입점 (fail-safe, 옵트아웃 인식)
 ```
+
+> `scripts/copy-assets.mjs`가 `tsc` 직후 실행되어 `src/skill/SKILL.md`를 `dist/skill/`로 복사합니다 — 컴파일된 `installer.js`가 `import.meta.url`로 같은 폴더의 SKILL.md를 찾을 수 있도록. `package.json`의 `postinstall` 스크립트는 컴파일된 `dist/skill/post-install.js`를 호출합니다.
 
 ---
 
@@ -945,6 +1163,131 @@ CLAUDE.md 유효성 검증, plugin.json 스키마 검증, 터미널 컬러 테�
 
 `catalog config` 명령어로 커스텀 카탈로그 URL과 모드(extend/replace)를 프로젝트 설정에 영속 저장. extend 모드는 커스텀 도구를 공식 카탈로그와 병합하고, replace 모드는 커스텀만 사용. 온라인 카탈로그를 24개에서 46개로 확장 — DevOps, 팀 워크플로우, 품질 게이트, 데이터베이스, 테스트, 프론트엔드, 프레임워크별 도구 추가. 14개의 새 relation 규칙 추가.
 
+### Phase 11: Claude Code 스킬 자동 배포 + 경로 파라미터화 (v0.5.0)
+
+**동기.** v0.5 이전에는 사용자가 `npm install` 후 직접 `~/.claude/skills/slaminar/`로 SKILL.md를 수동 복사해야 했습니다. 배포 갭 때문에 신규 사용자에게는 `/slaminar` 스킬이 사실상 보이지 않았습니다.
+
+**산출물.**
+- npm postinstall 훅으로 자동 설치 — `package.json:postinstall`, `src/skill/post-install.ts`
+- `src/skill/installer.ts` — SHA-256 콘텐츠 체크로 idempotent 설치
+- `slaminar skill {install,uninstall,status}` 명령어 그룹 — `src/cli.ts`
+- `scripts/copy-assets.mjs` — 빌드 시 `SKILL.md`를 `dist/`로 복사
+- SKILL.md 경로 파라미터화 (`<path>` 인자) — `src/skill/SKILL.md`
+
+**의사결정.**
+
+- **D11.1 — 3중 안전 postinstall 가드.** 대안: (a) try/catch 단일, (b) 쉘 `|| true`, (c) 방어적 `process.exit(0)`. **선택:** 3가지 모두 + 옵트아웃(`SLAMINAR_SKIP_POSTINSTALL=1`, `CI=true`, 전이적 설치 감지). 근거: postinstall 실패가 `npm install` 자체를 깨뜨리면 절대 안 됨 — 조용히 스킬 설치가 스킵되는 것보다 사용자 신뢰 손실이 훨씬 비쌉니다. 증거: `src/skill/post-install.ts`, `tests/skill/installer.test.ts`.
+- **D11.2 — SHA-256 content-hash 멱등성 체크.** 대안: 무조건 덮어쓰기. 근거: 사용자가 SKILL.md를 커스터마이즈하는 경우 덮어쓰기는 작업물을 지웁니다. hash 일치 → no-op; 다르면 백업 후 교체. 증거: `src/skill/installer.ts:installSkill`.
+- **D11.3 — 별도 빌드 스크립트로 자산 복사.** 대안: `tsconfig.json`에 `.md` 포함. 근거: `tsc`는 JS 외에는 배출하지 않음; 작은 `copy-assets.mjs`가 투명하고 빌드 시점에 예측 가능하게 실행. 증거: `scripts/copy-assets.mjs`, `package.json:build`.
+- **D11.4 — 내용 불일치 덮어쓰기에만 백업.** 대안: 설치마다 백업. 근거: 대부분 재설치는 hash 일치 no-op; 무차별 백업은 `~/.config/slaminar/skill-backups/`에 중복 파일만 쌓입니다. 증거: `src/skill/installer.ts:installSkill` backup 분기.
+- **D11.5 — 경로 파라미터화 SKILL.md.** 대안: 스킬 내부에서 cwd 감지. 근거: Claude Code 스킬 라우팅은 명시적 인자를 받을 때 더 잘 작동 — "slaminar `../other-repo`에 돌려줘" 같은 발화가 `slaminar init .` 대신 `slaminar init ../other-repo`로 올바르게 라우팅됩니다. 증거: `src/skill/SKILL.md` frontmatter description.
+
+**교차 링크.** [CHANGELOG v0.5.0](./CHANGELOG.md#050--2026-04-17) · 별도 spec 없음(inline 설계) · 테스트: `tests/skill/`.
+
+### Phase 12: 전역 설정 위자드 + Doctor + Defaults (v0.6.0)
+
+**동기.** v0.5 이후에도 setup은 4개 명령어(`login`/`whoami`/`logout`/`auth`)로 분산되어 있었고, `TeamConfig`/`LocalConfig`의 많은 필드는 CLI setter가 없어 사용자가 JSON을 직접 편집했습니다. "내 설치가 건강한가?" 라는 질문에 답할 진단 도구가 전무했습니다. 첫 실행 경험이 파편화된 상태였습니다.
+
+**산출물.**
+- `slaminar setup` — 5단계 대화형 위자드(Environment → AI → Catalog → Defaults → Skill) — `src/setup/wizard.ts`
+- `slaminar doctor` — 읽기 전용 헬스 리포트, 종료코드 0/1/2 — `src/setup/doctor.ts`
+- `~/.config/slaminar/defaults.json` — 사용자 전역 설정 단일 파일 — `src/setup/defaults.ts`
+- 주간 npm 버전 체크(프라이버시 안전) — commander `preAction` 훅 — `src/setup/update-check.ts`
+- `login`/`whoami`/`logout`/`auth` 제거(breaking)
+- `--yes` 비대화형 모드 + `SLAMINAR_*` 환경변수
+
+**의사결정.**
+
+- **D12.1 — 4개 명령어 대신 `setup` 단일 진입점.** 대안: `login`/`whoami` 등을 유지하고 `setup`을 aggregator로 추가. 근거: 하나의 관심사에 4개 surface가 원래 파편화의 원인이었음. aggregation이 discoverability를 살립니다. 단순한 멘탈 모델을 위해 breaking change 수용. 증거: `src/setup/wizard.ts:runSetupWizard`, CHANGELOG "Breaking" 표.
+- **D12.2 — `~/.slaminar/`가 아닌 `~/.config/slaminar/`에 `defaults.json`.** 대안: `$HOME`의 dotfile. 근거: XDG Base Directory 준수; `auth.json`과 같은 위치에 둬서 사용자가 한 디렉토리만 보거나 지우면 되게. 증거: `src/setup/defaults.ts:getDefaultsPath`, `src/auth/config.ts:getConfigDir`.
+- **D12.3 — 주간 버전 체크 (매 실행 X).** 대안: 매 명령어마다 체크. 근거: npm registry rate limit + 사용자는 시끄러운 CLI를 싫어함. 7일에 1회가 균형; 프라이버시 안전(식별자 없음). `--no-update-check` 플래그 또는 `telemetry.versionCheck=false`로 opt-out. 증거: `src/setup/update-check.ts`, `tests/setup/update-check.test.ts`.
+- **D12.4 — CI용 `--yes` + env vars (별도 config 파일 X).** 대안: `--config-file <path>` 플래그. 근거: env vars는 CI(GitHub Actions, CircleCI secrets)에서 네이티브로 흐릅니다. 플래그 surface 최소화 — CI 특화 복잡도는 env namespace에 집중. 증거: `src/setup/wizard.ts:authFromEnv`, yes 모드의 Step 2–5가 모두 `SLAMINAR_*` env를 먼저 읽음.
+- **D12.5 — Doctor 완전 읽기 전용.** 대안: auto-fix 모드(`doctor --fix`). 근거: 진단과 작업이 섞이면 "무슨 일이 일어났는지" 모호해짐; `setup --reconfigure <section>`이 명시적 fix path. 종료코드 0/1/2가 `slaminar check`와 일치 — CI 일관성. 증거: `src/setup/doctor.ts`, `tests/setup/doctor.test.ts`.
+- **D12.6 — 손상된 `defaults.json`은 crash 대신 fallback.** 대안: "config 고쳐라" 에러. 근거: defaults는 민감 정보 아니며 파싱 에러로 작업이 막히면 안 됨. partial file은 유효한 섹션만 병합, 나머지는 built-in default. 증거: `src/setup/defaults.ts:loadDefaults`, `mergeWithBuiltIn`.
+
+**교차 링크.** [CHANGELOG v0.6.0](./CHANGELOG.md#060--2026-04-17) · [spec: `2026-04-17-global-setup-plan.md`](./docs/superpowers/specs/2026-04-17-global-setup-plan.md) · 테스트: `tests/setup/{wizard,doctor,defaults,update-check}.test.ts`.
+
+### Phase 13: 프로젝트 발견 & 일괄 적용 (v0.7.0)
+
+**동기.** 여러 레포를 가진 1인 개발자가 slaminar를 bulk로 적용할 방법이 없었음; 위자드는 한 프로젝트씩만 세팅. 기존 `.slaminar/config.json`이 있는 프로젝트에 합류한 팀원에게 auto-import 경로도 부재. setup은 여전히 디렉토리별 수작업이었습니다.
+
+**산출물.**
+- `slaminar discover [roots...]` — 사용자 지정 루트 스캔 — `src/discover/scanner.ts`
+- `slaminar setup --apply-to-discovered` — 위자드의 선택적 Step 6 — `src/setup/wizard.ts:stepDiscovery`
+- 프로젝트 분류기(`new`/`configured`/`existing`/`unsupported`) — `src/discover/detector.ts`
+- 마크다운 감사 로그를 남기는 일괄 적용 — `src/discover/batch.ts`
+- 팀 카탈로그 자동 임포트 — `src/discover/team-import.ts`
+- ASCII 테이블 리포터 — `src/reporter/discovery-table.ts`
+
+**의사결정.**
+
+- **D13.1 — 사용자 지정 루트, 추측된 기본값 없음.** 대안: `~/work`, `~/projects`, `~/src`를 자동 선택. 근거: false positive는 시간 낭비 + 프라이버시 우려("누가 slaminar에게 내 HOME을 훑으라 했나?"). 명시적 루트만; `defaults.json.discovery.lastRoots`에 저장해 재실행 편의성. 증거: `src/discover/scanner.ts:parseRootsInput`, `tests/discover/scanner.test.ts`.
+- **D13.2 — 프로젝트 signature 확인되면 하향 중단.** 대안: 확정된 프로젝트 내부에도 depth-4까지 계속 내려감. 근거: 모노레포의 루트와 모든 서브패키지 둘 다 매칭되면 시끄럽고 낭비. 첫 히트 승리; 확정된 프로젝트 내부의 중첩 프로젝트는 의도적으로 무시. 증거: `src/discover/scanner.ts:walk`, `tests/discover/scanner.test.ts`의 "does not descend into a confirmed project".
+- **D13.3 — Dry-run 기본, apply는 opt-in.** 대안: 즉시 적용 + `--dry-run` 탈출구. 근거: 여러 프로젝트에 쓰기는 백업 없으면 비가역. 대화형: "Dry-run all(권장)"이 기본. CI: 명시적 `--apply-to-discovered` 또는 `SLAMINAR_BATCH_APPROVED` 필요. 증거: `src/setup/wizard.ts:stepDiscovery`, `src/discover/batch.ts`.
+- **D13.4 — `~/.config/slaminar/setup-logs/`에 일괄 감사 로그.** 대안: 로그 없음(stdout만). 근거: 20개 레포에 `setup --apply-to-discovered` 실행 시 "뭐가 일어났는지" 증거 필요 — 어느 프로젝트에 init됐고 어느 것이 update됐고 어느 것이 실패했는지. 배치당 1개 마크다운 파일(succeeded/failed/skipped 분류). 증거: `src/discover/batch.ts:writeSummary`.
+- **D13.5 — "CLAUDE.md 있고 `.claude/` 없음" → `existing` + `init-merge` (skip X).** 대안: 기존 CLAUDE.md가 있으면 skip. 근거: v0.5 이전 사용자들은 CLAUDE.md를 직접 작성; slaminar의 ownership-marker 시스템이 깨끗하게 병합 가능. auto-skip은 그런 프로젝트를 생태계에서 고아로 만듭니다. 증거: `src/discover/detector.ts:classifyStatus`, `tests/discover/detector.test.ts`.
+- **D13.6 — realpath inode 중복체크를 2차 심볼릭 링크 가드로.** 대안: 기본적으로 "심링크 팔로우 안 함"만. 근거: 바인드 마운트와 case-insensitive 파일시스템은 심링크 없이도 순환을 만들 수 있음; `realpath`가 belt-and-suspenders 가드. 증거: `src/discover/scanner.ts:walk` (`visitedInodes` + `realKey`).
+
+**교차 링크.** [CHANGELOG v0.7.0](./CHANGELOG.md#070--2026-04-17) · [spec §v0.7](./docs/superpowers/specs/2026-04-17-global-setup-plan.md) · 테스트: `tests/discover/*.test.ts`, `tests/reporter/discovery-table.test.ts`.
+
+### Phase 14: 카탈로그 연합 (v0.8.0)
+
+**동기.** v0.3–v0.7은 정확히 하나의 커스텀 카탈로그 URL만 지원. 3-layer 시나리오(보안 allowlist + 회사 카탈로그 + 개인 도구)는 사용자가 JSON을 수동 병합 후 배포해야 했습니다. 팀은 회사 extend 추가와 별개로 "replace 모드"로 강제되는 allowlist를 원했습니다.
+
+**산출물.**
+- 6-레이어 우선순위 모델(`bundled:-1` → `official:0` → `user:100` → `project:200` → `env:500` → `cli:999`) — `src/recommender/catalog-sources.ts`
+- 영속 `trust` 필드 포함 `CatalogSource` 타입 — `src/types/index.ts`
+- `slaminar catalog source {add,list,remove,enable,disable,test}` CLI — `src/cli.ts`
+- `~/.config/slaminar/cache/<id>.json`의 per-source 캐시 — `src/recommender/catalog-cache.ts`
+- replace-floor 의미를 갖는 N-way 병합 — `src/recommender/catalog-merger.ts:mergeCatalogStack`
+- `SLAMINAR_CATALOG_SOURCES` 환경변수(`mode:uri,mode:uri`)
+- v0.7 legacy `catalogUrl` 자동 마이그레이션
+
+**의사결정.**
+
+- **D14.1 — v0.8은 Phase 1–3만; Phase 4 (trust/보안)는 v0.9.** 대안: 한 릴리스에 spec 전체(6–7일). 근거: 작게 배포하면 피드백 빠르고, enforcement UX(확인 prompts, HTTPS 정책, 서명 카탈로그)는 독립된 복잡도. `trust` 필드는 미리 저장해 추후 데이터 마이그레이션 회피. 증거: CHANGELOG v0.8.0 "Deferred to v0.9", 설계 spec Phase 표.
+- **D14.2 — Read-path-only 마이그레이션 (파일 재작성 없음).** 대안: 최초 로드 시 config 파일을 자동 재작성. 근거: v0.7 사용자가 v0.8 파일럿 후 다운그레이드하면 config 파일이 알 수 없이 바뀐 걸 발견. 읽기 시점 마이그레이션은 메모리에서 `*-legacy` 소스를 합성; 파일은 사용자가 `catalog source add` 또는 `setup --reconfigure catalog`로 명시 편집할 때만 쓰기. 증거: `src/recommender/catalog-sources.ts:loadEffectiveSources`의 legacy-URL 분기, `tests/recommender/catalog-sources.test.ts`의 "synthesizes a user-scope source from legacy catalog.url".
+- **D14.3 — Per-source 캐시 파일 (composite X).** 대안: `catalog-cache.json` 하나에 `sources: { [id]: entry }`. 근거: (a) 단일 소스 rollback이 다른 소스의 prev 파일을 건드리지 않음; (b) 동시 fetch(향후)가 락 없이 쓸 수 있음; (c) 손으로 검사하기 쉬움. Official은 v0.7 rollback 호환을 위해 legacy `catalog-cache.json` 경로 유지(`id='official'`). 증거: `src/recommender/catalog-cache.ts:getSourceCachePath`, `tests/recommender/catalog-cache.test.ts`.
+- **D14.4 — Wizard는 단일 URL prompt 유지 + CLI 힌트.** 대안: 위자드를 multi-source 배열 빌더로 확장(inquirer loop). 근거: 사용자 80%는 커스텀 카탈로그 1개를 원함; 루프는 그 다수에게 귀찮음. 파워유저는 반복에 더 적합한 `slaminar catalog source add`로 안내. 증거: `src/setup/wizard.ts:stepCatalog`, "Tip: layer additional sources" 출력.
+- **D14.5 — Bundled는 replace-floor 필터링에서 면제.** 대안: `replace`가 bundled를 포함한 모든 하위 레이어를 드롭. 근거: 사용자의 커스텀 `replace` 소스가 오프라인(stale + 도달불가)이면 모든 걸 잃음. Bundled는 마지막-보루 보장 소스 — 참여자 아닌 "floor". 증거: `src/recommender/catalog-merger.ts:mergeCatalogStack`, `applyReplaceFloor`.
+- **D14.6 — 지금은 `trust` 필드만, enforcement는 v0.9.** 대안: enforcement 시점까지 `trust` 제거. 근거: 나중에 추가하면 config 파일 마이그레이션 강제. 지금 저장해도 행동 효과 없음 → zero-cost forward investment. 신규 소스 기본 `trust: 'untrusted'`는 의도적 — v0.9가 설치 시점에 플래그. 증거: `src/types/index.ts:CatalogSource`, CHANGELOG v0.8.0 "persisted but not enforced".
+- **D14.7 — CLI `--catalog`는 side channel이 아닌 `cli-adhoc` 소스로.** 대안: v0.8 이전처럼 `--catalog`가 stacking을 우회. 근거: 통일성 — 모든 소스가 같은 priority/fetch 파이프라인을 통과. priority 999 CLI adhoc이 하위 레이어와의 충돌에서 자연스럽게 승리(일회성 오버라이드의 기대 의미). 증거: `src/recommender/catalog-sources.ts:makeCliAdhocSource`, `catalog-resolver.test.ts`의 하위호환 테스트.
+- **D14.8 — Env 소스 ID는 URI 해시; `cli-adhoc`은 고정.** 대안: 모든 ID를 랜덤 auto-generate. 근거: env 소스는 공존 가능(쉼표 구분); 해시로 disambiguation. CLI adhoc은 일회성이라 고정 `cli-adhoc` ID가 호출 간 캐시 파일 재사용 가능. 증거: `src/recommender/catalog-sources.ts:generateSourceId`, `makeCliAdhocSource`.
+
+**교차 링크.** [CHANGELOG v0.8.0](./CHANGELOG.md#080--2026-04-17) · [spec: `2026-04-16-custom-catalog-plan.md`](./docs/superpowers/specs/2026-04-16-custom-catalog-plan.md) + [spec §v0.8](./docs/superpowers/specs/2026-04-17-global-setup-plan.md) · 테스트: `tests/recommender/{catalog-sources,catalog-source-persistence,catalog-merger,catalog-resolver}.test.ts`.
+
+### 교차 참조 인덱스 (v0.5 → v0.8)
+
+위의 번호 붙은 모든 의사결정은 3곳에 기록되어 있습니다 — README(여기), CHANGELOG(릴리스 노트), 설계 spec(있을 때). 의사결정 ID는 **`README.md`와 `README.ko.md`에서 동일** — `grep -n "D14\.3" README*.md`로 패리티 검증 가능. 파일 경로는 직접 열어 주장 감사 가능; 테스트 파일은 `npm test -- --run <path>`로 격리 실행.
+
+| ID | 제목 | CHANGELOG | Spec | Source | Tests |
+|---|---|---|---|---|---|
+| D11.1 | 3중 안전 postinstall | v0.5.0 | — | `src/skill/post-install.ts` | `tests/skill/installer.test.ts` |
+| D11.2 | SHA-256 멱등성 | v0.5.0 | — | `src/skill/installer.ts` | `tests/skill/installer.test.ts` |
+| D11.3 | 빌드 자산 복사 스크립트 | v0.5.0 | — | `scripts/copy-assets.mjs` | — |
+| D11.4 | 내용 불일치 시에만 백업 | v0.5.0 | — | `src/skill/installer.ts` | `tests/skill/installer.test.ts` |
+| D11.5 | 경로 파라미터화 SKILL.md | v0.5.0 | — | `src/skill/SKILL.md` | — |
+| D12.1 | `setup` 단일 진입점 | v0.6.0 | `2026-04-17-global-setup-plan.md` | `src/setup/wizard.ts` | `tests/setup/wizard.test.ts` |
+| D12.2 | XDG config 위치 | v0.6.0 | same | `src/setup/defaults.ts` | `tests/setup/defaults.test.ts` |
+| D12.3 | 주간 버전 체크 | v0.6.0 | same | `src/setup/update-check.ts` | `tests/setup/update-check.test.ts` |
+| D12.4 | CI용 `--yes` + env vars | v0.6.0 | same | `src/setup/wizard.ts` | `tests/setup/wizard.test.ts` |
+| D12.5 | Doctor 읽기 전용 | v0.6.0 | same | `src/setup/doctor.ts` | `tests/setup/doctor.test.ts` |
+| D12.6 | 손상 JSON 복구 | v0.6.0 | same | `src/setup/defaults.ts` | `tests/setup/defaults.test.ts` |
+| D13.1 | 사용자 지정 루트 | v0.7.0 | spec §v0.7 | `src/discover/scanner.ts` | `tests/discover/scanner.test.ts` |
+| D13.2 | 확정 프로젝트에서 중단 | v0.7.0 | same | `src/discover/scanner.ts` | `tests/discover/scanner.test.ts` |
+| D13.3 | Dry-run 기본 | v0.7.0 | same | `src/discover/batch.ts`, `src/setup/wizard.ts` | `tests/discover/batch.test.ts` |
+| D13.4 | 일괄 감사 로그 | v0.7.0 | same | `src/discover/batch.ts` | `tests/discover/batch.test.ts` |
+| D13.5 | `existing` → `init-merge` | v0.7.0 | same | `src/discover/detector.ts` | `tests/discover/detector.test.ts` |
+| D13.6 | realpath inode 중복체크 | v0.7.0 | same | `src/discover/scanner.ts` | `tests/discover/scanner.test.ts` |
+| D14.1 | Phase 1–3만, v0.9 연기 | v0.8.0 | `2026-04-16-custom-catalog-plan.md` | — | — |
+| D14.2 | Read-path-only 마이그레이션 | v0.8.0 | same | `src/recommender/catalog-sources.ts` | `tests/recommender/catalog-sources.test.ts` |
+| D14.3 | Per-source 캐시 파일 | v0.8.0 | same | `src/recommender/catalog-cache.ts` | `tests/recommender/catalog-cache.test.ts` |
+| D14.4 | 위자드 단일 URL + CLI 힌트 | v0.8.0 | same | `src/setup/wizard.ts:stepCatalog` | `tests/setup/wizard.test.ts` |
+| D14.5 | Bundled은 replace-floor 면제 | v0.8.0 | same | `src/recommender/catalog-merger.ts` | `tests/recommender/catalog-merger.test.ts` |
+| D14.6 | trust 저장만, enforcement X | v0.8.0 | same | `src/types/index.ts` | — |
+| D14.7 | CLI `--catalog`를 adhoc 소스로 | v0.8.0 | same | `src/recommender/catalog-sources.ts` | `tests/recommender/catalog-resolver.test.ts` |
+| D14.8 | 고정 `cli-adhoc` ID vs 해시된 env ID | v0.8.0 | same | `src/recommender/catalog-sources.ts` | `tests/recommender/catalog-sources.test.ts` |
+
 ### 품질 개선 (3차례 리뷰)
 
 **1차 리뷰 — 에러 처리:**
@@ -980,14 +1323,16 @@ CLAUDE.md 유효성 검증, plugin.json 스키마 검증, 터미널 컬러 테�
 
 | 기능 | 설명 | 상태 |
 |------|------|------|
-| **멀티 소스 카탈로그** | 여러 카탈로그 소스(공식 + 회사 + 개인)를 우선순위 레이어로 병합 | MVP 구현 (`catalog config --mode extend`) |
-| **`catalog source` CLI** | `catalog source add/remove/list/test`로 카탈로그 소스 관리 | 계획 |
-| **개인 도구** | 로컬 config의 `personalTools` 필드로 사용자별 도구 추가 | 스텁 (타입만 존재) |
+| **멀티 소스 카탈로그** | 여러 카탈로그 소스를 우선순위 레이어로 병합 | **v0.8 배포됨** ([D14.1–D14.8](#교차-참조-인덱스-v05--v08)) |
+| **`catalog source` CLI** | `source add/list/remove/enable/disable/test` | **v0.8 배포됨** |
+| **`SLAMINAR_CATALOG_SOURCES` 환경변수** | CI용 멀티 카탈로그 환경변수 | **v0.8 배포됨** |
+| **개인 도구** | 로컬 config의 `personalTools` 필드 | 스텁(타입만 존재) |
 | **`slaminar install`** | 추천 도구를 CLI에서 직접 설치 | 계획 |
-| **카탈로그 신뢰 레벨** | 외부 카탈로그의 `trusted` / `untrusted` / `verified` 신뢰 모델 | 계획 |
-| **`SLAMINAR_CATALOG_SOURCES` 환경변수** | CI용 멀티 카탈로그 환경변수 설정 | 계획 |
+| **카탈로그 trust enforcement** | v0.9 — `untrusted` 소스 설치 전 prompt, 위험 명령 탐지(`rm`, `sudo`, `curl \| bash`), HTTPS 강제, 서명 `verified` trust | 계획 (v0.9) |
+| **`npm:@scope/name` 소스 타입** | v0.9 — private-registry 팀을 위한 npm 카탈로그 | 계획 (v0.9) |
+| **Legacy 필드 정리** | v0.9 — deprecated `catalogUrl`/`catalogMode` 단일 필드 제거 | 계획 (v0.9) |
 
-자세한 멀티 소스 카탈로그 설계는 [`docs/superpowers/specs/2026-04-16-custom-catalog-plan.md`](./docs/superpowers/specs/2026-04-16-custom-catalog-plan.md)를 참고하세요.
+자세한 multi-source 카탈로그 설계는 [`docs/superpowers/specs/2026-04-16-custom-catalog-plan.md`](./docs/superpowers/specs/2026-04-16-custom-catalog-plan.md)를 참고하고, setup/discover/federation 로드맵은 [`docs/superpowers/specs/2026-04-17-global-setup-plan.md`](./docs/superpowers/specs/2026-04-17-global-setup-plan.md)를 참고하세요.
 
 ---
 
@@ -995,12 +1340,16 @@ CLAUDE.md 유효성 검증, plugin.json 스키마 검증, 터미널 컬러 테�
 
 | 항목 | 수치 |
 |------|------|
-| 소스 모듈 | 47개 |
-| 테스트 파일 | 42개 |
-| 테스트 케이스 | 213개 |
-| CLI 명령어 | 21개 |
+| 소스 모듈 | 61개 |
+| 테스트 파일 | 55개 |
+| 테스트 케이스 | 338개 |
+| CLI 명령어 | 28개 |
 | 카탈로그 도구 | 46개 (온라인) + 14개 (번들 폴백) |
+| 카탈로그 소스 레이어 | 6단계 (bundled → official → user → project → env → CLI, v0.8.0부터) |
 | AI 프로바이더 | 2개 (Cloudflare, Anthropic) |
+| Claude Code 통합 | 자동 배포되는 `/slaminar` 스킬 (v0.5.0부터) |
+| 전역 설정 | `setup` + `doctor` + `~/.config/slaminar/defaults.json` (v0.6.0부터) |
+| 프로젝트 발견 | `slaminar discover` + 일괄 적용 (v0.7.0부터) |
 
 ---
 
@@ -1031,7 +1380,7 @@ A. 아니요. 전혀 설정하지 않아도 로컬 규칙 기반으로 완전히
 A. `~/.config/slaminar/auth.json`에 저장되며 파일 권한 `0600` (소유자만 읽기/쓰기)으로 보호됩니다. XDG 표준 준수. `.slaminar/` 디렉토리에는 절대 저장되지 않으므로 프로젝트 리포지토리에 토큰이 커밋될 위험이 없습니다.
 
 ### Q. Cloudflare vs Anthropic 중 무엇이 좋나요?
-A. 일반 사용에는 **Cloudflare Workers AI**를 권장합니다. 무료 한도가 넉넉하고 Llama 3.3 70B로도 CLAUDE.md 개선 품질이 충분합니다. 최고 품질이 필요하거나 긴 컨텍스트 (200K+)를 써야 한다면 **Anthropic Claude**를 사용하세요. `slaminar auth switch`로 언제든 전환 가능합니다.
+A. 일반 사용에는 **Cloudflare Workers AI**를 권장합니다. 무료 한도가 넉넉하고 Llama 3.3 70B로도 CLAUDE.md 개선 품질이 충분합니다. 최고 품질이 필요하거나 긴 컨텍스트 (200K+)를 써야 한다면 **Anthropic Claude**를 사용하세요. `slaminar setup --reconfigure auth`로 언제든 전환 가능합니다.
 
 ### Q. Cloudflare 토큰에 어떤 권한이 필요한가요?
 A. 최소 `Workers AI: Read` 하나만 있으면 동작합니다. 추가로 다음을 주면 UX가 개선됩니다:

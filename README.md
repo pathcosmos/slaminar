@@ -1,6 +1,6 @@
 # slaminar
 
-[![Tests](https://img.shields.io/badge/tests-204%20passing-brightgreen)](https://github.com/pathcosmos/slaminar)
+[![Tests](https://img.shields.io/badge/tests-250%20passing-brightgreen)](https://github.com/pathcosmos/slaminar)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.7-blue)](https://www.typescriptlang.org/)
 [![Node](https://img.shields.io/badge/Node-%3E%3D18-green)](https://nodejs.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
@@ -18,12 +18,18 @@ Run `slaminar init` on any codebase and it will automatically analyze your proje
 - [Demo](#slaminar)
 - [Features](#features)
 - [Installation](#installation)
+  - [Claude Code Skill Auto-Deployment](#claude-code-skill-auto-deployment)
 - [Usage](#usage)
+  - [First-Run Setup (v0.6+)](#first-run-setup-v06)
+  - [Project Discovery & Batch Apply (v0.7+)](#project-discovery--batch-apply-v07)
+  - [Environment Diagnostics (`slaminar doctor`)](#environment-diagnostics-slaminar-doctor)
+  - [Claude Code Skill Reference](#claude-code-skill-reference)
 - [Project Analysis](#project-analysis)
 - [Generated Output](#generated-output)
 - [Dynamic Catalog](#dynamic-catalog)
   - [Creating a Custom Catalog](#creating-a-custom-catalog)
   - [Persistent Catalog Configuration](#persistent-catalog-configuration)
+  - [Catalog Federation (v0.8+)](#catalog-federation-v08)
 - [Verification](#verification)
 - [Error Handling & Safety](#error-handling--safety)
 - [Tech Stack](#tech-stack)
@@ -110,6 +116,17 @@ The tool catalog contains 46 Claude Code ecosystem tools (with an online catalog
 - **Incremental updates**: `slaminar update` only regenerates changed sections.
 - **Full rollback**: `slaminar uninstall` restores everything to its original state.
 
+### Claude Code Skill Integration
+
+Since v0.5.0, installing slaminar globally also registers it as a Claude Code skill so it becomes invokable with `/slaminar` or by natural language ("set up this project", "slaminar `../other-repo` 에 돌려줘").
+
+- **Auto-deployment** via an `npm` postinstall hook — drops SKILL.md into `~/.claude/skills/slaminar/` without any manual step. Always graceful: never fails `npm install`, opts out in CI and for transitive installs, and can be disabled with `SLAMINAR_SKIP_POSTINSTALL=1`.
+- **Path parameterization** — the skill accepts an optional `<path>`. If the user mentions a folder in their request, Claude forwards it to `slaminar init <path>`; otherwise the current working directory is used.
+- **Content-hash idempotence** — reinstalling is a no-op when the bundled SKILL.md matches the installed copy. A modified SKILL.md is backed up to `~/.config/slaminar/skill-backups/` before being replaced, and `slaminar skill uninstall` restores the most recent backup.
+- **Explicit commands** — `slaminar skill install/uninstall/status` mirror the auto-install flow when you need manual control.
+
+See [Claude Code Skill Reference](#claude-code-skill-reference) under Usage for the full command surface, and [Claude Code Skill Auto-Deployment](#claude-code-skill-auto-deployment) under Installation for the postinstall contract.
+
 ### Team Collaboration
 
 | File | Git Committed | Purpose |
@@ -176,6 +193,33 @@ npx slaminar init .
 - Node.js >= 18
 - Git (optional — used for history analysis)
 
+### Claude Code Skill Auto-Deployment
+
+When you install slaminar globally, it also registers itself as a Claude Code skill so you can invoke it with `/slaminar` (or by asking naturally: _"set up Claude Code for this project"_). The skill is placed at:
+
+```
+~/.claude/skills/slaminar/SKILL.md
+```
+
+**Path parameterization** — the skill accepts an optional target path. If you mention a folder in your request ("slaminar `~/work/other-repo` 에 돌려줘"), Claude forwards it to `slaminar init <path>`. Otherwise the current directory is used.
+
+**Managing the skill:**
+
+```bash
+slaminar skill status      # Show whether the skill is installed and matches the bundled version
+slaminar skill install     # Reinstall (creates a backup if content differs)
+slaminar skill install --force
+slaminar skill uninstall   # Remove (restores your previous SKILL.md if one was backed up)
+```
+
+**Opting out** of the auto-install during `npm install -g`:
+
+```bash
+SLAMINAR_SKIP_POSTINSTALL=1 npm install -g slaminar
+```
+
+The postinstall hook is also skipped automatically in CI (`CI=true`) and during local/transitive installs, and can never cause `npm install` itself to fail — any error is logged as a warning and exits 0.
+
 ---
 
 ## Usage
@@ -199,17 +243,90 @@ slaminar init --no-ai .
 slaminar init --catalog https://company.com/catalog.json .
 ```
 
-### AI Enhancement (Optional)
+### First-Run Setup (v0.6+)
 
-Run `slaminar login` once and AI-powered CLAUDE.md enhancement is automatically applied across all your projects.
+A single command walks you through every global preference slaminar needs. Re-runs on demand to reconfigure just one section.
 
 ```bash
-slaminar login       # Interactive setup (one-time)
-slaminar whoami      # Check login status
-slaminar auth test   # Run token & API diagnostics
-slaminar auth switch cloudflare   # Switch providers
-slaminar logout      # Remove stored credentials
+slaminar setup                          # Interactive 6-step wizard (first run)
+slaminar setup --reconfigure auth       # Re-run just the AI provider step
+slaminar setup --reconfigure catalog    # Re-run just the catalog step
+slaminar setup --reconfigure defaults   # aiMode / excludeAuthTools / fileCountCap / versionCheck
+slaminar setup --reconfigure skill      # Claude Code skill auto-install preference
+slaminar setup --yes                    # Non-interactive (CI) — reads SLAMINAR_* env vars
+slaminar setup --no-discovery           # Skip the optional Step 6 project scan
+slaminar setup --yes --apply-to-discovered   # CI: scan + apply init/update to every find
 ```
+
+Non-interactive `--yes` mode reads environment variables for every decision:
+
+| Env var | Purpose |
+|---|---|
+| `SLAMINAR_AI_PROVIDER` | `cloudflare` or `anthropic` — selects provider |
+| `SLAMINAR_CF_TOKEN`, `SLAMINAR_CF_ACCOUNT_ID`, `SLAMINAR_CF_MODEL` | Cloudflare credentials |
+| `SLAMINAR_ANTHROPIC_KEY`, `SLAMINAR_ANTHROPIC_MODEL` | Anthropic credentials |
+| `SLAMINAR_CATALOG_URL`, `SLAMINAR_CATALOG_MODE` | Custom catalog source |
+| `SLAMINAR_DEFAULT_AI_MODE` | `auto` / `ai` / `local` |
+| `SLAMINAR_EXCLUDE_AUTH_TOOLS` | `true` / `false` |
+| `SLAMINAR_FILE_COUNT_CAP` | Integer |
+| `SLAMINAR_VERSION_CHECK` | `true` / `false` — weekly npm version check |
+| `SLAMINAR_DISCOVER_ROOTS` | Comma/space-separated roots for Step 6 discovery |
+| `SLAMINAR_BATCH_APPROVED` | Explicit list of discovered project roots to apply |
+| `SLAMINAR_BATCH_DRY_RUN` | `true` to force dry-run during batch apply |
+| `SLAMINAR_ONLY_NEW` | `true` to restrict batch apply to `status === 'new'` projects |
+| `SLAMINAR_IMPORT_TEAM_CATALOG` | `true` to auto-import team `catalogUrl` into user defaults |
+
+### Project Discovery & Batch Apply (v0.7+)
+
+Scan user-specified roots for Claude Code projects and optionally run `init` / `update` across all of them at once.
+
+```bash
+slaminar discover ~/work ~/projects              # One-shot scan with ASCII table
+slaminar discover                                # Re-uses the last roots from defaults.json
+slaminar discover ~/work --json                  # Machine-readable output
+slaminar discover ~/work --apply --dry-run       # Scan + preview every init/update
+slaminar discover ~/work --apply --only-new      # Only operate on projects classified "new"
+slaminar discover ~/work --no-cache              # Force a fresh scan (ignore 24h cache)
+```
+
+**Classification:**
+
+| Status | Meaning | Suggested action |
+|---|---|---|
+| `new` | Has `.claude/` but no `CLAUDE.md` | `init` |
+| `configured` | Has `.slaminar/config.json` | `update` |
+| `existing` | Has `CLAUDE.md` but no `.claude/` | `init-merge` (preserves content) |
+| `unsupported` | No detectable language or signature | `skip` |
+
+**Safety notes:**
+
+- The walker stops descending as soon as it confirms a project, so `$HOME`-wide scans stay fast.
+- `node_modules`, `.git`, `.venv`, `.cache`, `.turbo`, macOS `Library/`, `Applications/`, etc. are excluded by default.
+- Symlinks are not followed; cycles are caught via `realpath` inode tracking.
+- Every batch run writes a markdown audit log to `~/.config/slaminar/setup-logs/batch-<timestamp>.md`.
+- The scan result is cached at `~/.config/slaminar/discovery-cache.json` (24 h TTL) — pass `--no-cache` to force refresh.
+
+### Environment Diagnostics (`slaminar doctor`)
+
+Read-only health check. Exits `0` (all pass), `1` (warnings), or `2` (failures).
+
+```bash
+slaminar doctor            # Human-readable report
+slaminar doctor --json     # Machine-readable for CI
+```
+
+Checks include:
+
+- Node.js and git versions
+- slaminar version and skill installation status
+- AI provider availability (auth.json + env vars)
+- Catalog cache freshness
+- Write permissions for `~/.config/slaminar/` and `~/.claude/skills/slaminar/`
+- `defaults.json` validity
+
+### AI Enhancement (Optional)
+
+AI-powered CLAUDE.md enhancement is set up during `slaminar setup` and applied across all your projects.
 
 #### Providers
 
@@ -230,7 +347,7 @@ slaminar logout      # Remove stored credentials
 |--------|:---:|------|
 | CLI flag (`--no-ai`) | 1 (highest) | One-off disable |
 | Environment variables (`CLOUDFLARE_*`, `ANTHROPIC_API_KEY`) | 2 | CI / ephemeral |
-| `~/.config/slaminar/auth.json` (mode 0600) | 3 | Saved via `slaminar login` |
+| `~/.config/slaminar/auth.json` (mode 0600) | 3 | Saved via `slaminar setup` |
 | (none) | 4 | Local rules only |
 
 ### Individual Commands
@@ -281,15 +398,80 @@ slaminar catalog config                    # View/set persistent catalog URL + m
 
 **Deprecation detection:** Tools in the catalog can be marked `deprecated: true` with an optional `deprecatedReason` and `replacedBy` field. Running `slaminar catalog check` scans your recommended tools against the catalog and warns about deprecated ones, showing the reason and suggested replacement.
 
-### Claude Code Skill
+### Claude Code Skill Reference
 
-slaminar can be invoked directly from Claude Code as a skill:
+After `npm install -g slaminar` (or a manual `slaminar skill install`), the skill file lives at `~/.claude/skills/slaminar/SKILL.md` and Claude Code discovers it automatically.
 
+**Invocation patterns Claude recognizes:**
+
+| User phrasing | Claude runs |
+|---|---|
+| `/slaminar` | `slaminar init --dry-run .` → asks for approval → `slaminar init .` |
+| "set up Claude Code for this project" | same as above, current CWD |
+| "slaminar 돌려줘" | same as above, current CWD |
+| "slaminar `../legacy-app` 에 돌려줘" | `slaminar init --dry-run ../legacy-app` → approval → `slaminar init ../legacy-app` |
+| "analyze `~/work/other-repo` with slaminar" | same, with the resolved absolute path |
+| "slaminar update this repo" | `slaminar update <path>` |
+| "slaminar status" | `slaminar status <path>` |
+
+The SKILL.md template instructs Claude to extract `<path>` from the user's request (absolute, relative, or `~`-prefixed) and fall back to `.` when no path is mentioned.
+
+**Skill subcommands** (for managing the skill itself):
+
+```bash
+slaminar skill status                # Report install state + content match with bundled version
+slaminar skill install               # Install / update at ~/.claude/skills/slaminar/SKILL.md
+slaminar skill install --force       # Overwrite even when content is identical (still backs up)
+slaminar skill uninstall             # Remove and restore the most recent backup (if any)
 ```
-User: /slaminar
-Claude: Analyzing project... (slaminar init --dry-run)
-        Shows results and asks for approval
+
+**Example — first-time install on a fresh machine:**
+
+```text
+$ slaminar skill status
+
+Claude Code Skill Status
+  Path:      /Users/me/.claude/skills/slaminar/SKILL.md
+  Installed: no
+  Bundled:   available
+
+$ slaminar skill install
+
+✓ Skill installed at /Users/me/.claude/skills/slaminar/SKILL.md
 ```
+
+**Example — reinstall over a hand-edited SKILL.md:**
+
+```text
+$ slaminar skill install
+
+✓ Skill updated at /Users/me/.claude/skills/slaminar/SKILL.md
+  Previous version backed up to /Users/me/.config/slaminar/skill-backups/SKILL_a1b2c3_1713412800.md
+```
+
+**Example — uninstall with backup restore:**
+
+```text
+$ slaminar skill uninstall
+
+✓ Uninstalled and restored previous SKILL.md from /Users/me/.config/slaminar/skill-backups/SKILL_a1b2c3_1713412800.md
+```
+
+**Opt-out during `npm install -g`:**
+
+```bash
+SLAMINAR_SKIP_POSTINSTALL=1 npm install -g slaminar   # explicit opt-out
+CI=true npm install -g slaminar                       # auto-skipped
+```
+
+The postinstall hook additionally skips itself for non-global (local/transitive) installs so installing slaminar as a library dependency of another project will not touch your home directory.
+
+**Safety guarantees:**
+
+- postinstall wraps everything in `try/catch` and redirects errors to a warning line, exiting with code `0` — `npm install` is never blocked.
+- Content comparison uses SHA-256 so a byte-identical SKILL.md is skipped silently (idempotent re-install).
+- Any pre-existing SKILL.md is copied into `~/.config/slaminar/skill-backups/` before being overwritten.
+- `slaminar skill uninstall` removes the skill file and, if a backup exists, writes the most recent one back as `SKILL.md` — so the previous custom skill is restored without manual intervention.
 
 ### Flags
 
@@ -591,6 +773,61 @@ slaminar recommend (with extend mode)
         → Suggestions: official only
 ```
 
+### Catalog Federation (v0.8+)
+
+v0.8 promotes `catalogUrl` to an array of layered sources with explicit priority so teams can mix a company catalog, a personal catalog, and a security-approved allowlist without losing the official one. The legacy single-URL config still works — it's surfaced as a single `*-legacy` source on load.
+
+**Priority layers (ascending, higher wins):**
+
+| Priority | Scope | Where it lives |
+|---:|---|---|
+| `-1` | `bundled` | Built into the binary — always available |
+| `0` | `official` | Default GitHub-hosted catalog |
+| `100+` | `user` | `~/.config/slaminar/defaults.json → catalog.sources[]` |
+| `200+` | `project` | `.slaminar/config.json → catalogSources[]` (git-committed) |
+| `500` | `env` | `SLAMINAR_CATALOG_SOURCES` environment variable |
+| `999` | `cli` | `--catalog <url>` CLI flag (adhoc) |
+
+A `replace`-mode layer drops every **lower**-priority layer entirely. Multiple `extend` layers stack; name collisions award the higher layer.
+
+**Manage sources via `slaminar catalog source`:**
+
+```bash
+# Add a company catalog at the project scope (git-committed)
+slaminar catalog source add https://tools.company.com/catalog.json \
+  --scope project --mode extend --name company
+
+# Add a personal catalog at the user scope (gitignored by design)
+slaminar catalog source add ~/my-catalog.json --scope user --name personal
+
+# Security team overrides everything below them
+slaminar catalog source add https://sec.company.com/approved.json \
+  --scope project --mode replace --priority 300 --name security-allowlist
+
+# Inspect every active layer in priority order
+slaminar catalog source list
+
+# Validate a URL without persisting it
+slaminar catalog source test https://example.com/catalog.json
+
+# Disable (keep in config) or remove
+slaminar catalog source disable company
+slaminar catalog source remove company
+```
+
+**Env-var escape hatch (CI friendly):**
+
+```bash
+SLAMINAR_CATALOG_SOURCES="extend:https://a.example/c.json,replace:/etc/slaminar/approved.json" \
+  slaminar recommend .
+```
+
+**Backward compatibility:**
+
+- v0.7 users upgrade with zero file edits. Any existing `catalogUrl` / `catalogMode` is synthesized into a `*-legacy` source at the matching scope every time the resolver runs.
+- `slaminar catalog config` still works but prints a deprecation notice pointing at `catalog source`.
+- `--catalog <url>` on `init` / `recommend` still works and becomes a `cli-adhoc` layer at priority 999.
+
 ---
 
 ## Verification
@@ -670,7 +907,8 @@ slaminar check --ci .
 
 ```
 src/
-├── cli.ts                        # CLI entry point (21 commands + global flags)
+├── cli.ts                        # CLI entry point (22 commands + global flags)
+├── version.ts                    # Single source of truth for runtime version string
 ├── types/index.ts                # All shared types
 │
 ├── core/                         # Pipeline core
@@ -713,11 +951,17 @@ src/
 │   ├── ai-provider.ts            # AI routing (Cloudflare / Anthropic / local)
 │   └── cloudflare-ai.ts          # Cloudflare Workers AI adapter (native fetch)
 │
-├── auth/                         # AI provider authentication
+├── auth/                         # AI provider authentication (internal; invoked via `setup`)
 │   ├── config.ts                 # ~/.config/slaminar/auth.json (0600)
 │   ├── models.ts                 # Cloudflare / Anthropic model catalog
 │   ├── diagnostics.ts            # Token validation, /user, /memberships, inference test
-│   └── wizard.ts                 # Interactive login flow
+│   └── wizard.ts                 # Interactive login flow (called from setup Step 2)
+│
+├── setup/                        # Global first-run experience (v0.6)
+│   ├── wizard.ts                 # `slaminar setup` — 5-step progressive wizard
+│   ├── defaults.ts               # ~/.config/slaminar/defaults.json I/O
+│   ├── doctor.ts                 # `slaminar doctor` — read-only diagnostics
+│   └── update-check.ts           # Weekly npm registry version check (privacy-safe)
 │
 ├── placer/                       # Phase 6: Placement
 │   ├── backup.ts                 # Obfuscated backup (.dat) + manifest
@@ -747,8 +991,12 @@ src/
 │   └── detector.ts               # Runtime detection (uv / volta manager identification)
 │
 └── skill/                        # Claude Code integration
-    └── SKILL.md                  # /slaminar skill definition
+    ├── SKILL.md                  # /slaminar skill definition (path-parameterized)
+    ├── installer.ts              # install/uninstall/status for ~/.claude/skills/slaminar/
+    └── post-install.ts           # npm postinstall entry (fail-safe, opt-out aware)
 ```
+
+> `scripts/copy-assets.mjs` runs after `tsc` to copy `src/skill/SKILL.md` into `dist/skill/` so the compiled `installer.js` can resolve it as a sibling via `import.meta.url`. The compiled `dist/skill/post-install.js` is the target of the `postinstall` script in `package.json`.
 
 ---
 
@@ -812,6 +1060,131 @@ Added `--catalog <url>` flag to `init`, `recommend`, and `catalog update` comman
 
 Added `catalog config` command for persisting custom catalog URL and mode (extend/replace) in project settings. Extend mode merges custom tools with official catalog; replace mode uses custom only. Expanded online catalog from 24 to 46 tools covering DevOps, team workflow, quality gates, databases, testing, frontend, and framework-specific domains. Added 14 new relation rules for synergy/overlap detection.
 
+### Phase 11: Claude Code Skill Auto-Deployment + Path Parameterization (v0.5.0)
+
+**Motivation.** Pre-v0.5, users had to manually copy `SKILL.md` into `~/.claude/skills/slaminar/` after `npm install`. The distribution gap made the `/slaminar` skill essentially invisible to new users.
+
+**Shipped.**
+- Auto-install via npm postinstall hook — `package.json:postinstall`, `src/skill/post-install.ts`
+- `src/skill/installer.ts` — idempotent install with SHA-256 content check
+- `slaminar skill {install,uninstall,status}` command group — `src/cli.ts`
+- `scripts/copy-assets.mjs` — copies `SKILL.md` into `dist/` at build time
+- SKILL.md path parameterization (`<path>` argument) — `src/skill/SKILL.md`
+
+**Decisions.**
+
+- **D11.1 — Triple-safe postinstall guard.** Alternatives: (a) single try/catch, (b) shell `|| true`, (c) defensive `process.exit(0)`. **Chosen:** all three combined plus opt-outs (`SLAMINAR_SKIP_POSTINSTALL=1`, `CI=true`, transitive install detection). Rationale: a postinstall failure must NEVER break `npm install` — losing user trust is worse than a silently-skipped skill install. Evidence: `src/skill/post-install.ts`, `tests/skill/installer.test.ts`.
+- **D11.2 — SHA-256 content-hash idempotence.** Alternative: unconditional overwrite. Rationale: users customize SKILL.md; forcing overwrite would erase their work. Hash-equal → no-op; hash-differs → backup first, then replace. Evidence: `src/skill/installer.ts:installSkill`.
+- **D11.3 — Assets copied via separate build script.** Alternative: include `.md` in `tsconfig.json`. Rationale: `tsc` doesn't emit non-JS; a tiny `copy-assets.mjs` is transparent and runs at predictable build time. Evidence: `scripts/copy-assets.mjs`, `package.json:build`.
+- **D11.4 — Backup only on diverging overwrite.** Alternative: backup every install. Rationale: most reinstalls are hash-equal no-ops; indiscriminate backup would churn `~/.config/slaminar/skill-backups/` with duplicates. Evidence: `src/skill/installer.ts:installSkill` backup branch.
+- **D11.5 — Path-parameterized SKILL.md.** Alternative: the skill detects cwd internally. Rationale: Claude Code routing works better when the skill accepts explicit arguments — phrasings like "slaminar `../other-repo`에 돌려줘" now route to `slaminar init ../other-repo` instead of `slaminar init .`. Evidence: `src/skill/SKILL.md` frontmatter description.
+
+**Cross-refs.** [CHANGELOG v0.5.0](./CHANGELOG.md#050--2026-04-17) · no dedicated spec (designed inline) · tests: `tests/skill/`.
+
+### Phase 12: Global Setup Wizard + Doctor + Defaults (v0.6.0)
+
+**Motivation.** Post-v0.5, setup was scattered across four commands (`login`/`whoami`/`logout`/`auth`), and many `TeamConfig`/`LocalConfig` fields had no CLI setter — users edited JSON manually. No diagnostic existed to answer "is my install healthy?". First-run felt fragmented.
+
+**Shipped.**
+- `slaminar setup` — 5-step interactive wizard (Environment → AI → Catalog → Defaults → Skill) — `src/setup/wizard.ts`
+- `slaminar doctor` — read-only health report, exit codes 0/1/2 — `src/setup/doctor.ts`
+- `~/.config/slaminar/defaults.json` — single user-global preferences file — `src/setup/defaults.ts`
+- Weekly npm registry version check (privacy-safe) via commander `preAction` hook — `src/setup/update-check.ts`
+- Removed `login`/`whoami`/`logout`/`auth` (breaking)
+- `--yes` non-interactive mode driven by `SLAMINAR_*` env vars
+
+**Decisions.**
+
+- **D12.1 — Single `setup` entry point, not four separate commands.** Alternative: keep `login`/`whoami`/etc. and add `setup` alongside. Rationale: four surfaces for one concern was the original fragmentation; aggregating preserves discoverability. Breaking change accepted for the simpler mental model. Evidence: `src/setup/wizard.ts:runSetupWizard`, CHANGELOG "Breaking" table.
+- **D12.2 — `defaults.json` under `~/.config/slaminar/`, not `~/.slaminar/`.** Alternative: a dotfile in `$HOME`. Rationale: XDG Base Directory compliance; co-locates with `auth.json` so users have a single directory to inspect or delete. Evidence: `src/setup/defaults.ts:getDefaultsPath`, `src/auth/config.ts:getConfigDir`.
+- **D12.3 — Weekly version check, not per-command.** Alternative: check every run (fresh data). Rationale: npm registry rate limits; users dislike chatty CLIs. One check per 7 days is balanced; privacy-safe (no identifier). Opt-out via `--no-update-check` or `telemetry.versionCheck=false`. Evidence: `src/setup/update-check.ts`, `tests/setup/update-check.test.ts`.
+- **D12.4 — `--yes` + env vars for CI, not a separate config file.** Alternative: `--config-file <path>` flag. Rationale: env vars are idiomatic for CI (GitHub Actions, CircleCI secrets flow natively). Minimal flag surface; CI-specific complexity stays in the env namespace. Evidence: `src/setup/wizard.ts:authFromEnv`, Steps 2–5 all check `SLAMINAR_*` env first in `yes` mode.
+- **D12.5 — Doctor is strictly read-only.** Alternative: auto-fix mode (`doctor --fix`). Rationale: mixing diagnosis with action creates ambiguity about what happened; `setup --reconfigure <section>` is the explicit fix path. Exit codes 0/1/2 mirror `slaminar check` for CI consistency. Evidence: `src/setup/doctor.ts`, `tests/setup/doctor.test.ts`.
+- **D12.6 — Malformed `defaults.json` falls back, doesn't crash.** Alternative: error out with "fix your config". Rationale: defaults are non-sensitive; losing them to a parse error shouldn't block work. A partial file still merges its valid sections with built-in defaults. Evidence: `src/setup/defaults.ts:loadDefaults`, `mergeWithBuiltIn`.
+
+**Cross-refs.** [CHANGELOG v0.6.0](./CHANGELOG.md#060--2026-04-17) · [spec: `2026-04-17-global-setup-plan.md`](./docs/superpowers/specs/2026-04-17-global-setup-plan.md) · tests: `tests/setup/{wizard,doctor,defaults,update-check}.test.ts`.
+
+### Phase 13: Project Discovery & Batch Apply (v0.7.0)
+
+**Motivation.** Solo developers with many repos had no way to bulk-configure slaminar; the wizard only set up one project at a time. Team members joining a project with existing `.slaminar/config.json` had no auto-import path. Setup was still per-directory toil.
+
+**Shipped.**
+- `slaminar discover [roots...]` — scan user-specified roots for Claude Code projects — `src/discover/scanner.ts`
+- `slaminar setup --apply-to-discovered` — optional Step 6 of the wizard — `src/setup/wizard.ts:stepDiscovery`
+- Project classifier (`new`/`configured`/`existing`/`unsupported`) — `src/discover/detector.ts`
+- Batch apply with markdown audit log — `src/discover/batch.ts`
+- Team catalog auto-import — `src/discover/team-import.ts`
+- ASCII table reporter — `src/reporter/discovery-table.ts`
+
+**Decisions.**
+
+- **D13.1 — User-specified roots, no guessed defaults.** Alternative: auto-pick `~/work`, `~/projects`, `~/src`. Rationale: false positives waste time and raise privacy concerns ("who told slaminar to walk my home dir?"). Explicit roots only; remembered in `defaults.json.discovery.lastRoots` for next-run convenience. Evidence: `src/discover/scanner.ts:parseRootsInput`, `tests/discover/scanner.test.ts`.
+- **D13.2 — Stop descending once a project signature is found.** Alternative: full depth-4 walk even inside confirmed projects. Rationale: a monorepo's root and every sub-package would both match — noisy and wasteful. First hit wins; nested projects inside a confirmed project are intentionally ignored. Evidence: `src/discover/scanner.ts:walk`, `tests/discover/scanner.test.ts` "does not descend into a confirmed project".
+- **D13.3 — Dry-run default, apply is opt-in.** Alternative: immediate apply with `--dry-run` escape. Rationale: writing files across many projects is irreversible without backups. Interactive: menu includes "Dry-run all (recommended)" as default. CI: requires explicit `--apply-to-discovered` or `SLAMINAR_BATCH_APPROVED`. Evidence: `src/setup/wizard.ts:stepDiscovery`, `src/discover/batch.ts`.
+- **D13.4 — Batch audit log in `~/.config/slaminar/setup-logs/`.** Alternative: no log (stdout only). Rationale: running `setup --apply-to-discovered` across 20 repos needs proof — which projects init'd, which updated, which failed. Markdown file per batch with succeeded/failed/skipped breakdown. Evidence: `src/discover/batch.ts:writeSummary`.
+- **D13.5 — "CLAUDE.md but no `.claude/`" → `existing` + `init-merge`, not skip.** Alternative: treat pre-existing CLAUDE.md as a reason to skip. Rationale: pre-v0.5 users wrote CLAUDE.md by hand; slaminar's ownership-marker system merges cleanly around that content. Auto-skipping would orphan those projects from the ecosystem. Evidence: `src/discover/detector.ts:classifyStatus`, `tests/discover/detector.test.ts`.
+- **D13.6 — Realpath inode dedup as secondary symlink guard.** Alternative: just "don't follow symlinks" by default. Rationale: bind mounts and case-insensitive filesystems can produce cycles without symlinks; `realpath` is the belt-and-suspenders guard. Evidence: `src/discover/scanner.ts:walk` (`visitedInodes` + `realKey`).
+
+**Cross-refs.** [CHANGELOG v0.7.0](./CHANGELOG.md#070--2026-04-17) · [spec §v0.7](./docs/superpowers/specs/2026-04-17-global-setup-plan.md) · tests: `tests/discover/*.test.ts`, `tests/reporter/discovery-table.test.ts`.
+
+### Phase 14: Catalog Federation (v0.8.0)
+
+**Motivation.** v0.3–v0.7 supported exactly one custom catalog URL. Three-layer scenarios (security allowlist + company catalog + personal tools) forced users to manually merge JSON. Teams wanted enforced allowlists expressed as "replace mode" separately from company extend-mode additions.
+
+**Shipped.**
+- 6-layer priority model (`bundled:-1` → `official:0` → `user:100` → `project:200` → `env:500` → `cli:999`) — `src/recommender/catalog-sources.ts`
+- `CatalogSource` type with persistent `trust` field — `src/types/index.ts`
+- `slaminar catalog source {add,list,remove,enable,disable,test}` CLI — `src/cli.ts`
+- Per-source cache at `~/.config/slaminar/cache/<id>.json` — `src/recommender/catalog-cache.ts`
+- N-way merge with replace-floor semantics — `src/recommender/catalog-merger.ts:mergeCatalogStack`
+- `SLAMINAR_CATALOG_SOURCES` env var (`mode:uri,mode:uri`)
+- Auto-migration from v0.7 legacy `catalogUrl`
+
+**Decisions.**
+
+- **D14.1 — Scope Phase 1–3 only; defer Phase 4 (trust/security) to v0.9.** Alternative: full spec in one release (6–7 days). Rationale: shipping smaller gets faster feedback, and enforcement UX has independent complexity (confirm prompts, HTTPS policy, signed catalogs). The `trust` field is persisted now to avoid a later data migration. Evidence: CHANGELOG v0.8.0 "Deferred to v0.9", design spec Phase table.
+- **D14.2 — Read-path-only migration (no file rewrite).** Alternative: auto-migrate on first load by rewriting the config file. Rationale: a v0.7 user who pilots v0.8, dislikes it, and downgrades would find their config file mysteriously changed. Read-time migration synthesizes `*-legacy` sources in memory; files are only rewritten when the user edits via `catalog source add` or `setup --reconfigure catalog`. Evidence: `src/recommender/catalog-sources.ts:loadEffectiveSources` legacy-URL branch, `tests/recommender/catalog-sources.test.ts` "synthesizes a user-scope source from legacy catalog.url".
+- **D14.3 — Per-source cache files, not a composite file.** Alternative: one `catalog-cache.json` with `sources: { [id]: entry }`. Rationale: (a) rollback of a single source doesn't touch other sources' prev-files; (b) concurrent fetches (future) can write without lock contention; (c) easier to inspect by hand. Official source still writes to the legacy `catalog-cache.json` path (`id='official'`) for v0.7 rollback compat. Evidence: `src/recommender/catalog-cache.ts:getSourceCachePath`, `tests/recommender/catalog-cache.test.ts`.
+- **D14.4 — Wizard keeps single-URL prompt; add CLI hint.** Alternative: expand wizard into a multi-source array builder (inquirer loop). Rationale: 80% of users want one custom catalog; a loop is annoying for them. Power users go to `slaminar catalog source add` which is better for iteration. Evidence: `src/setup/wizard.ts:stepCatalog`, "Tip: layer additional sources" print.
+- **D14.5 — Bundled is exempt from replace-floor filtering.** Alternative: `replace` drops every lower-priority layer including bundled. Rationale: if the user's custom `replace` source goes offline (stale + unreachable), they'd lose everything. Bundled is the last-resort guaranteed source — a floor, not a participant. Evidence: `src/recommender/catalog-merger.ts:mergeCatalogStack`, `applyReplaceFloor`.
+- **D14.6 — `trust` field now, enforcement in v0.9.** Alternative: omit `trust` until enforcement exists. Rationale: adding it later forces a config-file migration. Persisting now with no behavioral effect is a zero-cost forward investment. Default `trust: 'untrusted'` for newly added sources is intentional — v0.9 will flag these at install time. Evidence: `src/types/index.ts:CatalogSource`, CHANGELOG v0.8.0 "persisted but not enforced".
+- **D14.7 — CLI `--catalog` becomes a `cli-adhoc` source, not a side channel.** Alternative: keep pre-v0.8 behavior where `--catalog` bypassed stacking. Rationale: uniformity — every source flows through the same priority/fetch pipeline. CLI adhoc at priority 999 naturally wins collisions with lower layers (the expected semantics for a one-shot override). Evidence: `src/recommender/catalog-sources.ts:makeCliAdhocSource`, backward-compat test in `catalog-resolver.test.ts`.
+- **D14.8 — Env source IDs hashed from URI; `cli-adhoc` stable.** Alternative: all IDs auto-generated via random. Rationale: env sources can coexist (comma-separated); hashing disambiguates them. CLI adhoc is one-at-a-time, so a stable `cli-adhoc` ID lets its cache file be reused across invocations. Evidence: `src/recommender/catalog-sources.ts:generateSourceId`, `makeCliAdhocSource`.
+
+**Cross-refs.** [CHANGELOG v0.8.0](./CHANGELOG.md#080--2026-04-17) · [spec: `2026-04-16-custom-catalog-plan.md`](./docs/superpowers/specs/2026-04-16-custom-catalog-plan.md) + [spec §v0.8](./docs/superpowers/specs/2026-04-17-global-setup-plan.md) · tests: `tests/recommender/{catalog-sources,catalog-source-persistence,catalog-merger,catalog-resolver}.test.ts`.
+
+### Cross-Reference Index (v0.5 → v0.8)
+
+Every numbered decision above appears in three places — README (here), CHANGELOG (release notes), and design spec (when one exists). Decision IDs are **identical between `README.md` and `README.ko.md`** — use `grep -n "D14\.3" README*.md` to verify parity. File paths can be opened directly to audit claims; test files can be run in isolation with `npm test -- --run <path>`.
+
+| ID | Title | CHANGELOG | Spec | Source | Tests |
+|---|---|---|---|---|---|
+| D11.1 | Triple-safe postinstall | v0.5.0 | — | `src/skill/post-install.ts` | `tests/skill/installer.test.ts` |
+| D11.2 | SHA-256 idempotence | v0.5.0 | — | `src/skill/installer.ts` | `tests/skill/installer.test.ts` |
+| D11.3 | Build assets copy script | v0.5.0 | — | `scripts/copy-assets.mjs` | — |
+| D11.4 | Backup only on divergent overwrite | v0.5.0 | — | `src/skill/installer.ts` | `tests/skill/installer.test.ts` |
+| D11.5 | Path-parameterized SKILL.md | v0.5.0 | — | `src/skill/SKILL.md` | — |
+| D12.1 | Single `setup` entry point | v0.6.0 | `2026-04-17-global-setup-plan.md` | `src/setup/wizard.ts` | `tests/setup/wizard.test.ts` |
+| D12.2 | XDG config location | v0.6.0 | same | `src/setup/defaults.ts` | `tests/setup/defaults.test.ts` |
+| D12.3 | Weekly version check | v0.6.0 | same | `src/setup/update-check.ts` | `tests/setup/update-check.test.ts` |
+| D12.4 | `--yes` + env vars for CI | v0.6.0 | same | `src/setup/wizard.ts` | `tests/setup/wizard.test.ts` |
+| D12.5 | Doctor read-only | v0.6.0 | same | `src/setup/doctor.ts` | `tests/setup/doctor.test.ts` |
+| D12.6 | Malformed-JSON recovery | v0.6.0 | same | `src/setup/defaults.ts` | `tests/setup/defaults.test.ts` |
+| D13.1 | User-specified roots | v0.7.0 | spec §v0.7 | `src/discover/scanner.ts` | `tests/discover/scanner.test.ts` |
+| D13.2 | Stop at confirmed project | v0.7.0 | same | `src/discover/scanner.ts` | `tests/discover/scanner.test.ts` |
+| D13.3 | Dry-run default | v0.7.0 | same | `src/discover/batch.ts`, `src/setup/wizard.ts` | `tests/discover/batch.test.ts` |
+| D13.4 | Batch audit log | v0.7.0 | same | `src/discover/batch.ts` | `tests/discover/batch.test.ts` |
+| D13.5 | `existing` → `init-merge` | v0.7.0 | same | `src/discover/detector.ts` | `tests/discover/detector.test.ts` |
+| D13.6 | Realpath inode dedup | v0.7.0 | same | `src/discover/scanner.ts` | `tests/discover/scanner.test.ts` |
+| D14.1 | Phase 1–3 only, defer v0.9 | v0.8.0 | `2026-04-16-custom-catalog-plan.md` | — | — |
+| D14.2 | Read-path-only migration | v0.8.0 | same | `src/recommender/catalog-sources.ts` | `tests/recommender/catalog-sources.test.ts` |
+| D14.3 | Per-source cache files | v0.8.0 | same | `src/recommender/catalog-cache.ts` | `tests/recommender/catalog-cache.test.ts` |
+| D14.4 | Wizard single URL + CLI hint | v0.8.0 | same | `src/setup/wizard.ts:stepCatalog` | `tests/setup/wizard.test.ts` |
+| D14.5 | Bundled exempt from replace-floor | v0.8.0 | same | `src/recommender/catalog-merger.ts` | `tests/recommender/catalog-merger.test.ts` |
+| D14.6 | trust persisted, not enforced | v0.8.0 | same | `src/types/index.ts` | — |
+| D14.7 | CLI `--catalog` as adhoc source | v0.8.0 | same | `src/recommender/catalog-sources.ts` | `tests/recommender/catalog-resolver.test.ts` |
+| D14.8 | Stable `cli-adhoc` ID vs hashed env IDs | v0.8.0 | same | `src/recommender/catalog-sources.ts` | `tests/recommender/catalog-sources.test.ts` |
+
 ### Quality Passes
 
 Three rounds of review covering error handling, code quality, and remaining issues — including `--dry-run`/`--verbose` flags, pipeline and planner tests, prerequisite checker, runtime detector, installer, and Claude Code skill definition.
@@ -824,14 +1197,16 @@ Features under consideration for future releases:
 
 | Feature | Description | Status |
 |---------|-------------|--------|
-| **Multi-source catalogs** | Merge multiple catalog sources (official + company + personal) with priority layers | MVP shipped (`catalog config --mode extend`) |
-| **`catalog source` CLI** | `catalog source add/remove/list/test` for managing catalog sources | Planned |
-| **Personal tools** | `personalTools` field in local config for user-specific tool additions | Stub (type exists) |
-| **`slaminar install`** | CLI command to install recommended tools directly | Planned |
-| **Catalog trust levels** | `trusted` / `untrusted` / `verified` trust model for external catalogs | Planned |
-| **`SLAMINAR_CATALOG_SOURCES` env var** | Multi-catalog configuration via environment variable for CI | Planned |
+| **Multi-source catalogs** | Merge multiple catalog sources with priority layers | **Shipped v0.8** ([D14.1–D14.8](#cross-reference-index-v05--v08)) |
+| **`catalog source` CLI** | `source add/list/remove/enable/disable/test` commands | **Shipped v0.8** |
+| **`SLAMINAR_CATALOG_SOURCES` env var** | Multi-catalog config via environment for CI | **Shipped v0.8** |
+| **Personal tools** | `personalTools` field in local config | Stub (type exists) |
+| **`slaminar install`** | Install recommended tools directly | Planned |
+| **Catalog trust enforcement** | v0.9 — prompt before installing `untrusted` sources, detect risky install commands (`rm`, `sudo`, `curl \| bash`), HTTPS-required policy, signed-catalog `verified` trust | Planned (v0.9) |
+| **`npm:@scope/name` source type** | v0.9 — install catalogs via npm for private-registry teams | Planned (v0.9) |
+| **Legacy field cleanup** | v0.9 — remove deprecated `catalogUrl`/`catalogMode` single-value fields | Planned (v0.9) |
 
-See [`docs/superpowers/specs/2026-04-16-custom-catalog-plan.md`](./docs/superpowers/specs/2026-04-16-custom-catalog-plan.md) for the full multi-source catalog design.
+See [`docs/superpowers/specs/2026-04-16-custom-catalog-plan.md`](./docs/superpowers/specs/2026-04-16-custom-catalog-plan.md) for the full multi-source catalog design, and [`docs/superpowers/specs/2026-04-17-global-setup-plan.md`](./docs/superpowers/specs/2026-04-17-global-setup-plan.md) for the setup/discovery/federation roadmap.
 
 ---
 
@@ -839,12 +1214,16 @@ See [`docs/superpowers/specs/2026-04-16-custom-catalog-plan.md`](./docs/superpow
 
 | Metric | Value |
 |--------|-------|
-| Source modules | 47 |
-| Test files | 42 |
-| Test cases | 213 |
-| CLI commands | 21 |
+| Source modules | 61 |
+| Test files | 55 |
+| Test cases | 338 |
+| CLI commands | 28 |
 | Catalog tools | 46 (online) + 14 (bundled fallback) |
+| Catalog source layers | 6 (bundled → official → user → project → env → CLI, since v0.8.0) |
 | AI providers | 2 (Cloudflare Workers AI, Anthropic Claude) |
+| Claude Code integration | Auto-deployed `/slaminar` skill (since v0.5.0) |
+| Global setup | `setup` + `doctor` + `~/.config/slaminar/defaults.json` (since v0.6.0) |
+| Project discovery | `slaminar discover` + batch apply (since v0.7.0) |
 
 ---
 
@@ -884,7 +1263,7 @@ Tokens are saved in `~/.config/slaminar/auth.json` with file permission `0600` (
 
 ### Cloudflare vs. Anthropic — which should I use?
 
-For most use cases, **Cloudflare Workers AI** is the better choice: the free tier is generous, and Llama 3.3 70B produces solid CLAUDE.md improvements. If you need the highest quality output or need long context windows (200K+), go with **Anthropic Claude**. You can switch anytime with `slaminar auth switch`.
+For most use cases, **Cloudflare Workers AI** is the better choice: the free tier is generous, and Llama 3.3 70B produces solid CLAUDE.md improvements. If you need the highest quality output or need long context windows (200K+), go with **Anthropic Claude**. You can switch anytime with `slaminar setup --reconfigure auth`.
 
 ### What Cloudflare token permissions do I need?
 
