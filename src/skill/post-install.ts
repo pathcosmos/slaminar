@@ -41,7 +41,8 @@ function main(): void {
   switch (result.status) {
     case 'installed':
       console.log(`\x1b[32m✓\x1b[0m slaminar Claude Code skill installed at ${result.path}`);
-      console.log(`  Invoke with \`/slaminar\` in Claude Code, or run \`slaminar skill status\`.`);
+      console.log(`  Next: run \`slaminar init <path>\` in any project — we'll ask what we need.`);
+      console.log(`  \x1b[2m(Inside Claude Code you can also say \`/slaminar <path>\`.)\x1b[0m`);
       break;
     case 'updated':
       console.log(`\x1b[32m✓\x1b[0m slaminar skill updated at ${result.path}`);

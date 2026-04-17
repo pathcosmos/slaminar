@@ -5,8 +5,45 @@
 import { select, password, confirm } from '@inquirer/prompts';
 import open from 'open';
 import chalk from 'chalk';
-import { CLOUDFLARE_MODELS, ANTHROPIC_MODELS, getDefaultModel } from './models.js';
+import { CLOUDFLARE_MODELS, ANTHROPIC_MODELS, getDefaultModel, findModel } from './models.js';
+import type { ModelInfo } from './models.js';
 import { input } from '@inquirer/prompts';
+
+type Provider = 'cloudflare' | 'anthropic';
+
+/**
+ * Returns the recommended model id without prompting when the choice is
+ * obvious (single option, or exactly one flagged `recommended: true`).
+ * Only falls back to an interactive picker when the user has a real choice
+ * to make — avoids forcing a decision on a first-time user who can't yet
+ * tell Llama 70B from Qwen Coder.
+ */
+async function selectModel(provider: Provider, models: ModelInfo[]): Promise<string> {
+  if (models.length === 1) {
+    console.log(chalk.dim(`  Using model: ${chalk.bold(models[0].name)} (only option available)`));
+    return models[0].id;
+  }
+  const defaultId = getDefaultModel(provider);
+  const defaultModel = findModel(provider, defaultId);
+  if (defaultModel && defaultModel.recommended) {
+    console.log(
+      chalk.dim(
+        `  Using recommended model: ${chalk.bold(defaultModel.name)} ` +
+          chalk.dim(`(change later with \`slaminar setup --reconfigure auth\`)`),
+      ),
+    );
+    return defaultModel.id;
+  }
+  return await select({
+    message: 'Model to use:',
+    choices: models.map((m) => ({
+      name: `${m.name}${m.recommended ? chalk.yellow(' ★ Recommended') : ''} — ${chalk.dim(m.description)}`,
+      value: m.id,
+      short: m.name,
+    })),
+    default: defaultId,
+  });
+}
 import {
   runCloudflareDiagnostics,
   runAnthropicDiagnostics,
@@ -31,9 +68,13 @@ function printDiagnostics(checks: { name: string; status: string; detail: string
 async function setupCloudflare(): Promise<boolean> {
   console.log(chalk.bold('\n─── Cloudflare Workers AI ────────────────────────────────\n'));
   console.log(chalk.dim('How to create a token:'));
-  console.log(chalk.dim('  1. Dashboard → My Profile → API Tokens → Create Token'));
-  console.log(chalk.dim('  2. Custom Token → Permissions: Account · Workers AI · Read'));
-  console.log(chalk.dim('  3. Account Resources: select your own account'));
+  console.log(chalk.dim('  1. Dashboard → My Profile → API Tokens → Create Token → Custom Token'));
+  console.log(chalk.dim('  2. Permissions (add all three — skip the last two and you\'ll be asked'));
+  console.log(chalk.dim('     to paste your Account ID manually):'));
+  console.log(chalk.dim('       • Account → Workers AI → Read  (required)'));
+  console.log(chalk.dim('       • User    → Memberships → Read  (lets us auto-detect your account)'));
+  console.log(chalk.dim('       • User    → User Details → Read  (shows your email after login)'));
+  console.log(chalk.dim('  3. Account Resources: include your own account'));
   console.log(chalk.dim(`  URL: ${CF_TOKEN_URL}\n`));
 
   const openBrowser = await confirm({
@@ -92,36 +133,35 @@ async function setupCloudflare(): Promise<boolean> {
   } else {
     // Fallback: manual entry
     console.log(chalk.yellow('\n  ! Could not auto-detect your account.'));
-    console.log(chalk.dim('    For auto-detection, add "User → Memberships → Read" permission to your token.'));
-    console.log(chalk.dim('    You can find your Account ID in the right sidebar of the Cloudflare dashboard.\n'));
+    console.log(chalk.dim('    Tip: add "User → Memberships → Read" permission next time to skip this step.'));
+    console.log(chalk.dim('    Where to find Account ID:'));
+    console.log(chalk.dim('      1. Open https://dash.cloudflare.com in your browser'));
+    console.log(chalk.dim('      2. Right sidebar → "Account ID" → click to copy'));
+    console.log(chalk.dim('      (32-character hexadecimal, looks like: a1b2c3d4e5f6...)\n'));
 
     accountId = await input({
-      message: 'Cloudflare Account ID:',
+      message: 'Paste your Cloudflare Account ID:',
       validate: (v: string) =>
-        /^[a-f0-9]{32}$/i.test(v.trim()) || 'Account ID must be a 32-character hex string',
+        /^[a-f0-9]{32}$/i.test(v.trim()) ||
+        'That doesn\'t look right — Account ID is 32 hex characters (no spaces/dashes)',
     });
     accountId = accountId.trim();
+    console.log(chalk.dim(`  ✓ Got it (${accountId.slice(0, 8)}...${accountId.slice(-4)})`));
   }
 
-  // Select model
-  const model = await select({
-    message: 'Model to use:',
-    choices: CLOUDFLARE_MODELS.map(m => ({
-      name: `${m.name}${m.recommended ? chalk.yellow(' ★ Recommended') : ''} — ${chalk.dim(m.description)}`,
-      value: m.id,
-      short: m.name,
-    })),
-    default: getDefaultModel('cloudflare'),
-  });
+  // Select model — skips the prompt when the recommended choice is clear.
+  const model = await selectModel('cloudflare', CLOUDFLARE_MODELS);
 
-  // Final diagnostics — actual inference test
-  console.log('\n' + chalk.dim('Running a real inference test...'));
+  // Final diagnostics — actual inference test (IS5: concise output)
+  console.log('\n' + chalk.dim('Verifying connection...'));
   const diagResult = await runCloudflareDiagnostics(apiToken, accountId, model);
-  printDiagnostics(diagResult.checks);
   if (!diagResult.overallPass) {
-    console.log(chalk.red('\nSome checks failed. Configuration not saved.\n'));
+    console.log(chalk.red('\nConnection test failed. Details:\n'));
+    printDiagnostics(diagResult.checks);
+    console.log(chalk.red('\nConfiguration not saved.\n'));
     return false;
   }
+  console.log(`  ${chalk.green('✓')} Connection verified`);
 
   // Save config
   const existing = loadAuthConfig();
@@ -155,22 +195,17 @@ async function setupAnthropic(): Promise<boolean> {
     validate: (v: string) => v.startsWith('sk-ant-') || 'Key must start with "sk-ant-"',
   });
 
-  console.log('\n' + chalk.dim('Testing API call...'));
+  console.log('\n' + chalk.dim('Verifying connection...'));
   const diagResult = await runAnthropicDiagnostics(apiKey);
-  printDiagnostics(diagResult.checks);
   if (!diagResult.overallPass) {
-    console.log(chalk.red('\nAuthentication failed. Please check your key.\n'));
+    console.log(chalk.red('\nAuthentication failed. Details:\n'));
+    printDiagnostics(diagResult.checks);
+    console.log(chalk.red('\nPlease check your key.\n'));
     return false;
   }
+  console.log(`  ${chalk.green('✓')} Connection verified`);
 
-  const model = await select({
-    message: 'Model to use:',
-    choices: ANTHROPIC_MODELS.map(m => ({
-      name: `${m.name}${m.recommended ? chalk.yellow(' ★') : ''} — ${chalk.dim(m.description)}`,
-      value: m.id,
-    })),
-    default: getDefaultModel('anthropic'),
-  });
+  const model = await selectModel('anthropic', ANTHROPIC_MODELS);
 
   const existing = loadAuthConfig();
   const config: AuthConfig = {

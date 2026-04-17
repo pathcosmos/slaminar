@@ -496,27 +496,26 @@ async function stepSkill(
 
   if (options.yes) return current.skill;
 
-  const autoInstall = await confirm({
-    message: 'Auto-install the /slaminar Claude Code skill on npm install?',
+  // v0.8.3 — single question instead of two. `installSkill()` is idempotent
+  // (content-hash compares), so we always run it when the user opts in and
+  // it's a no-op when already up to date.
+  const keepInstalled = await confirm({
+    message: 'Keep the /slaminar Claude Code skill installed and auto-updated on npm install?',
     default: current.skill.autoInstall,
   });
 
-  const installNow = await confirm({
-    message: 'Install the skill to ~/.claude/skills/slaminar/ now?',
-    default: true,
-  });
-  if (installNow) {
+  if (keepInstalled) {
     const result = installSkill();
-    const tag =
-      result.status === 'installed' || result.status === 'updated'
-        ? chalk.green('✓')
-        : result.status === 'unchanged'
-          ? chalk.dim('=')
-          : chalk.red('✗');
-    console.log(`  ${tag} ${result.message ?? result.status}`);
+    if (result.status === 'unchanged') {
+      console.log(`  ${chalk.dim('=')} Skill already up to date at ${result.path}`);
+    } else if (result.status === 'installed' || result.status === 'updated') {
+      console.log(`  ${chalk.green('✓')} ${result.message ?? result.status}`);
+    } else if (result.status === 'failed') {
+      console.log(`  ${chalk.red('✗')} ${result.message ?? 'install failed'}`);
+    }
   }
 
-  return { autoInstall, scope: 'global' };
+  return { autoInstall: keepInstalled, scope: 'global' };
 }
 
 function renderSummary(result: SetupResult): string {

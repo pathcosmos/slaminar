@@ -5,6 +5,60 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.3] — 2026-04-17
+
+### Changed — Login Wizard Polish (Wave 1 of UX Reduction)
+
+Quality-of-life fixes for the `slaminar setup` wizard driven by real observations from a head-to-head simulation of the Cloudflare and Anthropic login flows. No behavioral breaking changes — every improvement removes decisions or clarifies copy.
+
+**Cloudflare token instructions expanded (`src/auth/wizard.ts`):**
+- The wizard now lists all three permissions the user should grant when creating a Custom Token:
+  - `Account → Workers AI → Read` (required)
+  - `User → Memberships → Read` (enables auto-detection of the user's account)
+  - `User → User Details → Read` (shows the signed-in email)
+- Previously only the first permission was mentioned, so most users ended up on the "Could not auto-detect your account" fallback path by default. With the expanded list, auto-detection succeeds on first try for users who follow the instructions verbatim.
+
+**Account ID fallback prompt rewritten:**
+- "Account ID is a 32-character hex string" → concrete, location-based guidance that names the Cloudflare dashboard sidebar and shows a sample format
+- Validation error message shifted from technical ("32-character hex string") to descriptive ("doesn't look right — 32 hex characters, no spaces/dashes")
+- After a successful paste, the wizard prints a short prefix-suffix preview (`a1b2c3d4...7890`) so users can double-check they pasted the right value
+
+**Model selection auto-skips when the choice is clear (`src/auth/wizard.ts:selectModel`):**
+- If only one model is registered for the provider (currently true for Anthropic) → skip prompt entirely
+- If there is exactly one `recommended: true` model → pick it automatically with a dim confirmation line
+- Interactive picker only appears when the user has a real, meaningful choice
+- Users can still change the model later with `slaminar setup --reconfigure auth`
+
+**Diagnostics output trimmed (`src/auth/wizard.ts`):**
+- Successful connection → single-line `✓ Connection verified` (was three detailed check lines)
+- Failed connection → detailed breakdown preserved, so the user still sees which step broke
+
+**Step 5 skill questions merged (`src/setup/wizard.ts:stepSkill`):**
+- Previously two sequential prompts: "Auto-install on future npm install?" + "Install now?"
+- Now a single prompt: "Keep the /slaminar skill installed and auto-updated?"
+- `installSkill()` is already idempotent (SHA-256 content compare), so the combined flow is strictly simpler
+
+**postinstall next-step nudge (`src/skill/post-install.ts`):**
+- After `npm install -g slaminar` the postinstall hook now suggests `slaminar init <path>` directly as the next step, rather than implying `slaminar setup` must come first
+- This prepares the ground for the v0.8.4 "init-first" release where `slaminar init` handles first-run inline
+
+### Design context
+
+- Simulation spec: see the two walkthrough sessions documented in `docs/getting-started-walkthrough.md`
+- Full UX reduction roadmap (Wave 1–3): v0.8.3 polish → v0.8.4 init-first → v0.9.0 `claude` CLI passthrough
+
+### Not changed (deliberate)
+
+- No TypeScript source under `src/recommender/`, `src/placer/`, `src/scanner/`, `src/core/`, or tests
+- 338 tests still pass; no new tests since the changes are in interactive paths not covered by the current suite
+
+### Stats
+
+- 61 source modules, 55 test files, **338 tests passing** (no change from v0.8.2)
+- Package size unchanged (string / flow changes only)
+
+[0.8.3]: https://github.com/pathcosmos/slaminar/compare/v0.8.2...v0.8.3
+
 ## [0.8.2] — 2026-04-17
 
 ### Added — Claude Code Passthrough via SKILL.md
