@@ -1344,7 +1344,35 @@ CLAUDE.md 유효성 검증, plugin.json 스키마 검증, 터미널 컬러 테�
 
 **교차 링크.** [CHANGELOG v0.9.0](./CHANGELOG.md#090--2026-04-17) · 설계 계획: `harmonic-wishing-pumpkin.md` (승인됨) · 테스트: `tests/recommender/token-cost.test.ts`, `tests/recommender/tier-filter.test.ts`, `tests/recommender/recommender.test.ts`.
 
-### 교차 참조 인덱스 (v0.5 → v0.9.0)
+### Phase 19: System-Level QA Foundations (v0.9.1)
+
+**동기.** v0.9.0 까지의 365 unit tests 가 모든 모듈이 고립된 환경에서 올바르게 동작함을 보증했지만, 28 CLI 커맨드 × 7-phase 파이프라인 × 6-layer catalog federation × rollback 계층이 함께 돌 때의 **시스템 레벨 계약**은 검증 공백이었습니다. Phase Q1 의 전수 조사에서 4 개 critical atomicity/UX 버그 + 3 개 idempotence gap + concurrency 보호 전무 상태를 확인. 이 Phase 는 QA 인프라(E2E) 구축과 발견된 P0 4 건 fix 를 **한 릴리스**에 묶어 "검증 수단 + 그 수단으로 잡은 버그의 fix" 가 동시에 증거를 남기도록 구성.
+
+**산출물.**
+- `tests/e2e/_helpers.ts` (신규) — `runCli(args, opts)` 가 compiled `dist/cli.js` 를 `execFile` 로 실행. Fixture 3 종 (small 20 files / medium 500 / large 5000) 을 런타임 생성하는 `createFixture()`. HOME 자동 격리
+- `vitest.config.ts` — `process.env.E2E === '1'` 분기로 include/exclude 전환. 기본 `npm test` 는 unit 만 (1.2s), `npm run test:e2e` 는 build + E2E (3.0s)
+- **E2E 테스트 16 파일 / 60 tests**: init / rollback / scan / analyze / recommend / status / update / check / remove / setup / doctor / discover / skill / catalog-read / catalog-write / catalog-source
+- **P0-1 `writeManifest` 원자성** (`src/placer/backup.ts`): tmp-then-rename 패턴. 크래시 시 truncated JSON 대신 stale-but-valid manifest 유지
+- **P0-2 `restoreFile` return 값 존중** (`src/types/index.ts`, `uninstaller.ts`, `pipeline.ts`, `cli.ts`): `UninstallResult.missingBackups` 필드 신규. uninstall/init rollback 양쪽에서 백업 blob 없을 때 경고/에러 메시지로 노출
+- **P0-3 `preAction` hook 보호** (`src/cli.ts`): update-check try/catch 래핑
+- **P0-5 `skill uninstall` 실패 시 exit=1** (`src/types/index.ts`, `installer.ts`, `cli.ts`): `SkillUninstallResult.status: 'removed' | 'not-installed' | 'failed'` enum 으로 "정상 skip" vs "FS 에러" 구분. 실제 rmSync EISDIR 경로를 E2E 로 재현
+- `docs/qa/current-state.md` — Phase Q1 스냅샷
+- `docs/qa/reports/phase-q2-functional.md` — Phase Q2 산출물 + P0 회귀 증명 + baseline
+
+**의사결정.**
+
+- **D19.1 — E2E 는 in-process mock 이 아니라 compiled CLI 의 `execFile` 실행.** 대안: `await init(...)` 을 직접 호출하는 programmatic test. 근거: 실제 배포되는 바이너리의 경로 (argv 파싱, env 주입, commander hook 동작, process.exit 코드) 를 그대로 검증. In-process mock 은 commander 나 `process.exit` 동작을 스킵해 실제 사용자 경험과 달라짐. 대가: 테스트가 `npm run build` 를 선행 요구. 증거: `tests/e2e/_helpers.ts:runCli`.
+- **D19.2 — Fixture 는 런타임 생성, git 에 커밋하지 않음.** 대안: `tests/fixtures/{small,medium,large}/` 를 실제 트리로 커밋. 근거: 5000 파일 트리를 git 에 두면 repo 체크아웃/diff/blame 이 무거워지고 fixture 내용을 실제 의도 없이 수정하는 일이 잦아짐. Generator 함수 하나가 "이 프로젝트 모양" 을 선언적으로 기술해 변경 추적 용이. 증거: `tests/e2e/_helpers.ts:createFixture`.
+- **D19.3 — E2E 전용 vitest config 파일을 만들지 않고 `E2E=1` env 로 분기.** 대안: `vitest.e2e.config.ts` 별도. 근거: 두 config 가 드리프트할 위험 vs 단일 config 의 분기 약간. Include/exclude 만 다르고 나머지 옵션은 동일. 증거: `vitest.config.ts`.
+- **D19.4 — P0-1 원자성은 `rename(2)` 로, 별도 journal 도입 X.** 대안: WAL/journal 또는 `fsync` 후 write-in-place. 근거: 사용 사례가 작은 manifest (수 KB) + 낮은 동시성. `rename(2)` 는 POSIX 에서 같은 디렉토리 내 atomic. Journal 은 과도. `fsync + overwrite` 는 write 중 크래시 시 여전히 truncation risk. 증거: `src/placer/backup.ts:writeManifest`.
+- **D19.5 — P0-2 는 경고로 노출하되 uninstall 전체를 fail 시키지 않음.** 대안: missingBackups 발견 시 exit=1. 근거: 사용자가 일부 백업을 수동 삭제한 상태라면 "나머지는 정리해라" 가 원하는 행동. 전체 실패는 `.slaminar/` cleanup 을 막아 악화. 단 init rollback 경로는 data-loss 라서 에러 메시지로 강하게 표면화. 증거: `src/cli.ts` uninstall action, `src/core/pipeline.ts` rollback catch.
+- **D19.6 — P0-5 는 enum status 로 3 상태 구분 (boolean flag X).** 대안: `error?: boolean` 추가. 근거: 3 상태 ("success-removed" / "success-nothing-to-do" / "failure") 가 진짜 의미라면 boolean 두 개보다 enum 이 정확. 기존 `SkillInstallResult.status` 와 패턴 일치. 증거: `src/types/index.ts:SkillUninstallResult`.
+- **D19.7 — P0-3 는 update-check 에러를 삼키기 (propagate X).** 대안: warning 로그 출력 후 계속. 근거: update-check 는 부가 기능 — 사용자의 실제 커맨드 실행을 방해하면 안 됨. 내부 로깅은 디버깅에 가치가 있지만 stdout/stderr 오염 risk 가 더 큼. `--verbose` 에서 에러를 보여주는 것은 후속 개선. 증거: `src/cli.ts:preAction`.
+- **D19.8 — P0 fix 를 E2E 인프라와 같은 릴리스.** 대안: v0.9.0.1 hotfix + v0.9.1 은 인프라만. 근거: "버그 식별 → 회귀 테스트 작성 → fix" 라는 증거 사슬이 단일 릴리스에 포함되면 리뷰어 / 미래 유지보수자가 "왜 이 fix 를 했는가" 를 E2E 테스트 본문에서 바로 확인 가능. Hotfix 분할은 사이클 관리 비용만 추가.
+
+**교차 링크.** [CHANGELOG v0.9.1](./CHANGELOG.md#091--2026-04-17) · 설계 계획: `harmonic-wishing-pumpkin.md` (System QA Strategy) · Phase Q1: [`docs/qa/current-state.md`](./docs/qa/current-state.md) · Phase Q2: [`docs/qa/reports/phase-q2-functional.md`](./docs/qa/reports/phase-q2-functional.md) · E2E: `tests/e2e/*.test.ts` (16 files, 60 tests).
+
+### 교차 참조 인덱스 (v0.5 → v0.9.1)
 
 위의 번호 붙은 모든 의사결정은 3곳에 기록되어 있습니다 — README(여기), CHANGELOG(릴리스 노트), 설계 spec(있을 때). 의사결정 ID는 **`README.md`와 `README.ko.md`에서 동일** — `grep -n "D14\.3" README*.md`로 패리티 검증 가능. 파일 경로는 직접 열어 주장 감사 가능; 테스트 파일은 `npm test -- --run <path>`로 격리 실행.
 
@@ -1396,6 +1424,14 @@ CLAUDE.md 유효성 검증, plugin.json 스키마 검증, 터미널 컬러 테�
 | D18.7 | Tier 필터는 추천만 게이트, 설치는 게이트 안 함 | v0.9.0 | same | `src/recommender/recommender.ts` | `tests/recommender/recommender.test.ts` |
 | D18.8 | 휴리스틱 감사 우선 (v0.9.0 override 0) | v0.9.0 | same | `src/recommender/token-cost.ts:HEAVY_TAGS` | — |
 | D18.9 | Custom catalog 도 동일 하이브리드 파이프라인 | v0.9.0 | same | `src/recommender/recommender.ts` | `tests/recommender/tier-filter.test.ts` |
+| D19.1 | E2E 는 compiled `dist/cli.js` execFile 로 (in-process 아님) | v0.9.1 | `harmonic-wishing-pumpkin.md` (QA) | `tests/e2e/_helpers.ts` | `tests/e2e/*.test.ts` |
+| D19.2 | Fixture 는 런타임 생성, git commit 안 함 | v0.9.1 | same | `tests/e2e/_helpers.ts:createFixture` | `tests/e2e/*.test.ts` |
+| D19.3 | 단일 vitest config + `E2E=1` env 분기 | v0.9.1 | same | `vitest.config.ts` | — |
+| D19.4 | `writeManifest` atomic via tmp+rename (journal 아님) | v0.9.1 | same | `src/placer/backup.ts:writeManifest` | `tests/e2e/rollback.test.ts` |
+| D19.5 | `missingBackups` 는 경고로만, uninstall fail 안 시킴 | v0.9.1 | same | `src/cli.ts` uninstall action | `tests/e2e/rollback.test.ts` |
+| D19.6 | `SkillUninstallResult.status` enum (boolean 아님) | v0.9.1 | same | `src/types/index.ts`, `src/skill/installer.ts` | `tests/e2e/skill.test.ts` |
+| D19.7 | `preAction` 이 update-check 에러 삼킴 | v0.9.1 | same | `src/cli.ts:preAction` | `tests/e2e/rollback.test.ts` |
+| D19.8 | P0 fix 를 QA 인프라와 같은 릴리스에 묶음 | v0.9.1 | same | — | — |
 
 ### 품질 개선 (3차례 리뷰)
 

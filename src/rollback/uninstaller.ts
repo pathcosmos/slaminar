@@ -7,6 +7,8 @@ export interface UninstallResult {
   restoredFiles: string[];
   deletedFiles: string[];
   deletedDirs: string[];
+  /** v0.9.1 P0-2: files whose backup was missing, so restore was skipped. */
+  missingBackups: string[];
 }
 
 export function uninstall(root: string): UninstallResult {
@@ -14,13 +16,21 @@ export function uninstall(root: string): UninstallResult {
     restoredFiles: [],
     deletedFiles: [],
     deletedDirs: [],
+    missingBackups: [],
   };
 
-  // 1. Read backup manifest and restore each backup
+  // 1. Read backup manifest and restore each backup.
+  // v0.9.1 P0-2: respect restoreFile()'s return value so we don't silently
+  // claim success when the backup blob is missing. Callers (e.g. CLI) can
+  // surface `missingBackups` to warn the user of partial restore.
   const records = readManifest(root);
   for (const record of records) {
-    restoreFile(root, record);
-    result.restoredFiles.push(record.originalPath);
+    const restored = restoreFile(root, record);
+    if (restored) {
+      result.restoredFiles.push(record.originalPath);
+    } else {
+      result.missingBackups.push(record.originalPath);
+    }
   }
 
   // 2. Delete slaminar-generated plugin directory

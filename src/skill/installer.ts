@@ -165,6 +165,7 @@ export function uninstallSkill(): SkillUninstallResult {
       restoredFromBackup: false,
       path: targetPath,
       message: 'Not installed — nothing to remove',
+      status: 'not-installed',
     };
   }
 
@@ -188,6 +189,7 @@ export function uninstallSkill(): SkillUninstallResult {
         restoredFromBackup: true,
         path: targetPath,
         message: `Uninstalled and restored previous SKILL.md from ${latestBackup}`,
+        status: 'removed',
       };
     }
 
@@ -196,6 +198,7 @@ export function uninstallSkill(): SkillUninstallResult {
       restoredFromBackup: false,
       path: targetPath,
       message: `Uninstalled ${targetPath}`,
+      status: 'removed',
     };
   } catch (err) {
     return {
@@ -203,6 +206,7 @@ export function uninstallSkill(): SkillUninstallResult {
       restoredFromBackup: false,
       path: targetPath,
       message: err instanceof Error ? err.message : String(err),
+      status: 'failed',
     };
   }
 }

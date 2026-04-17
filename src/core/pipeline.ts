@@ -154,13 +154,24 @@ export async function init(targetPath: string, options: InitOptions = {}): Promi
   try {
     writtenFiles = writeTargets(snapshot.root, plan.targets);
   } catch (err) {
-    // Rollback: only restore THIS session's backups, not old ones
+    // Rollback: only restore THIS session's backups, not old ones.
+    // v0.9.1 P0-2: track per-record restore outcomes. Silent restore failures
+    // masked data loss in v0.8.x — now the error message names any files
+    // that could not be restored so the user can intervene manually.
+    const unrestored: string[] = [];
     for (const record of sessionBackups) {
       try {
-        restoreFile(snapshot.root, record);
-      } catch { /* best effort */ }
+        const ok = restoreFile(snapshot.root, record);
+        if (!ok) unrestored.push(record.originalPath);
+      } catch {
+        unrestored.push(record.originalPath);
+      }
     }
-    throw new Error(`Failed to write generated files: ${err instanceof Error ? err.message : String(err)}. Backed-up files have been restored.`);
+    const origMsg = err instanceof Error ? err.message : String(err);
+    const restoreStatus = unrestored.length === 0
+      ? 'Backed-up files have been restored.'
+      : `Backed-up files restored except: ${unrestored.join(', ')}. Manual recovery required.`;
+    throw new Error(`Failed to write generated files: ${origMsg}. ${restoreStatus}`);
   }
 
   // Verify and report (non-critical — don't fail init if these fail)

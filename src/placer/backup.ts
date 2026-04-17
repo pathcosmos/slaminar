@@ -1,5 +1,5 @@
 import { randomBytes } from 'node:crypto';
-import { copyFileSync, mkdirSync, readFileSync, writeFileSync, existsSync } from 'node:fs';
+import { copyFileSync, mkdirSync, readFileSync, renameSync, unlinkSync, writeFileSync, existsSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import type { BackupRecord } from '../types/index.js';
 
@@ -64,5 +64,17 @@ export function readManifest(root: string): BackupRecord[] {
 export function writeManifest(root: string, records: BackupRecord[]): void {
   ensureBkDir(root);
   const manifestPath = join(root, BK_DIR, MANIFEST_FILE);
-  writeFileSync(manifestPath, JSON.stringify(records, null, 2));
+  // v0.9.1 P0-1: atomic write via tmp-then-rename. If we crash between
+  // writeFileSync and renameSync, the original manifest stays intact and
+  // the caller may get a stale-but-valid read rather than truncated JSON.
+  // rename(2) is atomic within the same directory on POSIX filesystems.
+  const tmpPath = `${manifestPath}.tmp-${process.pid}-${Date.now()}`;
+  try {
+    writeFileSync(tmpPath, JSON.stringify(records, null, 2));
+    renameSync(tmpPath, manifestPath);
+  } catch (err) {
+    // Best-effort cleanup of the tmp file if rename failed.
+    try { unlinkSync(tmpPath); } catch { /* ignore */ }
+    throw err;
+  }
 }

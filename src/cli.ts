@@ -67,10 +67,17 @@ program
   .option('-v, --verbose', 'Show detailed output')
   .option('--no-update-check', 'Skip the weekly npm registry version check')
   .hook('preAction', async (thisCommand) => {
-    const opts = thisCommand.opts();
-    await maybePrintUpdateNotice(SLAMINAR_VERSION, {
-      disabledViaFlag: opts.updateCheck === false,
-    });
+    // v0.9.1 P0-3: the update-check is best-effort decoration for every
+    // command. A buggy future version (bad fetch / parse) must never crash
+    // the whole CLI before the user's actual command runs.
+    try {
+      const opts = thisCommand.opts();
+      await maybePrintUpdateNotice(SLAMINAR_VERSION, {
+        disabledViaFlag: opts.updateCheck === false,
+      });
+    } catch {
+      // swallow — update-check failures must not break the CLI
+    }
   });
 
 program
@@ -339,6 +346,13 @@ program
       if (result.restoredFiles.length > 0) {
         console.log('Restored:');
         for (const f of result.restoredFiles) console.log(`  ↩️  ${f}`);
+      }
+      // v0.9.1 P0-2: surface missing backups so the user isn't fooled into
+      // thinking every file was restored. Warning, not failure.
+      if (result.missingBackups.length > 0) {
+        console.log('\nWarning: backup blob missing — these files were NOT restored:');
+        for (const f of result.missingBackups) console.log(`  ⚠️  ${f}`);
+        console.log('  (The .slaminar/.bk/ directory may have been deleted or truncated.)');
       }
       if (result.deletedFiles.length > 0) {
         console.log('Deleted:');
@@ -1010,10 +1024,19 @@ skillCmd
   .action(async () => {
     try {
       const result = uninstallSkill();
-      if (result.removed) {
-        console.log(chalk.green('\n✓') + ` ${result.message}\n`);
-      } else {
-        console.log(chalk.dim(`\n${result.message ?? 'Nothing to remove'}\n`));
+      // v0.9.1 P0-5: differentiate "nothing to remove" (success) from
+      // "tried to remove but filesystem rejected" (failure, exit=1).
+      switch (result.status) {
+        case 'removed':
+          console.log(chalk.green('\n✓') + ` ${result.message}\n`);
+          break;
+        case 'not-installed':
+          console.log(chalk.dim(`\n${result.message ?? 'Nothing to remove'}\n`));
+          break;
+        case 'failed':
+          console.error(chalk.red(`\n✗ ${result.message ?? 'Uninstall failed'}\n`));
+          process.exitCode = 1;
+          break;
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);

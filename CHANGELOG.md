@@ -5,6 +5,63 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.1] — 2026-04-17
+
+### Added — System-Level QA Foundations (Phase Q1+Q2) + 4 Critical Fixes
+
+v0.9.x QA 사이클의 첫 두 단계. Phase Q1 (현황 조사) 로 전체 CLI 의 예외 처리·rollback·backup·테스트 커버리지를 전수 매핑했고, Phase Q2 (기능 E2E) 로 28 CLI 커맨드를 아우르는 재실행 가능한 E2E 테스트 인프라를 구축. Q1 에서 식별된 P0 4 건은 이번 릴리스에 같이 fix + E2E 회귀 테스트 포함.
+
+**E2E 인프라 신규:**
+- `tests/e2e/_helpers.ts` — `runCli(args, opts)` 가 compiled `dist/cli.js` 를 `execFile` 로 실행해 stdout/stderr/exitCode 캡처. Fixture 3 종 (small 20 files / medium 500 python mono / large 5000 polyglot) 을 런타임 생성 — git 에 5000 파일 커밋 불필요.
+- `vitest.config.ts` 가 `E2E=1` env 로 include/exclude 분기: 기본 `npm test` 는 E2E 제외, `npm run test:e2e` 만 E2E 실행. HOME 자동 격리로 사용자 `~/.config/slaminar/` 무영향.
+- **E2E 테스트 16 파일 / 60 tests**: init, rollback, scan, analyze, recommend, status, update, check, remove, setup, doctor, discover, skill, catalog-read, catalog-write, catalog-source.
+
+**P0 Fixes (4 건):**
+
+- **P0-1 — `writeManifest` 원자성** (`src/placer/backup.ts`): tmp-then-rename 패턴 적용. 크래시 시 truncated JSON 대신 stale-but-valid manifest 유지. 이전 구현에서는 `readManifest` 가 `[]` 반환해 **모든 백업 기록 유실** risk.
+- **P0-2 — `restoreFile` return 존중** (`src/types/index.ts`, `src/rollback/uninstaller.ts`, `src/core/pipeline.ts`, `src/cli.ts`):
+  - `UninstallResult.missingBackups: string[]` 필드 신규
+  - uninstall 은 백업 blob 없으면 `missingBackups` 에 기록하고 CLI 는 "Warning: backup blob missing — these files were NOT restored" 출력
+  - init 의 rollback 경로는 복원 실패한 파일명을 throw 메시지에 포함 ("Backed-up files restored except: X, Y. Manual recovery required.")
+  - 이전 구현은 silent data loss — 백업 blob 이 없어도 복원 성공으로 보고
+- **P0-3 — `preAction` hook 예외 보호** (`src/cli.ts`): `maybePrintUpdateNotice` 호출을 try/catch 로 래핑. 미래에 update-check 에서 발생할 수 있는 fetch/parse 에러가 모든 커맨드를 크래시시키는 fragility 제거.
+- **P0-5 — `skill uninstall` 실패 시 exit=1** (`src/types/index.ts`, `src/skill/installer.ts`, `src/cli.ts`):
+  - `SkillUninstallResult.status: 'removed' | 'not-installed' | 'failed'` 신규
+  - 이전에는 `removed: false` 가 "정상 skip" 과 "filesystem 에러" 양쪽을 동시에 의미 → CI 에서 실패 감지 불가. 이제 `failed` 만 exit=1.
+  - E2E 회귀 테스트가 rmSync EISDIR 경로를 실제로 재현
+
+**문서:**
+- `docs/qa/current-state.md` — Phase Q1 현황 스냅샷 (rollback 흐름도, CLI try/catch 분포, F1–F8 테스트 커버리지 매트릭스, P0/P1 이슈 목록)
+- `docs/qa/reports/phase-q2-functional.md` — Phase Q2 산출물 · fix 회귀 증명 · baseline 수치 · Phase Q3+ 인풋
+
+### Changed
+
+- `src/types/index.ts` — `UninstallResult.missingBackups`, `SkillUninstallResult.status` 추가
+- `src/placer/backup.ts` — `writeManifest` atomic write (renameSync + tmp file), `unlinkSync`/`renameSync` 를 imports 에 추가
+- `src/rollback/uninstaller.ts` — `restoreFile` return 값 분기
+- `src/core/pipeline.ts` — init rollback 경로에서 복원 실패 파일 트래킹
+- `src/skill/installer.ts` — `uninstallSkill` 의 세 종결 경로에 `status` 세팅
+- `src/cli.ts` — uninstall 출력에 missingBackups 섹션, skill uninstall 분기 (status), preAction hook try/catch
+- `vitest.config.ts` — E2E 분기
+- `package.json` — `test:e2e`, `test:all` scripts; `version` 0.9.0 → 0.9.1
+- `src/version.ts` — `SLAMINAR_VERSION` 0.9.0 → 0.9.1
+
+### Not Changed (deliberate)
+
+- 기존 365 unit tests 전부 그대로 통과 (P0 fix 가 기존 계약을 깨지 않음)
+- `--no-ai` / `aiMode` / `tokenTier` 의미 불변
+- Concurrency lock (flock, pid file) — P1-1 로 Phase Q4 (v0.9.3) 이관. 이번 릴리스는 atomicity + return-value 검증에 집중.
+- Catalog schema 불변 — tier-filter 도 건들지 않음.
+
+### Stats
+
+- 64 source modules, **74 test files (+16 E2E)**, **425 tests passing** (365 unit + 60 E2E)
+- Phase Q1: P0 4 건 식별 → 모두 fix. P1 6 건 티켓화 (v0.9.2+ 로 연기)
+- wall-time: `npm test` ~1.2s, `npm run test:e2e` ~3s, `test:all` ~6.5s (로컬 macOS)
+- 설계 문서: `/Users/lanco/.claude/plans/harmonic-wishing-pumpkin.md` (승인 플랜)
+
+[0.9.1]: https://github.com/pathcosmos/slaminar/compare/v0.9.0...v0.9.1
+
 ## [0.9.0] — 2026-04-17
 
 ### Added — Token-Cost Tier for Tool Recommendations

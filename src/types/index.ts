@@ -411,6 +411,12 @@ export interface SkillUninstallResult {
   restoredFromBackup: boolean;
   path: string;
   message?: string;
+  /**
+   * v0.9.1 P0-5: distinguishes `removed: false` caused by "not installed"
+   * (success) from `removed: false` caused by a filesystem error (failure).
+   * CLI surfaces this as exit code 1 only for 'failed'.
+   */
+  status: 'removed' | 'not-installed' | 'failed';
 }
 
 export interface SkillStatus {
