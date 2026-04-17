@@ -641,6 +641,8 @@ Full list: `slaminar catalog list`
 
 You can host your own catalog and use it with `--catalog <url>`. The catalog must follow the `RemoteCatalog` JSON schema.
 
+> **Deep dive (v0.8.5+)**: see [`docs/catalog-authoring-guide.md`](./docs/catalog-authoring-guide.md) for a step-by-step authoring guide (5-minute tutorial, full schema tables, local-file examples, extend/replace patterns, and troubleshooting). For a curated "what is this tool and when to use it" index of every entry in the bundled catalog — including the new presentation category — see [`docs/catalog-tools-reference.md`](./docs/catalog-tools-reference.md).
+
 **Minimum format** (only `tools` is required):
 
 ```json

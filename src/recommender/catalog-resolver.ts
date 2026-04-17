@@ -17,7 +17,7 @@
  */
 
 import { isCacheValid, loadSourceCache, saveSourceCache, DEFAULT_TTL_MS } from './catalog-cache.js';
-import { fetchRemoteCatalog } from './catalog-remote.js';
+import { fetchCatalogBySource } from './catalog-remote.js';
 import { getCatalog } from './catalog.js';
 import { mergeCatalogStack, type MergeLayer } from './catalog-merger.js';
 import { loadEffectiveSources, makeCliAdhocSource, BUNDLED_SOURCE_ID } from './catalog-sources.js';
@@ -98,7 +98,7 @@ async function fetchSource(
   }
 
   try {
-    const result = await fetchRemoteCatalog(source.uri, cached?.etag);
+    const result = await fetchCatalogBySource(source, cached?.etag);
     if (result.notModified && cached) {
       const updated: CatalogCacheEntry = { ...cached, fetchedAt: new Date().toISOString() };
       try { saveSourceCache(source.id, updated); } catch { /* non-fatal */ }

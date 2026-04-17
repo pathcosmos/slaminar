@@ -1,4 +1,7 @@
-import type { RemoteCatalog } from '../types/index.js';
+import { readFileSync } from 'node:fs';
+import { homedir } from 'node:os';
+import { resolve as resolvePath } from 'node:path';
+import type { CatalogSource, RemoteCatalog } from '../types/index.js';
 
 export const DEFAULT_CATALOG_URL =
   'https://raw.githubusercontent.com/pathcosmos/slaminar/main/catalog/catalog.json';
@@ -7,6 +10,77 @@ export interface FetchResult {
   catalog: RemoteCatalog;
   etag?: string;
   notModified: boolean;
+}
+
+/**
+ * Normalize a local-catalog URI or path into an absolute filesystem path.
+ * Accepts `file://` URIs, `~/...` home-relative paths, `./...` cwd-relative
+ * paths, and absolute paths.
+ */
+function normalizeLocalPath(uri: string): string {
+  let path = uri.replace(/^file:\/\//, '');
+  if (path.startsWith('~/') || path === '~') {
+    path = resolvePath(homedir(), path.slice(path === '~' ? 1 : 2));
+  } else if (!path.startsWith('/')) {
+    path = resolvePath(process.cwd(), path);
+  }
+  return path;
+}
+
+/**
+ * Load a catalog from a local filesystem path. Returns the same `FetchResult`
+ * shape as `fetchRemoteCatalog()` so downstream code (merger, cache) can stay
+ * transport-agnostic. No caching is applied here — local files are cheap to
+ * read and rely on filesystem timestamps, not HTTP ETags.
+ */
+export async function fetchLocalCatalog(uri: string): Promise<FetchResult> {
+  const path = normalizeLocalPath(uri);
+  const raw = readFileSync(path, 'utf-8');
+  const json: unknown = JSON.parse(raw);
+
+  if (!validateCatalogSchema(json)) {
+    throw new Error(`Local catalog at ${path} does not match expected schema`);
+  }
+
+  return { catalog: json, notModified: false };
+}
+
+/**
+ * Convert a `github:owner/repo/path/to/catalog.json` shorthand into the
+ * `https://raw.githubusercontent.com/owner/repo/main/path/to/catalog.json`
+ * URL that the remote fetcher can actually hit. Branch defaults to `main`.
+ */
+function githubShorthandToUrl(uri: string): string {
+  const stripped = uri.replace(/^github:/, '');
+  const slashIdx = stripped.indexOf('/');
+  if (slashIdx < 0) throw new Error(`Invalid github: source (expected owner/repo/path): ${uri}`);
+  const owner = stripped.slice(0, slashIdx);
+  const rest = stripped.slice(slashIdx + 1);
+  const secondSlash = rest.indexOf('/');
+  if (secondSlash < 0) throw new Error(`Invalid github: source (missing path after repo): ${uri}`);
+  const repo = rest.slice(0, secondSlash);
+  const path = rest.slice(secondSlash + 1);
+  return `https://raw.githubusercontent.com/${owner}/${repo}/main/${path}`;
+}
+
+/**
+ * Dispatcher — route a `CatalogSource` to the correct fetcher based on
+ * `source.type`. Lets the resolver stay oblivious to transport details.
+ */
+export async function fetchCatalogBySource(
+  source: CatalogSource,
+  etag?: string,
+): Promise<FetchResult> {
+  switch (source.type) {
+    case 'file':
+      return fetchLocalCatalog(source.uri);
+    case 'github':
+      return fetchRemoteCatalog(githubShorthandToUrl(source.uri), etag);
+    case 'url':
+    case 'official':
+    default:
+      return fetchRemoteCatalog(source.uri === '<bundled>' ? undefined : source.uri, etag);
+  }
 }
 
 export function validateCatalogSchema(data: unknown): data is RemoteCatalog {

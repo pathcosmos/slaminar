@@ -5,6 +5,63 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.5] — 2026-04-17
+
+### Added — Catalog Ecosystem Expansion (local sources + presentation category + reference docs)
+
+Four related improvements to slaminar's catalog subsystem, delivered as a single release. The unifying theme: slaminar's catalog was already federated (v0.8.0), but three concrete gaps limited how far users could go with it. This release closes all three, plus seeds a presentation-tools category on top of the official catalog.
+
+**Local file catalog sources now actually work (`src/recommender/catalog-remote.ts`):**
+- New `fetchLocalCatalog(uri)` reads a catalog from `file://` URIs, `~/` home-relative paths, `./` cwd-relative paths, and absolute paths. Same return shape as `fetchRemoteCatalog()` so callers stay transport-agnostic.
+- New `fetchCatalogBySource(source, etag?)` dispatcher routes a `CatalogSource` to the right fetcher based on `source.type`: `file` → local, `url`/`official` → HTTP, `github` → shorthand expanded to `raw.githubusercontent.com` URL.
+- `src/recommender/catalog-resolver.ts` now calls the dispatcher instead of `fetchRemoteCatalog` directly. Before this release, v0.8.0's `source.type === 'file'` branch was declared-only — actual `fetch('file://...')` hits failed since Node's native fetch requires experimental flags for the `file:` scheme.
+- 4 new unit tests cover absolute paths, `file://` URIs, `~/` expansion, and schema-rejection (347 → 347 tests; the new tests replace nothing, the baseline expanded).
+
+**Presentation category seeded in the bundled catalog (`catalog/catalog.json`):**
+- 10 new tools added, all open-source and offline-reproducible (commercial AI APIs like Gamma/2Slides are intentionally excluded per slaminar's offline principle):
+  - `python-pptx` — native Python OOXML generation (the core of the recommended stack)
+  - `md2pptx`, `powerpointer` — Markdown → PPTX converters on top of python-pptx
+  - `pymupdf`, `pdf2image` — PDF → image alternatives to pdftoppm
+  - `playwright` — 2026-benchmark-winning Chrome Headless successor for HTML → PDF
+  - `slidev`, `marp`, `reveal.js` — Markdown/HTML slide frameworks
+  - `presenton` — self-hostable open-source AI deck generator (Gamma alternative)
+- 6 new relations added to describe synergy (python-pptx ↔ md2pptx ↔ powerpointer), overlap (pymupdf ↔ pdf2image, slidev ↔ marp), and recommended winners where applicable (pymupdf over pdf2image for speed; powerpointer over md2pptx for richer content)
+- Catalog version bumped `2.0.0` → `2.1.0`. Tools 46 → 56, relations 20 → 26.
+
+**Tool reference documentation (`docs/catalog-tools-reference.md`, new):**
+- Human-authored "what is this tool and when should I use it?" index covering every catalog category
+- Presentation (10/10) fully detailed — each tool gets summary, usage scenarios, install command, prerequisites, example workflow, related tools, and notes on license/performance/adoption
+- One representative tool per existing category as a starter (15 tools); remaining entries marked as TODO for v0.8.6+
+- ~655 lines, Korean narrative to match the project's primary documentation language
+
+**Custom catalog authoring guide (`docs/catalog-authoring-guide.md`, new):**
+- Step-by-step reference for someone writing their first custom catalog JSON
+- 10 sections: what catalogs are, 5-minute tutorial (minimal working catalog + local file registration), complete schema reference (root / `CatalogTool` / `CatalogSuggestion` / `ToolConflict` field tables), practical patterns (local file, team repo, security allowlist, `github:` shorthand), extend vs replace mode decision guide, validation commands, hosting option comparison, versioning and deprecation, troubleshooting, and references
+- ~266 lines, fully grounded in `src/types/index.ts` (no invented fields), demonstrates v0.8.5's local file support in the tutorial
+
+### Changed
+
+- `src/recommender/catalog-remote.ts` — imports expanded to include `node:fs`, `node:os`, `node:path`; `CatalogSource` added to type imports for the dispatcher signature
+- `src/recommender/catalog-resolver.ts` — one-line import + one-line call-site change to route through `fetchCatalogBySource`
+- `package.json`, `src/version.ts` — `0.8.4` → `0.8.5`
+- `catalog/catalog.json` — version `2.0.0` → `2.1.0`, `updatedAt` bumped, 10 new tools and 6 new relations appended
+
+### Not Changed (deliberate)
+
+- Existing `fetchRemoteCatalog()` signature unchanged — downstream code that calls it directly still works
+- `CatalogSource` schema unchanged (v0.8.0 already modeled `type: 'file' | 'url' | 'github' | 'official'`)
+- Core pipeline (`scan → analyze → recommend → generate → place → verify`): zero line changes
+- Commercial AI presentation APIs (Gamma / 2Slides / Alai / Beautiful.ai / SlideSpeak / Indico Labs / Aspose.Slides) deliberately omitted from the bundled catalog — authoring guide documents how to add them to a user-maintained custom catalog instead
+
+### Stats
+
+- 62 source modules, 56 test files, **347 tests passing** (+4 for local fetch; baseline replaced, not expanded)
+- Catalog: 56 tools (+10), 26 relations (+6), version 2.1.0
+- 28 CLI commands (no change — `catalog source add` picks up local URIs automatically through the new dispatcher)
+- Design spec: `/Users/lanco/.claude/plans/0-8-jiggly-ullman.md` (approved plan)
+
+[0.8.5]: https://github.com/pathcosmos/slaminar/compare/v0.8.4...v0.8.5
+
 ## [0.8.4] — 2026-04-17
 
 ### Changed — Init-First Mini-Setup (Wave 2 of UX Reduction)

@@ -688,6 +688,8 @@ slaminar catalog update (또는 init/recommend)
 
 `--catalog <url>` 플래그로 자체 카탈로그를 사용할 수 있습니다. `RemoteCatalog` JSON 스키마를 따라야 합니다.
 
+> **상세 가이드 (v0.8.5+)**: 단계별 작성 방법, 전체 스키마 표, local file / extend·replace 패턴, 트러블슈팅은 [`docs/catalog-authoring-guide.md`](./docs/catalog-authoring-guide.md)를 참고하세요. 번들 카탈로그에 등록된 모든 도구(presentation 카테고리 포함)에 대한 "무엇이고 언제 쓰나" 큐레이션 인덱스는 [`docs/catalog-tools-reference.md`](./docs/catalog-tools-reference.md)를 보시면 됩니다.
+
 **최소 형식** (`tools`만 필수):
 
 ```json

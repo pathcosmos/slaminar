@@ -1,7 +1,7 @@
 {
-  "version": "2.0.0",
+  "version": "2.1.0",
   "minSlaminarVersion": "0.3.0",
-  "updatedAt": "2026-04-16T12:00:00Z",
+  "updatedAt": "2026-04-17T18:00:00Z",
   "tools": [
     {
       "name": "caveman",
@@ -601,6 +601,136 @@
       "prerequisites": [],
       "tags": ["simplicity", "quality", "universal"],
       "maturityFit": ["greenfield", "early", "growing", "mature"]
+    },
+    {
+      "name": "python-pptx",
+      "repo": "scanny/python-pptx",
+      "category": "skill",
+      "description": "Python-native OOXML PowerPoint generation library. Create .pptx files programmatically with slides, shapes, tables, and images.",
+      "authRequired": false,
+      "networkRequired": "none",
+      "installMethod": "pip",
+      "installCommands": ["pip install python-pptx"],
+      "prerequisites": ["python>=3.8"],
+      "tags": ["presentation", "pptx", "slides", "python", "ooxml"],
+      "maturityFit": ["greenfield", "early", "growing", "mature"]
+    },
+    {
+      "name": "md2pptx",
+      "repo": "MartinPacker/md2pptx",
+      "category": "skill",
+      "description": "Markdown-to-PowerPoint converter built on python-pptx. Text-first slide generation from Markdown source files.",
+      "authRequired": false,
+      "networkRequired": "none",
+      "installMethod": "pip",
+      "installCommands": ["pip install md2pptx"],
+      "prerequisites": ["python>=3.11"],
+      "tags": ["presentation", "pptx", "markdown", "python", "conversion"],
+      "maturityFit": ["greenfield", "early", "growing"]
+    },
+    {
+      "name": "powerpointer",
+      "repo": "krisvdm/powerpointer",
+      "category": "skill",
+      "description": "Modern Markdown-to-PPTX generator (2026-04) using mistune parser + python-pptx. Rasterizes code blocks and diagrams to PNG for clean embedding.",
+      "authRequired": false,
+      "networkRequired": "none",
+      "installMethod": "git-clone",
+      "installCommands": ["git clone https://github.com/krisvdm/powerpointer", "pip install -r powerpointer/requirements.txt"],
+      "prerequisites": ["python>=3.10"],
+      "tags": ["presentation", "pptx", "markdown", "python", "mistune"],
+      "maturityFit": ["early", "growing"]
+    },
+    {
+      "name": "pymupdf",
+      "repo": "pymupdf/PyMuPDF",
+      "category": "skill",
+      "description": "MuPDF Python bindings for high-performance PDF processing. 10-20x faster than pdftoppm for PDF → image conversion. AGPL license.",
+      "authRequired": false,
+      "networkRequired": "none",
+      "installMethod": "pip",
+      "installCommands": ["pip install pymupdf"],
+      "prerequisites": ["python>=3.9"],
+      "tags": ["pdf", "image", "python", "performance", "presentation"],
+      "maturityFit": ["early", "growing", "mature"]
+    },
+    {
+      "name": "pdf2image",
+      "repo": "Belval/pdf2image",
+      "category": "skill",
+      "description": "Python wrapper around Poppler's pdftoppm. Simple PDF → PIL Image conversion with the same engine as the pdftoppm CLI.",
+      "authRequired": false,
+      "networkRequired": "none",
+      "installMethod": "pip",
+      "installCommands": ["pip install pdf2image"],
+      "prerequisites": ["python>=3.7", "poppler-utils"],
+      "tags": ["pdf", "image", "python", "poppler", "presentation"],
+      "maturityFit": ["greenfield", "early", "growing", "mature"]
+    },
+    {
+      "name": "playwright",
+      "repo": "microsoft/playwright",
+      "category": "workflow",
+      "description": "Cross-browser automation and HTML→PDF rendering. 2026 benchmarks show Playwright outperforms Chrome Headless and Puppeteer on cold/warm latency and output size.",
+      "authRequired": false,
+      "networkRequired": "partial",
+      "installMethod": "npx",
+      "installCommands": ["npm install -D @playwright/test", "npx playwright install chromium"],
+      "prerequisites": ["node>=18"],
+      "tags": ["html-to-pdf", "browser", "testing", "presentation", "automation"],
+      "maturityFit": ["early", "growing", "mature"]
+    },
+    {
+      "name": "slidev",
+      "repo": "slidevjs/slidev",
+      "category": "workflow",
+      "description": "Markdown-based presentation framework for developers. Vue 3 + Vite, supports PPTX/PDF/HTML/video export. Strong syntax-highlighting via Shiki.",
+      "authRequired": false,
+      "networkRequired": "partial",
+      "installMethod": "npx",
+      "installCommands": ["npm init slidev@latest"],
+      "prerequisites": ["node>=18"],
+      "tags": ["presentation", "slides", "markdown", "vue", "dev-focused"],
+      "maturityFit": ["greenfield", "early", "growing", "mature"]
+    },
+    {
+      "name": "marp",
+      "repo": "marp-team/marp",
+      "category": "workflow",
+      "description": "Markdown presentation ecosystem with VS Code extension + CLI. Converts Markdown to HTML/PDF/PPTX. Declarative directive-style configuration.",
+      "authRequired": false,
+      "networkRequired": "none",
+      "installMethod": "npx",
+      "installCommands": ["npm install -g @marp-team/marp-cli"],
+      "prerequisites": ["node>=18"],
+      "tags": ["presentation", "slides", "markdown", "cli", "vscode"],
+      "maturityFit": ["greenfield", "early", "growing", "mature"]
+    },
+    {
+      "name": "reveal.js",
+      "repo": "hakimel/reveal.js",
+      "category": "workflow",
+      "description": "HTML presentation framework. The most mature open-source slide engine — extensive plugin ecosystem, theme system, and export to PDF/print.",
+      "authRequired": false,
+      "networkRequired": "none",
+      "installMethod": "git-clone",
+      "installCommands": ["git clone https://github.com/hakimel/reveal.js.git", "cd reveal.js && npm install"],
+      "prerequisites": ["node>=18"],
+      "tags": ["presentation", "slides", "html", "web", "plugin-ecosystem"],
+      "maturityFit": ["greenfield", "early", "growing", "mature"]
+    },
+    {
+      "name": "presenton",
+      "repo": "presenton/presenton",
+      "category": "workflow",
+      "description": "Open-source AI presentation generator (Gamma/Beautiful.ai alternative). HTML+Tailwind templates, self-hostable, generates from prompts or uploaded documents, exports PPTX and PDF.",
+      "authRequired": false,
+      "networkRequired": "partial",
+      "installMethod": "git-clone",
+      "installCommands": ["git clone https://github.com/presenton/presenton", "cd presenton && docker compose up"],
+      "prerequisites": ["docker>=20"],
+      "tags": ["presentation", "ai", "slides", "open-source", "gamma-alternative"],
+      "maturityFit": ["early", "growing"]
     }
   ],
   "suggestions": [],
@@ -710,6 +840,38 @@
       "relation": "overlap",
       "resolution": "both manage parallel work — ccpm for GitHub Issues, vibe-kanban for kanban style",
       "winner": "vibe-kanban"
+    },
+    {
+      "tools": ["python-pptx", "md2pptx"],
+      "relation": "synergy",
+      "resolution": "md2pptx is a Markdown front-end that delegates actual .pptx writing to python-pptx — they form one stack"
+    },
+    {
+      "tools": ["python-pptx", "powerpointer"],
+      "relation": "synergy",
+      "resolution": "powerpointer uses python-pptx under the hood plus mistune + image rasterization; same stack, richer handling"
+    },
+    {
+      "tools": ["md2pptx", "powerpointer"],
+      "relation": "overlap",
+      "resolution": "both are Markdown→PPTX converters on python-pptx — md2pptx is mature/text-first, powerpointer (2026-04) handles code blocks and diagrams better",
+      "winner": "powerpointer"
+    },
+    {
+      "tools": ["pymupdf", "pdf2image"],
+      "relation": "overlap",
+      "resolution": "both convert PDF pages to images — pdf2image wraps Poppler/pdftoppm, pymupdf is 10-20x faster but AGPL-licensed",
+      "winner": "pymupdf"
+    },
+    {
+      "tools": ["slidev", "marp"],
+      "relation": "overlap",
+      "resolution": "both convert Markdown to slides — Slidev richer (Vue components, PPTX export), Marp simpler (CLI + VS Code focus)"
+    },
+    {
+      "tools": ["presenton", "slidev"],
+      "relation": "synergy",
+      "resolution": "Presenton generates structured content via AI, Slidev polishes and exports it — chain them for AI-assisted deck pipelines"
     }
   ]
 }
