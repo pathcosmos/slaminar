@@ -1,6 +1,6 @@
 {
   "name": "slaminar",
-  "version": "0.9.2",
+  "version": "0.9.3",
   "description": "Intelligent project analyzer and setup tool for Claude Code",
   "type": "module",
   "bin": {
@@ -52,10 +52,12 @@
     "chalk": "^5.4.0",
     "cli-table3": "^0.6.5",
     "commander": "^13.0.0",
-    "open": "^11.0.0"
+    "open": "^11.0.0",
+    "proper-lockfile": "^4.1.2"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
+    "@types/proper-lockfile": "^4.1.4",
     "msw": "^2.13.4",
     "tsx": "^4.19.0",
     "typescript": "^5.7.0",

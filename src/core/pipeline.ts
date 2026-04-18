@@ -15,6 +15,7 @@ import { generateReport, saveReport } from '../reporter/markdown.js';
 import { ensureGitignore, saveTeamConfig, loadTeamConfig } from '../team/config.js';
 import { detectAiProvider, enhanceWithAI } from '../generator/ai-provider.js';
 import type { AiProviderStatus } from '../generator/ai-provider.js';
+import { withProjectLock } from '../locking/file-lock.js';
 import type { ProjectSnapshot, ProjectProfile, AiContextSummary, GenerationPlan, RecommendationPlan, ValidationResult, BackupRecord, CatalogMode, TokenTier } from '../types/index.js';
 
 function extractDescription(snapshot: ProjectSnapshot): string {
@@ -83,6 +84,16 @@ export interface InitOptions {
 }
 
 export async function init(targetPath: string, options: InitOptions = {}): Promise<InitResult> {
+  // v0.9.3 F6 fix: wrap the write path in a project-scoped file lock so two
+  // parallel `slaminar init` on the same cwd can't race on manifest / backup
+  // writes. Dry-run is read-only, so no lock.
+  if (options.dryRun) {
+    return runInit(targetPath, options);
+  }
+  return withProjectLock(targetPath, () => runInit(targetPath, options));
+}
+
+async function runInit(targetPath: string, options: InitOptions): Promise<InitResult> {
   const useAi = options.useAi ?? true;
   const { snapshot, profile } = analyze(targetPath);
   const recommendation = await recommend(profile, { catalogUrl: options.catalogUrl, catalogMode: options.catalogMode, projectRoot: targetPath, tokenTier: options.tokenTier });

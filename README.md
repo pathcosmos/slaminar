@@ -1297,7 +1297,45 @@ Added `catalog config` command for persisting custom catalog URL and mode (exten
 
 **Cross-refs.** [CHANGELOG v0.9.2](./CHANGELOG.md#092--2026-04-18) · Phase Q3 report: [`docs/qa/reports/phase-q3-exceptions.md`](./docs/qa/reports/phase-q3-exceptions.md) · matrix: [`docs/qa/fault-matrix.md`](./docs/qa/fault-matrix.md) · tests: `tests/fault-injection/*.test.ts` (7 files, 47 tests).
 
-### Cross-Reference Index (v0.5 → v0.9.2)
+### Phase 21: Rollback Integrity + Concurrency Lock (v0.9.3)
+
+**Motivation.** Phase Q3 reproduced the F6 concurrency race — two `slaminar init`s on the same cwd would succeed "both exit 0" but could overwrite each other's manifest entries, leaving orphaned backup blobs and a future `uninstall` that silently skipped recovery. Q3 left the fix as P1-1 for this Phase. Q4 also takes on Obs-Q3-2 (corrupt `.slaminar/config.json` silently falling back to defaults) and fixes the remaining R-series rollback gaps (R3 marker damage, R5 post-init external delete, R10 symlinks).
+
+**Shipped.**
+- `src/locking/file-lock.ts` (new) — `proper-lockfile@4.1.2` wrapper exposing `acquireProjectLock()`, `withProjectLock()` (async), `withProjectLockSync()` (for uninstall), and `ProjectBusyError`. Lock target: `<root>/.slaminar/lockfile.lock`. `stale: 30_000` reclaims orphaned locks from dead processes.
+- **Lock applied**: `init` (non-dry-run), `update` (non-dry-run), `uninstall`. Not applied to read-only or HOME-scope commands.
+- **Obs-Q3-2 fix**: new `loadTeamConfigWithStatus()` in `src/team/config.ts` returns `{ config, status: 'ok'|'missing'|'corrupt' }`. `UpdateResult.teamConfigCorrupt` is surfaced by the CLI with a yellow warning + `setup --reconfigure catalog` hint so a corrupt `.slaminar/config.json` can't silently erase `approvedTools`/`catalogUrl`.
+- **Obs-Q4-3 fix**: `ensureGitignore()` now writes `lockfile.lock` in `.slaminar/.gitignore` so the transient lock artifact can't be committed.
+- **Rollback tests**: `tests/e2e/rollback.test.ts` +3 (R3 marker damage, R5 external-delete uninstall, R10 symlink-loop init). F6 concurrency tests updated for lock semantics (F6.a now asserts "exactly one wins, the other is `ProjectBusyError`").
+
+**R1–R10 mapping (matrix closure)**:
+
+| R | Status | Location |
+|---|---|---|
+| R1 round-trip | auto | `rollback.test.ts:R1` (v0.9.1) |
+| R2 writeTargets partial | auto | `rollback.test.ts:P0-1` (v0.9.1) |
+| R3 marker corruption | **new auto** | `rollback.test.ts:R3` |
+| R4 / R8 nested init race | auto via lock | `concurrency.test.ts:F6.a` |
+| R5 external delete | **new auto** | `rollback.test.ts:R5` |
+| R6 corrupt manifest uninstall | auto | `corrupt.test.ts:F3.c` (v0.9.2 P0-9) |
+| R7 `remove <tool>` | auto | `tests/e2e/remove.test.ts` |
+| R9 disk full | skip | `fs.test.ts:F2.c` (it.skip; ENOSPC not portable) |
+| R10 symlink | **new auto** | `rollback.test.ts:R10` |
+
+**Decisions.**
+
+- **D21.1 — `proper-lockfile` (runtime dep), not a bespoke lock.** Alternative: hand-rolled pid-file + mtime check in `.slaminar/.lock`. Rationale: `proper-lockfile` has been stable since 2018, already handles stale-lock reclaim, graceful auto-release on process exit via `onCompromised`, and atomic `mkdir`-based acquisition. Writing a correct lock primitive is subtle (TOCTOU on existence check, handle GC semantics) and worth outsourcing. The devDep / runtime-dep split leaves `proper-lockfile` in prod deps since the CLI actually needs it at runtime, not just tests. Evidence: `src/locking/file-lock.ts` uses `lockfile.lock` / `lockSync` / `onCompromised`.
+- **D21.2 — Lock acquire is fail-fast (retries=0), not wait-and-retry.** Alternative: retry with backoff. Rationale: a user running two `slaminar init`s in parallel almost certainly did so by accident (e.g., ran it in an IDE terminal and forgot it was running). Silently waiting would mask the mistake and slow the second invocation indefinitely. A loud `ProjectBusyError` with "another slaminar process is already holding the project lock" lets the user decide. Evidence: `src/locking/file-lock.ts:acquireProjectLock` default `retries: 0`.
+- **D21.3 — Dry-run is lock-free.** Alternative: always acquire. Rationale: dry-run is pure read. Acquiring a lock on read paths creates false positives (a real init + a dry-run in parallel would fail) without any integrity benefit. Only writers serialize. Evidence: `pipeline.ts:init` and `updater.ts:update` branch before `withProjectLock`.
+- **D21.4 — Sync lock variant for `uninstall`, not an async refactor of its call graph.** `withProjectLockSync()` wraps `proper-lockfile.lockSync()`. Alternative: make `uninstall()` async and await everywhere. Rationale: `uninstall` is sync throughout (`rmSync`, `copyFileSync`) and async-ifying it for one lock acquire forces the CLI + every caller to add `await`. A sync variant is isomorphic for this use case. Evidence: `uninstaller.ts:uninstall` is a single-line wrapper over `doUninstall`.
+- **D21.5 — R4 / R8 deliberately replaced by "lock enforcement" rather than "manifest-merge retry".** The Q1 matrix originally asked "both succeed, manifest merges both sets of backups". That requires read-modify-write atomicity on the manifest, which is much harder than serialization. Serialization gives the same user-visible outcome (no data loss) with a far simpler model. Evidence: `concurrency.test.ts:F6.a` asserts exactly-one-wins.
+- **D21.6 — R9 (disk full) stays skipped — same reasoning as Q3 D20.7.** Not revisited; ENOSPC portable simulation still requires admin or OS-specific mounts.
+- **D21.7 — `catalog update` is NOT locked in this release.** Alternative: extend lock to cover the catalog cache write path. Rationale: the cache lives under `$HOME/.config/slaminar/catalog-cache/` — a different scope from the project lock. A HOME-scope lock is a separate design concern tracked as Obs-Q4-1 (P2). Current protection: `writeFileSync` is kernel-atomic for small files, and the remote fetch + cache-write path is linear within a single invocation. Multi-process cache contention is rare enough to defer. Evidence: only `init`/`update`/`uninstall` wrap with lock in `src/core/*.ts` and `src/rollback/uninstaller.ts`.
+- **D21.8 — `teamConfigCorrupt` is a warning, not a hard fail.** Matching D19.5 (missingBackups) and D20.4 (minSlaminarVersion): slaminar prefers "tell the user loudly, keep working with defaults" over "abort and require intervention" when the degradation is graceful. Evidence: `cli.ts` update action prints yellow warning + hint; exit code remains success.
+
+**Cross-refs.** [CHANGELOG v0.9.3](./CHANGELOG.md#093--2026-04-18) · Phase Q4 report: [`docs/qa/reports/phase-q4-rollback.md`](./docs/qa/reports/phase-q4-rollback.md) · tests: `tests/e2e/rollback.test.ts`, `tests/fault-injection/concurrency.test.ts`.
+
+### Cross-Reference Index (v0.5 → v0.9.3)
 
 Every numbered decision above appears in three places — README (here), CHANGELOG (release notes), and design spec (when one exists). Decision IDs are **identical between `README.md` and `README.ko.md`** — use `grep -n "D14\.3" README*.md` to verify parity. File paths can be opened directly to audit claims; test files can be run in isolation with `npm test -- --run <path>`.
 
@@ -1365,6 +1403,14 @@ Every numbered decision above appears in three places — README (here), CHANGEL
 | D20.6 | F6 concurrency: reproduce + document, fix in v0.9.3 (Phase Q4) | v0.9.2 | same | `tests/fault-injection/concurrency.test.ts` | same |
 | D20.7 | ENOSPC skipped (not portably simulable) | v0.9.2 | same | `tests/fault-injection/fs.test.ts` (it.skip) | — |
 | D20.8 | `catalog-mode` validated in 4 previously-raw-cast sites | v0.9.2 | same | `src/cli.ts:validateCatalogMode` | `tests/fault-injection/input.test.ts` |
+| D21.1 | `proper-lockfile` (runtime dep) for project lock, not bespoke | v0.9.3 | `harmonic-wishing-pumpkin.md` (QA) | `src/locking/file-lock.ts` | `tests/fault-injection/concurrency.test.ts` |
+| D21.2 | Lock acquire is fail-fast (retries=0) | v0.9.3 | same | `src/locking/file-lock.ts:acquireProjectLock` | same |
+| D21.3 | Dry-run is lock-free | v0.9.3 | same | `src/core/pipeline.ts`, `src/core/updater.ts` | same |
+| D21.4 | Sync lock variant for `uninstall` | v0.9.3 | same | `src/locking/file-lock.ts:withProjectLockSync` | `tests/e2e/rollback.test.ts` |
+| D21.5 | R4/R8 replaced by serialization, not manifest-merge retry | v0.9.3 | same | `src/locking/file-lock.ts` | `tests/fault-injection/concurrency.test.ts:F6.a` |
+| D21.6 | R9 (disk full) still skipped — same as D20.7 | v0.9.3 | same | `tests/fault-injection/fs.test.ts:F2.c` | — |
+| D21.7 | `catalog update` unlocked (HOME-scope, deferred) | v0.9.3 | same | — | — |
+| D21.8 | `teamConfigCorrupt` surfaced as warning, not hard fail | v0.9.3 | same | `src/team/config.ts:loadTeamConfigWithStatus`, `src/cli.ts` | `tests/fault-injection/corrupt.test.ts:F3.f` |
 
 ### Quality Passes
 

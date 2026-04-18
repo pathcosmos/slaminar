@@ -54,6 +54,35 @@ export function loadTeamConfig(root: string): TeamConfig {
   return readJson(join(slaminarDir(root), TEAM_CONFIG_FILE), DEFAULT_TEAM);
 }
 
+/**
+ * v0.9.3 Obs-Q3-2: expose team-config read status so update/status/check
+ * can distinguish "no config yet" from "config present but unparseable".
+ * Previously `loadTeamConfig` silently returned defaults on parse errors,
+ * letting `update` proceed as if approvedTools / catalogUrl / catalogMode
+ * had never been configured.
+ */
+export type TeamConfigStatus = 'ok' | 'missing' | 'corrupt';
+
+export function loadTeamConfigWithStatus(root: string): {
+  config: TeamConfig;
+  status: TeamConfigStatus;
+} {
+  const filePath = join(slaminarDir(root), TEAM_CONFIG_FILE);
+  if (!existsSync(filePath)) {
+    return { config: { ...DEFAULT_TEAM }, status: 'missing' };
+  }
+  try {
+    const raw = readFileSync(filePath, 'utf-8');
+    const parsed = JSON.parse(raw);
+    if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+      return { config: { ...DEFAULT_TEAM }, status: 'corrupt' };
+    }
+    return { config: { ...DEFAULT_TEAM, ...parsed }, status: 'ok' };
+  } catch {
+    return { config: { ...DEFAULT_TEAM }, status: 'corrupt' };
+  }
+}
+
 export function loadLocalConfig(root: string): LocalConfig {
   return readJson(join(slaminarDir(root), LOCAL_CONFIG_FILE), DEFAULT_LOCAL);
 }
@@ -70,6 +99,8 @@ export function ensureGitignore(root: string): void {
   const dir = slaminarDir(root);
   ensureDir(dir);
   const gitignorePath = join(dir, '.gitignore');
-  const content = `config.local.json\nstate.json\n.bk/\n`;
+  // v0.9.3 Obs-Q4-3: lockfile.lock is a transient runtime artifact from
+  // proper-lockfile and should never be committed.
+  const content = `config.local.json\nstate.json\n.bk/\nlockfile.lock\n`;
   writeFileSync(gitignorePath, content, 'utf-8');
 }

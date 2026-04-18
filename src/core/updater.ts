@@ -6,15 +6,31 @@ import { buildPlan } from '../planner/planner.js';
 import { backupFile, readManifest, writeManifest } from '../placer/backup.js';
 import { mergeWithMarkers } from '../placer/markers.js';
 import { writeTargets } from '../placer/writer.js';
+import { withProjectLock } from '../locking/file-lock.js';
+import { loadTeamConfigWithStatus } from '../team/config.js';
 
 export interface UpdateResult {
   updatedFiles: string[];
   unchangedFiles: string[];
   newFiles: string[];
+  /** v0.9.3 Obs-Q3-2: true if .slaminar/config.json was unreadable; update proceeded with built-in team defaults and the user needs to re-run setup. */
+  teamConfigCorrupt?: boolean;
 }
 
 export async function update(targetPath: string, options: { dryRun?: boolean } = {}): Promise<UpdateResult> {
+  // v0.9.3 F6 fix: take the project lock for non-dry-run to prevent racing
+  // with `init` / `uninstall` / another `update`.
+  if (options.dryRun) {
+    return runUpdate(targetPath, options);
+  }
+  return withProjectLock(targetPath, () => runUpdate(targetPath, options));
+}
+
+async function runUpdate(targetPath: string, options: { dryRun?: boolean }): Promise<UpdateResult> {
   const { snapshot, profile } = analyze(targetPath);
+  // v0.9.3 Obs-Q3-2: detect corrupt .slaminar/config.json so we can warn the
+  // caller instead of silently using built-in team defaults.
+  const teamStatus = loadTeamConfigWithStatus(snapshot.root);
   const recommendation = await recommend(profile);
   const plan = buildPlan(profile, snapshot, recommendation);
 
@@ -40,7 +56,12 @@ export async function update(targetPath: string, options: { dryRun?: boolean } =
         }
       }
     }
-    return { updatedFiles, unchangedFiles, newFiles };
+    return {
+      updatedFiles,
+      unchangedFiles,
+      newFiles,
+      ...(teamStatus.status === 'corrupt' ? { teamConfigCorrupt: true } : {}),
+    };
   }
 
   const manifest = readManifest(snapshot.root);
@@ -82,5 +103,10 @@ export async function update(targetPath: string, options: { dryRun?: boolean } =
     }
   }
 
-  return { updatedFiles, unchangedFiles, newFiles };
+  return {
+    updatedFiles,
+    unchangedFiles,
+    newFiles,
+    ...(teamStatus.status === 'corrupt' ? { teamConfigCorrupt: true } : {}),
+  };
 }

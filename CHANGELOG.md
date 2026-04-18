@@ -5,6 +5,76 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.3] — 2026-04-18
+
+### Added — QA Phase Q4 (Rollback Integrity) + File Lock for Concurrency
+
+Phase Q3 (v0.9.2) 가 F6 concurrency 를 재현·문서화 했으니, Q4 는 그 구조적 결함 — 같은 프로젝트에 두 slaminar 프로세스가 동시에 쓰면 manifest race 로 백업 기록 유실 — 을 실제로 제거. 아울러 R1–R10 rollback 매트릭스를 자동화 테스트로 고정하고 Q3 에서 이관된 Obs-Q3-2 (corrupt team-config silent fallback) 을 fix.
+
+**File-based project lock (`src/locking/file-lock.ts`, 신규):**
+- `proper-lockfile@4.1.2` 런타임 의존성 추가
+- `acquireProjectLock(root)`, `withProjectLock(root, fn)` (async), `withProjectLockSync(root, fn)` (sync for uninstall), `ProjectBusyError`
+- Lock 파일: `<root>/.slaminar/lockfile.lock`. stale=30s 로 crash 된 프로세스의 orphan lock 을 자동 reclaim
+- 적용 커맨드: `init` (dry-run 제외), `update` (dry-run 제외), `uninstall`. Dry-run / read-only 커맨드는 lock 비적용
+
+**Obs-Q3-2 fix — corrupt team-config 감지 (`src/team/config.ts`, `src/core/updater.ts`, `src/cli.ts`):**
+- `loadTeamConfigWithStatus()` 신규 — `{ config, status: 'ok'|'missing'|'corrupt' }` 반환
+- `UpdateResult.teamConfigCorrupt` 필드
+- CLI update 출력에 노란색 경고 + `setup --reconfigure catalog` 안내
+- 이전 동작: 조용히 default fallback → 다음 save 에서 `approvedTools`, `catalogUrl`, `catalogMode` 유실. 이제 사용자에게 즉시 알림
+
+**Obs-Q4-3 — `.slaminar/.gitignore` 에 `lockfile.lock` 추가:**
+- `ensureGitignore()` 가 `lockfile.lock` 엔트리를 포함 — 실수로 commit 되는 것 방지
+
+**R1–R10 매핑 (rollback 매트릭스 자동화):**
+
+| R# | 상태 | 위치 |
+|---|---|---|
+| R1 정상 round trip | 자동화 | `tests/e2e/rollback.test.ts:R1` |
+| R2 writeTargets 부분 실패 | 자동화 (v0.9.1 P0-1) | `rollback.test.ts:P0-1` |
+| R3 marker 꼬임 | **신규 자동화** | `rollback.test.ts:R3` |
+| R4 / R8 중첩 init race | lock 으로 대체 | `concurrency.test.ts:F6.a` |
+| R5 대상 파일 이미 삭제 | **신규 자동화** | `rollback.test.ts:R5` |
+| R6 manifest 손상 uninstall | 자동화 (v0.9.2 P0-9) | `fault-injection/corrupt.test.ts:F3.c` |
+| R7 `remove <tool>` | 자동화 (v0.9.1) | `tests/e2e/remove.test.ts` |
+| R9 디스크 소진 | skip (ENOSPC 포터블 시뮬 불가, Q3 D20.7 과 동일) | `fs.test.ts:F2.c` |
+| R10 symlink | **신규 자동화** | `rollback.test.ts:R10` |
+
+**F6 concurrency tests (lock 적용 후 업데이트):**
+- F6.a — 두 `init` 병렬: 정확히 하나 성공 (exit 0), 하나 `ProjectBusyError` 로 거부 (exit 1). Lock 파일이 프로세스 종료 후 해제됨 (no orphan)
+- F6.b — `update` + `uninstall` 병렬: 직렬화, crash/stack trace 없음, orphan lock 없음
+- F6.d — setup × 2 (shared HOME): setup 은 프로젝트 scope 밖이라 lock 비적용, last-write-wins 의도된 동작 유지
+
+**문서:**
+- `docs/qa/reports/phase-q4-rollback.md` — Phase Q4 산출물 + lock 설계 설명 + R1–R10 매핑 + 남은 P2 관찰
+
+### Changed
+
+- `src/locking/file-lock.ts` (new)
+- `src/core/pipeline.ts:init` — `runInit` 로 분리 + `withProjectLock` 래핑
+- `src/core/updater.ts:update` — `runUpdate` 로 분리 + `withProjectLock` 래핑; `UpdateResult.teamConfigCorrupt` 필드; `loadTeamConfigWithStatus` 호출
+- `src/rollback/uninstaller.ts:uninstall` — `doUninstall` 로 분리 + `withProjectLockSync` 래핑
+- `src/team/config.ts` — `loadTeamConfigWithStatus` + `TeamConfigStatus` export; `ensureGitignore` 에 `lockfile.lock`
+- `src/cli.ts` — update action 이 `teamConfigCorrupt` 표면화
+- `tests/e2e/rollback.test.ts` — +3 tests (R3, R5, R10)
+- `tests/fault-injection/concurrency.test.ts` — F6.a/b 를 lock 기대치로 update
+- `package.json` — `proper-lockfile@^4.1.2` (deps), `@types/proper-lockfile` (devDeps)
+
+### Not Changed (deliberate)
+
+- `catalog update` 는 project-scope lock 밖 (HOME-scope cache 사용). HOME-scope 별도 lock 은 Phase Q5/Q6 에서 필요 시 검토. 현재는 단일 cache 파일 writeFileSync 원자성에 의존.
+- Lock stale timeout 30 초 하드코딩 — env 노출은 P2 로 기록, 현재 변경 없음.
+- setup / doctor / scan / analyze / recommend / status / check / discover / catalog* / skill* — 모두 read-only 또는 비-프로젝트 범위이므로 lock 비적용.
+- P0 없음 — 이번 Phase 는 기존 P1 fix + 인프라.
+
+### Stats
+
+- 66 source modules (+ `src/locking/file-lock.ts`), 81 test files, **475 tests** (365 unit + 63 E2E + 47 fault-injection, 1 skip)
+- Phase Q4 에서 신규 P0: 0. 티켓 해소: P1-1 (F6 lock), Obs-Q3-2 (corrupt team-config). 남은 P2: 3 (Obs-Q4-1/2, plus Q3 carry-over)
+- Wall-time: `npm test` ~1.0s, `npm run test:e2e` ~12s
+
+[0.9.3]: https://github.com/pathcosmos/slaminar/compare/v0.9.2...v0.9.3
+
 ## [0.9.2] — 2026-04-18
 
 ### Added — QA Phase Q3 (Fault-Injection Matrix) + 5 P0 Fixes

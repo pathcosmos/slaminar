@@ -2,6 +2,7 @@ import { existsSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { readManifestWithStatus, restoreFile } from '../placer/backup.js';
 import { loadTeamConfig, saveTeamConfig } from '../team/config.js';
+import { withProjectLockSync } from '../locking/file-lock.js';
 
 export interface UninstallResult {
   restoredFiles: string[];
@@ -14,6 +15,12 @@ export interface UninstallResult {
 }
 
 export function uninstall(root: string): UninstallResult {
+  // v0.9.3 F6 fix: serialize with other writers. Uninstall clearly must not
+  // race with init / update — the manifest is in flux.
+  return withProjectLockSync(root, () => doUninstall(root));
+}
+
+function doUninstall(root: string): UninstallResult {
   const result: UninstallResult = {
     restoredFiles: [],
     deletedFiles: [],

@@ -1400,7 +1400,45 @@ CLAUDE.md 유효성 검증, plugin.json 스키마 검증, 터미널 컬러 테�
 
 **교차 링크.** [CHANGELOG v0.9.2](./CHANGELOG.md#092--2026-04-18) · Phase Q3 보고서: [`docs/qa/reports/phase-q3-exceptions.md`](./docs/qa/reports/phase-q3-exceptions.md) · 매트릭스: [`docs/qa/fault-matrix.md`](./docs/qa/fault-matrix.md) · 테스트: `tests/fault-injection/*.test.ts` (7 files, 47 tests).
 
-### 교차 참조 인덱스 (v0.5 → v0.9.2)
+### Phase 21: Rollback Integrity + Concurrency Lock (v0.9.3)
+
+**동기.** Phase Q3 에서 F6 concurrency race — 같은 cwd 에 두 `slaminar init` 이 "둘 다 exit 0" 로 성공해 보이지만 manifest 기록을 서로 덮어써 orphan 백업 blob 을 남기고 추후 `uninstall` 이 조용히 복원을 skip 할 수 있음 — 을 재현했고, 실제 fix 는 P1-1 로 이 Phase 로 이관했습니다. 아울러 Obs-Q3-2 (corrupt `.slaminar/config.json` silent default fallback) + 남은 R-series (R3 marker 손상, R5 post-init 외부 삭제, R10 symlink) 를 매듭.
+
+**산출물.**
+- `src/locking/file-lock.ts` (신규) — `proper-lockfile@4.1.2` wrapper. `acquireProjectLock()`, `withProjectLock()` (async), `withProjectLockSync()` (uninstall 용), `ProjectBusyError`. Lock 파일: `<root>/.slaminar/lockfile.lock`. `stale: 30_000` 로 죽은 프로세스의 orphan lock 자동 reclaim
+- **Lock 적용**: `init` (dry-run 제외), `update` (dry-run 제외), `uninstall`. read-only / HOME-scope 커맨드는 비적용
+- **Obs-Q3-2 fix**: `src/team/config.ts` 에 `loadTeamConfigWithStatus()` 신규, `UpdateResult.teamConfigCorrupt` 필드, CLI update 에 노란 경고 + `setup --reconfigure catalog` 힌트
+- **Obs-Q4-3 fix**: `ensureGitignore()` 가 `.slaminar/.gitignore` 에 `lockfile.lock` 엔트리 포함
+- **Rollback 테스트**: `tests/e2e/rollback.test.ts` +3 (R3 marker 손상, R5 외부 삭제 후 uninstall, R10 symlink loop init). F6 concurrency tests 는 lock 기대치로 업데이트 (F6.a 는 "정확히 하나 성공, 다른 하나 ProjectBusyError")
+
+**R1–R10 매핑**:
+
+| R | 상태 | 위치 |
+|---|---|---|
+| R1 round-trip | auto | `rollback.test.ts:R1` (v0.9.1) |
+| R2 writeTargets 부분 실패 | auto | `rollback.test.ts:P0-1` (v0.9.1) |
+| R3 marker 손상 | **신규 auto** | `rollback.test.ts:R3` |
+| R4/R8 중첩 init race | lock 으로 대체 | `concurrency.test.ts:F6.a` |
+| R5 외부 삭제 | **신규 auto** | `rollback.test.ts:R5` |
+| R6 corrupt manifest uninstall | auto | `corrupt.test.ts:F3.c` (v0.9.2 P0-9) |
+| R7 `remove <tool>` | auto | `tests/e2e/remove.test.ts` |
+| R9 디스크 소진 | skip | `fs.test.ts:F2.c` (ENOSPC 포터블 시뮬 불가) |
+| R10 symlink | **신규 auto** | `rollback.test.ts:R10` |
+
+**의사결정.**
+
+- **D21.1 — `proper-lockfile` (runtime dep), 자체 lock 아님.** 대안: 직접 구현한 pid-file + mtime 체크. 근거: `proper-lockfile` 은 2018년부터 안정적이며 stale-lock reclaim, `onCompromised` 통한 graceful auto-release, atomic `mkdir` 기반 획득을 이미 처리. Lock 원시기 구현은 섬세함 (existence 체크의 TOCTOU, handle GC 의미론) 이 필요해 외주가 적절. devDep/runtime-dep 구분상 CLI 가 런타임에도 lock 이 필요하므로 prod deps 에 둠. 증거: `src/locking/file-lock.ts` 가 `lockfile.lock` / `lockSync` / `onCompromised` 사용.
+- **D21.2 — Lock acquire 는 fail-fast (retries=0), 대기·재시도 아님.** 대안: backoff 로 재시도. 근거: 두 `slaminar init` 을 병렬로 실행한 사용자는 거의 확실히 실수 (IDE 터미널에서 돌고 있는 걸 잊고 재실행 등). 조용히 기다리면 실수를 가리고 두 번째 실행이 무한 지연. "another slaminar process is already holding the project lock" 명확한 `ProjectBusyError` 가 사용자 판단을 돕는다. 증거: `src/locking/file-lock.ts:acquireProjectLock` 기본 `retries: 0`.
+- **D21.3 — Dry-run 은 lock 없음.** 대안: 항상 획득. 근거: Dry-run 은 순수 read. Read 경로에 lock 을 걸면 실제 init + dry-run 병렬 시 false positive 만 만들고 integrity 이득은 0. Writer 만 serialize. 증거: `pipeline.ts:init` / `updater.ts:update` 가 `withProjectLock` 이전에 분기.
+- **D21.4 — `uninstall` 에는 sync lock variant.** `withProjectLockSync()` 는 `proper-lockfile.lockSync()` 래핑. 대안: `uninstall()` 을 async 로 전환하고 caller 사슬 전체에 await 추가. 근거: `uninstall` 은 내내 sync (`rmSync`, `copyFileSync`) — 단 하나의 lock acquire 위해 async 화하면 CLI 와 모든 caller 에 await 강제. Sync variant 가 이 use case 에 isomorphic. 증거: `uninstaller.ts:uninstall` 은 `doUninstall` 을 감싸는 한 줄 래퍼.
+- **D21.5 — R4/R8 을 serialization 으로 대체, manifest-merge retry 아님.** Q1 매트릭스는 "둘 다 성공 + manifest 에 양쪽 백업 merge" 를 요구했지만 이는 manifest 의 read-modify-write atomicity 를 필요로 하며 serialization 보다 훨씬 어려움. Serialization 이 사용자 관점 동일 결과 (data loss 없음) 를 훨씬 간단한 모델로 제공. 증거: `concurrency.test.ts:F6.a` 는 "exactly-one-wins" 를 assert.
+- **D21.6 — R9 (disk full) 는 skip 유지 — Q3 D20.7 과 동일 근거.** 재검토 없음; ENOSPC 포터블 시뮬은 여전히 admin 또는 OS 별 mount 필요.
+- **D21.7 — `catalog update` 는 이번에 lock 안 함.** 대안: catalog cache 쓰기 경로까지 lock 확장. 근거: cache 는 `$HOME/.config/slaminar/catalog-cache/` 에 존재 — 프로젝트 lock 과 다른 scope. HOME-scope lock 은 별도 설계 주제 (Obs-Q4-1 P2). 현재 보호: `writeFileSync` 는 작은 파일에 대해 kernel-atomic 이고, remote fetch + cache write 는 단일 invocation 내에서 선형. 다중 프로세스 cache 경합은 드물어 연기. 증거: `src/core/*.ts` 와 `src/rollback/uninstaller.ts` 에서만 lock wrap.
+- **D21.8 — `teamConfigCorrupt` 는 경고, hard fail 아님.** D19.5 (missingBackups) 와 D20.4 (minSlaminarVersion) 와 맥락 일치: slaminar 는 degradation 이 graceful 할 때 "사용자에게 크게 알리고 default 로 계속" 을 "중단하고 개입 요구" 보다 선호. 증거: `cli.ts` update action 이 노란 경고 + hint; exit code 는 성공 유지.
+
+**교차 링크.** [CHANGELOG v0.9.3](./CHANGELOG.md#093--2026-04-18) · Phase Q4 보고서: [`docs/qa/reports/phase-q4-rollback.md`](./docs/qa/reports/phase-q4-rollback.md) · 테스트: `tests/e2e/rollback.test.ts`, `tests/fault-injection/concurrency.test.ts`.
+
+### 교차 참조 인덱스 (v0.5 → v0.9.3)
 
 위의 번호 붙은 모든 의사결정은 3곳에 기록되어 있습니다 — README(여기), CHANGELOG(릴리스 노트), 설계 spec(있을 때). 의사결정 ID는 **`README.md`와 `README.ko.md`에서 동일** — `grep -n "D14\.3" README*.md`로 패리티 검증 가능. 파일 경로는 직접 열어 주장 감사 가능; 테스트 파일은 `npm test -- --run <path>`로 격리 실행.
 
@@ -1468,6 +1506,14 @@ CLAUDE.md 유효성 검증, plugin.json 스키마 검증, 터미널 컬러 테�
 | D20.6 | F6 concurrency: 재현 + 문서화, v0.9.3 Phase Q4 에서 fix | v0.9.2 | same | `tests/fault-injection/concurrency.test.ts` | same |
 | D20.7 | ENOSPC skip (포터블 시뮬 불가) | v0.9.2 | same | `tests/fault-injection/fs.test.ts` (it.skip) | — |
 | D20.8 | `catalog-mode` 를 4 개 raw-cast 사이트에서 validation | v0.9.2 | same | `src/cli.ts:validateCatalogMode` | `tests/fault-injection/input.test.ts` |
+| D21.1 | `proper-lockfile` (runtime dep), 자체 lock 아님 | v0.9.3 | `harmonic-wishing-pumpkin.md` (QA) | `src/locking/file-lock.ts` | `tests/fault-injection/concurrency.test.ts` |
+| D21.2 | Lock acquire 는 fail-fast (retries=0) | v0.9.3 | same | `src/locking/file-lock.ts:acquireProjectLock` | same |
+| D21.3 | Dry-run 은 lock 없음 | v0.9.3 | same | `src/core/pipeline.ts`, `src/core/updater.ts` | same |
+| D21.4 | `uninstall` 은 sync lock variant | v0.9.3 | same | `src/locking/file-lock.ts:withProjectLockSync` | `tests/e2e/rollback.test.ts` |
+| D21.5 | R4/R8 은 serialization 으로 대체 (manifest-merge 아님) | v0.9.3 | same | `src/locking/file-lock.ts` | `tests/fault-injection/concurrency.test.ts:F6.a` |
+| D21.6 | R9 (disk full) 는 skip 유지 — D20.7 과 동일 | v0.9.3 | same | `tests/fault-injection/fs.test.ts:F2.c` | — |
+| D21.7 | `catalog update` 는 unlocked (HOME-scope, 연기) | v0.9.3 | same | — | — |
+| D21.8 | `teamConfigCorrupt` 는 경고, hard fail 아님 | v0.9.3 | same | `src/team/config.ts:loadTeamConfigWithStatus`, `src/cli.ts` | `tests/fault-injection/corrupt.test.ts:F3.f` |
 
 ### 품질 개선 (3차례 리뷰)
 

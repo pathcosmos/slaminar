@@ -91,4 +91,79 @@ describe('e2e: rollback + uninstall', () => {
     expect(result.exitCode).toBe(0);
     expect(result.stdout).toMatch(/\d+\.\d+\.\d+/);
   });
+
+  // R3 — update tolerates a CLAUDE.md whose ownership markers have been
+  // manually damaged. The merger should either reappend a fresh section
+  // without crashing or finish cleanly; the file must remain parseable.
+  it('R3: update gracefully handles malformed ownership markers', async () => {
+    // First init creates CLAUDE.md with begin/end markers.
+    const init = await runCli(['init', '--no-ai', project], { cwd: tmp });
+    expect(init.exitCode).toBe(0);
+
+    const claudeMdPath = join(project, 'CLAUDE.md');
+    const content = readFileSync(claudeMdPath, 'utf-8');
+    expect(content).toMatch(/<!-- slaminar:begin:overview -->/);
+
+    // Corrupt the markers: delete the "begin:overview" line entirely so the
+    // merger's regex can't match the section. The merger should append a
+    // fresh section instead of crashing.
+    const damaged = content.replace(/<!-- slaminar:begin:overview -->\n?/, '');
+    writeFileSync(claudeMdPath, damaged, 'utf-8');
+
+    const update = await runCli(['update', project], { cwd: tmp });
+    expect(update.exitCode).toBe(0);
+    const after = readFileSync(claudeMdPath, 'utf-8');
+    // The file should end up well-formed (at least one begin/end pair)
+    expect(after).toMatch(/<!-- slaminar:begin:overview -->/);
+    expect(after).toMatch(/<!-- slaminar:end:overview -->/);
+  });
+
+  // R5 — uninstall should not crash even if target files have been deleted
+  // out-of-band since init wrote them.
+  it('R5: uninstall on a project whose generated files were manually deleted', async () => {
+    const init = await runCli(['init', '--no-ai', project], { cwd: tmp });
+    expect(init.exitCode).toBe(0);
+
+    // External delete of the generated plugin dir.
+    rmSync(join(project, '.claude', 'plugins', 'slaminar-generated'), {
+      recursive: true,
+      force: true,
+    });
+    // And CLAUDE.md too — there's no backup for it on a fresh fixture (the
+    // file was 'create' mode, not 'merge'), but uninstall must tolerate
+    // its absence without throwing.
+    const claudeMd = join(project, 'CLAUDE.md');
+    if (existsSync(claudeMd)) rmSync(claudeMd);
+
+    const uninstall = await runCli(['uninstall', project], { cwd: tmp });
+    // Exit 0 is the ideal; 1 with a clear message is also acceptable. What
+    // we don't want is a crash.
+    expect([0, 1]).toContain(uninstall.exitCode);
+    expect(uninstall.stderr).not.toMatch(/TypeError|ReferenceError/);
+    expect(existsSync(join(project, '.slaminar'))).toBe(false);
+  });
+
+  // R10 — symlink handling: init must not follow or clobber a symlinked
+  // CLAUDE.md such that the target file gets corrupted.
+  it('R10: init on a directory containing a symlink does not traverse dangerously', async () => {
+    const { symlinkSync } = await import('node:fs');
+    // Create a symlink inside src/ pointing back at src/ (self-reference).
+    // Safe because our scanner has recursion guards; we're just verifying
+    // the CLI exits cleanly.
+    try {
+      symlinkSync('.', join(project, 'src', 'self-link'));
+    } catch {
+      // filesystem may not permit symlinks (e.g. Windows without admin) —
+      // skip gracefully in that case.
+      return;
+    }
+
+    const init = await runCli(['init', '--no-ai', project], {
+      cwd: tmp,
+      timeoutSec: 20,
+    });
+    // Must not hang (timeout) and must not crash.
+    expect(init.exitCode).toBe(0);
+    expect(init.stderr).not.toMatch(/Maximum call stack|ELOOP unhandled/);
+  });
 });

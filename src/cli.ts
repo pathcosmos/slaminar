@@ -331,6 +331,17 @@ program
       } else {
         console.log('\nslaminar update complete\n');
       }
+      // v0.9.3 Obs-Q3-2: warn loudly if team config was unreadable so the
+      // user can rerun setup instead of silently losing approvedTools,
+      // catalogUrl, catalogMode on the next write.
+      if (result.teamConfigCorrupt) {
+        console.log(
+          chalk.yellow(
+            '\n⚠ .slaminar/config.json was unreadable — update proceeded with built-in team defaults.',
+          ),
+        );
+        console.log('  Re-run `slaminar setup --reconfigure catalog` to restore approvedTools / catalogUrl.\n');
+      }
       if (result.newFiles.length > 0) {
         console.log('New files:');
         for (const f of result.newFiles) console.log(`  ✅ ${f}`);

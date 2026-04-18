@@ -37,63 +37,63 @@ describe('F6 — concurrency races (documentation tests)', () => {
 
   afterEach(() => cleanup(tmp));
 
-  // F6.a — two concurrent `init` on same cwd
-  it('F6.a: parallel init × 2 — manifest remains valid JSON even if races occur', async () => {
+  // F6.a — two concurrent `init` on same cwd.
+  // v0.9.3: project-scoped file lock (src/locking/file-lock.ts) now serializes
+  // writers. Exactly one process acquires the lock; the other fails fast with
+  // ProjectBusyError.
+  it('F6.a: parallel init × 2 — lock serializes; exactly one succeeds', async () => {
     const [r1, r2] = await Promise.all([
       runCli(['init', '--no-ai', project], { cwd: tmp }),
       runCli(['init', '--no-ai', project], { cwd: tmp }),
     ]);
 
-    // Document what happened (BUG visibility via warnings)
-    const bothOk = r1.exitCode === 0 && r2.exitCode === 0;
-    const oneFailed = r1.exitCode !== r2.exitCode;
-    console.warn(
-      `[F6.a] exit1=${r1.exitCode} exit2=${r2.exitCode} ` +
-        (bothOk
-          ? '(both succeeded — possible manifest race)'
-          : oneFailed
-            ? '(one failed — rollback path should have triggered)'
-            : '(both failed)'),
+    // One holder, one loser.
+    const exits = [r1.exitCode, r2.exitCode].sort();
+    expect(exits).toEqual([0, 1]);
+    const loser = r1.exitCode === 0 ? r2 : r1;
+    expect(loser.stderr + loser.stdout).toMatch(
+      /another slaminar process|ProjectBusyError|holding the project lock/,
     );
 
-    // Invariant: if a manifest exists, it must be valid JSON.
-    // v0.9.1 P0-1 atomic write protects this.
-    const manifestPath = join(project, '.slaminar/.bk/manifest.json');
-    if (existsSync(manifestPath)) {
-      const raw = readFileSync(manifestPath, 'utf-8');
-      expect(() => JSON.parse(raw)).not.toThrow();
-    }
-
-    // Invariant: no stray `.tmp-*` files from atomic-write interruption.
-    const bkDir = join(project, '.slaminar', '.bk');
-    if (existsSync(bkDir)) {
-      const leftover = readdirSync(bkDir).filter((f) => f.includes('.tmp-'));
-      expect(leftover).toEqual([]);
-    }
-  });
-
-  // F6.b — init + concurrent uninstall
-  it('F6.b: init then concurrent uninstall — no crash, manifest consistent', async () => {
-    // Prime the project with a first init so uninstall has something to do.
-    const primeResult = await runCli(['init', '--no-ai', project], { cwd: tmp });
-    expect(primeResult.exitCode).toBe(0);
-
-    const [rInit, rUninstall] = await Promise.all([
-      runCli(['update', project], { cwd: tmp }),
-      runCli(['uninstall', project], { cwd: tmp }),
-    ]);
-    console.warn(
-      `[F6.b] update exit=${rInit.exitCode}, uninstall exit=${rUninstall.exitCode}`,
-    );
-
-    // Either order, but final state must not crash and manifest (if present)
-    // must still parse.
+    // Invariant: manifest (if present) still parses.
     const manifestPath = join(project, '.slaminar/.bk/manifest.json');
     if (existsSync(manifestPath)) {
       expect(() =>
         JSON.parse(readFileSync(manifestPath, 'utf-8')),
       ).not.toThrow();
     }
+
+    // Invariant: no leftover .tmp-* files from atomic-write interruption.
+    const bkDir = join(project, '.slaminar', '.bk');
+    if (existsSync(bkDir)) {
+      const leftover = readdirSync(bkDir).filter((f) => f.includes('.tmp-'));
+      expect(leftover).toEqual([]);
+    }
+
+    // Invariant: the project lock file is released (no orphan .lock entry).
+    const lockFile = join(project, '.slaminar', 'lockfile.lock');
+    expect(existsSync(lockFile)).toBe(false);
+  });
+
+  // F6.b — update + uninstall in parallel.
+  it('F6.b: parallel update + uninstall — lock serializes (no crash, exit 0 or busy)', async () => {
+    const primeResult = await runCli(['init', '--no-ai', project], { cwd: tmp });
+    expect(primeResult.exitCode).toBe(0);
+
+    const [rUpdate, rUninstall] = await Promise.all([
+      runCli(['update', project], { cwd: tmp }),
+      runCli(['uninstall', project], { cwd: tmp }),
+    ]);
+
+    // Lock semantics: either both run serially (exits 0 & 0 if fast enough
+    // that they don't contend) or one is rejected as busy (exit 1 with the
+    // lock message). Both outcomes are acceptable — what's NOT acceptable is
+    // a stack trace or an orphaned lock file.
+    for (const r of [rUpdate, rUninstall]) {
+      expect(r.stderr).not.toMatch(/ECONNREFUSED|TypeError|ReferenceError/);
+    }
+    const lockFile = join(project, '.slaminar', 'lockfile.lock');
+    expect(existsSync(lockFile)).toBe(false);
   });
 
   // F6.d — setup --yes × 2 writing defaults.json in parallel
