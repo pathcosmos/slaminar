@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { resolve as resolvePath } from 'node:path';
 import type { CatalogSource, RemoteCatalog } from '../types/index.js';
+import { SLAMINAR_VERSION } from '../version.js';
 
 export const DEFAULT_CATALOG_URL =
   'https://raw.githubusercontent.com/pathcosmos/slaminar/main/catalog/catalog.json';
@@ -91,6 +92,52 @@ export function validateCatalogSchema(data: unknown): data is RemoteCatalog {
     typeof obj.minSlaminarVersion === 'string' &&
     Array.isArray(obj.tools)
   );
+}
+
+/**
+ * v0.9.2 P0-8 (F8.a): compare a catalog's `minSlaminarVersion` against the
+ * installed slaminar version. Returns `true` if installed >= required.
+ *
+ * Pragmatic semver: splits on `.`, compares numeric segments left-to-right.
+ * Pre-release suffixes are not honored (uncommon for slaminar). This is a
+ * policy gate, not a full semver library — good enough to reject a catalog
+ * that declares `minSlaminarVersion: "99.0.0"` while we're on 0.9.2.
+ */
+export function meetsMinSlaminarVersion(
+  minVersion: string,
+  installedVersion: string = SLAMINAR_VERSION,
+): boolean {
+  const parse = (s: string): number[] =>
+    s
+      .split('-')[0] // strip -alpha, -beta, etc.
+      .split('.')
+      .map((n) => Number.parseInt(n, 10))
+      .map((n) => (Number.isFinite(n) ? n : 0));
+  const a = parse(installedVersion);
+  const b = parse(minVersion);
+  const len = Math.max(a.length, b.length);
+  for (let i = 0; i < len; i++) {
+    const x = a[i] ?? 0;
+    const y = b[i] ?? 0;
+    if (x > y) return true;
+    if (x < y) return false;
+  }
+  return true;
+}
+
+export class IncompatibleCatalogVersionError extends Error {
+  constructor(
+    public readonly minSlaminarVersion: string,
+    public readonly installedVersion: string,
+    public readonly sourceUri: string,
+  ) {
+    super(
+      `Catalog at ${sourceUri} requires slaminar >= ${minSlaminarVersion}, ` +
+        `but installed version is ${installedVersion}. Upgrade with ` +
+        `\`npm install -g slaminar@latest\` or use --no-catalog / a different source.`,
+    );
+    this.name = 'IncompatibleCatalogVersionError';
+  }
 }
 
 export async function fetchRemoteCatalog(

@@ -5,6 +5,53 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.2] — 2026-04-18
+
+### Added — QA Phase Q3 (Fault-Injection Matrix) + 5 P0 Fixes
+
+Phase Q3 injects faults from all 8 categories in `docs/qa/fault-matrix.md` — network timeouts, filesystem errors (EACCES, symlink loop, read-only HOME), corrupt config files (defaults.json / auth.json / manifest / catalog cache / plugin.json / team config), AI provider failures (401 / 429 / empty body / timeout), concurrency races, invalid CLI input, and version mismatches. Tests use local `node:http` stub servers and `vi.stubGlobal('fetch', …)` instead of mock-fs (per user decision).
+
+**New fault-injection suite:**
+- `tests/fault-injection/` — **47 tests / 1 skipped**, 7 files (network, ai-provider, fs, corrupt, input, version, concurrency)
+- `vitest.config.ts` E2E branch already included this dir; no config churn
+- MSW 2.13.4 added as devDependency (not currently used at runtime; stubs use `node:http` directly, but MSW is in place for future network-heavy scenarios)
+
+**P0 fixes (5, all with regression tests):**
+
+- **P0-6 (F7.f) — `fileCountCap` negative allowed in `--yes` mode** (`src/setup/wizard.ts:318-322`). `SLAMINAR_FILE_COUNT_CAP=-5 slaminar setup --yes` was persisting `-5` to `defaults.json`. The interactive wizard path already clamped via `Math.max(100, …)`; the env path now matches. 1-line fix.
+- **P0-7 (F7.c) — `--catalog-mode` validation missing in 4 places** (`src/cli.ts:123, 240, 571, 611` — init / recommend / discover / catalog update). The `catalog config` and `catalog source add` commands already validated this; others silently `as CatalogMode` cast any string. New `validateCatalogMode()` helper rejects anything outside `extend | replace` with exit 1 and an allowlist message.
+- **P0-8 (F8.a) — `minSlaminarVersion` was not honored** (`src/recommender/catalog-remote.ts`, `src/recommender/catalog-resolver.ts`). A catalog declaring `minSlaminarVersion: "99.0.0"` was silently consumed. New `meetsMinSlaminarVersion(min, installed?)` function performs a pragmatic semver-like compare (numeric segments, pre-release suffixes stripped). New `IncompatibleCatalogVersionError` class for future fatal paths. The resolver now warns and falls through to cache/bundled when the gate fails.
+- **P0-9 (F3.c) — corrupt manifest.json silently treated as "no backups"** (`src/placer/backup.ts`, `src/rollback/uninstaller.ts`, `src/cli.ts`). `readManifest()` returned `[]` on parse failure, indistinguishable from a fresh project with no backups — `slaminar uninstall` would report "complete" even though the user's original files might have been mid-overwrite. New `readManifestWithStatus()` returns `{ records, status: 'ok' | 'missing' | 'corrupt' }`; `UninstallResult.manifestCorrupt` surfaces this; CLI prints a red warning and exits 1 when corruption is detected.
+- **P0-10 (F2.a) — partial write failure in `writeTargets` silently swallowed** (`src/placer/writer.ts:29-35`). If one file in the plan failed EACCES but others succeeded, the CLI exited 0. Now any write failure triggers `throw` so the pipeline's rollback catch (P0-2 in v0.9.1) restores every session backup.
+
+### Changed
+
+- `src/setup/wizard.ts` — env-path `fileCountCap` now clamps via `Math.max(100, …)` matching interactive path
+- `src/cli.ts` — new `VALID_CATALOG_MODES` constant + `validateCatalogMode()` helper; 4 call sites updated (init / recommend / discover action / catalog update action)
+- `src/recommender/catalog-remote.ts` — imports `SLAMINAR_VERSION`; exports `meetsMinSlaminarVersion` and `IncompatibleCatalogVersionError`
+- `src/recommender/catalog-resolver.ts` — version check inserted between fetch and cache write; miss → warn + fall through to cache/bundled
+- `src/placer/backup.ts` — new `readManifestWithStatus()` + `ManifestStatus` type; original `readManifest` preserved for callers that don't need status
+- `src/rollback/uninstaller.ts` — `UninstallResult.manifestCorrupt` field; uses `readManifestWithStatus()`
+- `src/cli.ts` uninstall action — red warning + `process.exitCode = 1` when `manifestCorrupt`
+- `src/placer/writer.ts` — any error triggers `throw` (was: only thrown if all failed)
+- `docs/qa/fault-matrix.md` (new) — F1–F8 × commands sparse matrix with expected behavior per cell
+- `docs/qa/reports/phase-q3-exceptions.md` (new) — Phase Q3 report including P0 fix proofs, P1/P2 ticket list, F6 concurrency observations
+
+### Not Changed (deliberate)
+
+- F6 concurrency lock implementation is **not** in this release. Tests reproduce the race; the fix (file-based lock covering init / update / uninstall / catalog update) is P1-1, scheduled for v0.9.3 (Phase Q4).
+- Obs-Q3-2 (corrupt `.slaminar/config.json` → update falls back silently) is P1 and tracked for v0.9.3 alongside rollback atomicity work.
+- AI provider rate-limit retry / backoff remains out of scope — matrix F5.b is documented as intentional graceful fallback.
+- No changes to existing unit tests — P0 fixes are all additive on the behavior side; 365 unit tests still pass unchanged.
+
+### Stats
+
+- 65 source modules, 81 test files (+7 fault-injection, +1 concurrency), **472 tests** (365 unit + 60 E2E + 47 fault-injection) / 1 skipped (F2.c ENOSPC not portably simulable)
+- P0 issues surfaced: 5, all fixed here. P1 tickets: 2. P2 observations: 4.
+- Wall-time: `npm test` ~1.0s, `npm run test:e2e` ~12s (includes 10s F1.a timeout scenario), `test:all` ~13s on local macOS
+
+[0.9.2]: https://github.com/pathcosmos/slaminar/compare/v0.9.1...v0.9.2
+
 ## [0.9.1] — 2026-04-17
 
 ### Added — System-Level QA Foundations (Phase Q1+Q2) + 4 Critical Fixes

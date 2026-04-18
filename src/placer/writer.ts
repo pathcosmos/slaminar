@@ -26,8 +26,16 @@ export function writeTargets(root: string, targets: GenerationTarget[]): string[
     }
   }
 
-  if (errors.length > 0 && written.length === 0) {
-    throw new Error(`Failed to write any files:\n${errors.join('\n')}`);
+  // v0.9.2 P0-10 (F2.a): ANY write failure triggers rollback, not just
+  // "all failed". Previously a partial failure (e.g. EACCES on CLAUDE.md
+  // but success on plugin.json) was silently swallowed and the CLI exited
+  // 0, leaving the user with half-written state and no diagnostic. Now the
+  // pipeline's rollback catch (src/core/pipeline.ts:152) can restore the
+  // session backups for every partial-write case.
+  if (errors.length > 0) {
+    throw new Error(
+      `Failed to write ${errors.length}/${targets.length} file(s):\n${errors.join('\n')}`,
+    );
   }
 
   return written;

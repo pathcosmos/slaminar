@@ -1,6 +1,6 @@
 import { existsSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
-import { readManifest, restoreFile } from '../placer/backup.js';
+import { readManifestWithStatus, restoreFile } from '../placer/backup.js';
 import { loadTeamConfig, saveTeamConfig } from '../team/config.js';
 
 export interface UninstallResult {
@@ -9,6 +9,8 @@ export interface UninstallResult {
   deletedDirs: string[];
   /** v0.9.1 P0-2: files whose backup was missing, so restore was skipped. */
   missingBackups: string[];
+  /** v0.9.2 P0-9 (F3.c): true if manifest.json existed but was unreadable. */
+  manifestCorrupt: boolean;
 }
 
 export function uninstall(root: string): UninstallResult {
@@ -17,13 +19,19 @@ export function uninstall(root: string): UninstallResult {
     deletedFiles: [],
     deletedDirs: [],
     missingBackups: [],
+    manifestCorrupt: false,
   };
 
   // 1. Read backup manifest and restore each backup.
   // v0.9.1 P0-2: respect restoreFile()'s return value so we don't silently
-  // claim success when the backup blob is missing. Callers (e.g. CLI) can
-  // surface `missingBackups` to warn the user of partial restore.
-  const records = readManifest(root);
+  //   claim success when the backup blob is missing.
+  // v0.9.2 P0-9 (F3.c): distinguish "no manifest" from "corrupt manifest".
+  //   Previously both silently returned [] and uninstall reported success
+  //   even though the user's original files could be mid-overwrite.
+  const { records, status } = readManifestWithStatus(root);
+  if (status === 'corrupt') {
+    result.manifestCorrupt = true;
+  }
   for (const record of records) {
     const restored = restoreFile(root, record);
     if (restored) {

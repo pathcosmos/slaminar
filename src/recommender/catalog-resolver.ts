@@ -17,7 +17,7 @@
  */
 
 import { isCacheValid, loadSourceCache, saveSourceCache, DEFAULT_TTL_MS } from './catalog-cache.js';
-import { fetchCatalogBySource } from './catalog-remote.js';
+import { fetchCatalogBySource, meetsMinSlaminarVersion } from './catalog-remote.js';
 import { getCatalog } from './catalog.js';
 import { mergeCatalogStack, type MergeLayer } from './catalog-merger.js';
 import { loadEffectiveSources, makeCliAdhocSource, BUNDLED_SOURCE_ID } from './catalog-sources.js';
@@ -115,25 +115,37 @@ async function fetchSource(
         state: 'cache',
       };
     }
-    const entry: CatalogCacheEntry = {
-      fetchedAt: new Date().toISOString(),
-      sourceUrl: source.uri,
-      etag: result.etag,
-      catalog: result.catalog,
-    };
-    try { saveSourceCache(source.id, entry); } catch { /* non-fatal */ }
-    return {
-      source,
-      resolved: {
-        tools: result.catalog.tools,
-        relations: result.catalog.relations ?? [],
-        suggestions: result.catalog.suggestions ?? [],
-        source: 'remote',
-        version: result.catalog.version,
-        stale: false,
-      },
-      state: 'remote',
-    };
+    // v0.9.2 P0-8 (F8.a): honor minSlaminarVersion. Catalogs that require a
+    // newer slaminar than installed are skipped with a warning; we fall back
+    // to cache/bundled via the control-flow below.
+    if (!meetsMinSlaminarVersion(result.catalog.minSlaminarVersion)) {
+      if (!options.silent) {
+        console.warn(
+          `⚠ Catalog source '${source.id}' requires slaminar >= ${result.catalog.minSlaminarVersion} — skipping (upgrade with \`npm install -g slaminar@latest\`)`,
+        );
+      }
+      // fall through to cache/bundled fallback
+    } else {
+      const entry: CatalogCacheEntry = {
+        fetchedAt: new Date().toISOString(),
+        sourceUrl: source.uri,
+        etag: result.etag,
+        catalog: result.catalog,
+      };
+      try { saveSourceCache(source.id, entry); } catch { /* non-fatal */ }
+      return {
+        source,
+        resolved: {
+          tools: result.catalog.tools,
+          relations: result.catalog.relations ?? [],
+          suggestions: result.catalog.suggestions ?? [],
+          source: 'remote',
+          version: result.catalog.version,
+          stale: false,
+        },
+        state: 'remote',
+      };
+    }
   } catch {
     // Remote failed — try stale cache.
   }

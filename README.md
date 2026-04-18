@@ -1269,7 +1269,35 @@ Added `catalog config` command for persisting custom catalog URL and mode (exten
 
 **Cross-refs.** [CHANGELOG v0.9.1](./CHANGELOG.md#091--2026-04-17) · design plan: `harmonic-wishing-pumpkin.md` (System QA Strategy) · Phase Q1: [`docs/qa/current-state.md`](./docs/qa/current-state.md) · Phase Q2: [`docs/qa/reports/phase-q2-functional.md`](./docs/qa/reports/phase-q2-functional.md) · E2E: `tests/e2e/*.test.ts` (16 files, 60 tests).
 
-### Cross-Reference Index (v0.5 → v0.9.1)
+### Phase 20: Fault-Injection Matrix (v0.9.2)
+
+**Motivation.** Phase Q2 (v0.9.1) built E2E coverage for the happy path of every command, but failure modes were still largely unexplored: Phase Q1 's coverage matrix had F6 (concurrency) at zero coverage and F1 / F2 / F7 each with large gaps. Phase Q3 's job is to *inject* faults from every category (network timeout / FS permissions / corrupt config / invalid CLI input / AI provider failure / concurrency / version mismatch) and document how slaminar degrades in each. Because fault injection typically uncovers real bugs, the Phase is structured so identified P0s ship in the same release as the test infrastructure — proof sits next to bug.
+
+**Shipped.**
+- `tests/fault-injection/` (new) — 7 test files, **47 tests / 1 skipped**: `network.test.ts` (local `node:http` stub server), `ai-provider.test.ts` (`vi.stubGlobal('fetch')`), `fs.test.ts` (chmod 000 / symlink loop), `corrupt.test.ts` (direct bad-JSON writes), `input.test.ts`, `version.test.ts` (stub catalog with `minSlaminarVersion: "99.0.0"`), `concurrency.test.ts` (`Promise.all([runCli, runCli])`)
+- `docs/qa/fault-matrix.md` (new) — F1–F8 × affected commands matrix with expected exit code / stderr pattern / side-effect per cell
+- `docs/qa/reports/phase-q3-exceptions.md` (new) — Phase Q3 deliverables + P0 proofs + P1/P2 ticket list + F6 concurrency observations
+- **P0-6 (F7.f)** — `fileCountCap` negative value fix (`src/setup/wizard.ts:318-322`): env-path `--yes` mode now clamps via `Math.max(100, …)` matching the interactive path.
+- **P0-7 (F7.c)** — `--catalog-mode` validation helper (`src/cli.ts`): new `validateCatalogMode()` + 4 call sites (init / recommend / discover / catalog update) reject non-`extend`/`replace` values with exit 1.
+- **P0-8 (F8.a)** — `minSlaminarVersion` gate (`src/recommender/catalog-remote.ts`, `src/recommender/catalog-resolver.ts`): new `meetsMinSlaminarVersion()` + `IncompatibleCatalogVersionError`. Resolver warns and falls back when the catalog requires a newer slaminar than installed.
+- **P0-9 (F3.c)** — corrupt manifest surfaced (`src/placer/backup.ts`, `src/rollback/uninstaller.ts`, `src/cli.ts`): new `readManifestWithStatus()` distinguishes `ok` / `missing` / `corrupt`. `uninstall` prints a red warning and exits 1 when the manifest is unreadable, instead of silently claiming success.
+- **P0-10 (F2.a)** — partial write failure escalation (`src/placer/writer.ts`): any target write error now throws, so the pipeline's rollback catch (P0-2 from v0.9.1) restores every session backup instead of leaving the user with half-written state and exit 0.
+- MSW 2.13.4 added as devDependency for future network-heavy scenarios (Phase Q3 currently uses `node:http` stub servers + fetch stubbing, but MSW is in place).
+
+**Decisions.**
+
+- **D20.1 — Inject faults via local `node:http` stub servers + `vi.stubGlobal('fetch')`, not `mock-fs`.** Alternative: `mock-fs` or a full MSW-based suite. Rationale: per user decision at Phase Q3 kickoff, keep the tool chain small and POSIX-visible. Real HTTP listeners on ephemeral ports catch every real code path slaminar uses, and global-fetch stubbing exercises the AI provider endpoint whose URL is hardcoded. `mock-fs` has ESM compatibility friction with slaminar's setup; we avoid it entirely. Evidence: `tests/fault-injection/network.test.ts` stub server, `tests/fault-injection/ai-provider.test.ts` fetch stub.
+- **D20.2 — Ship P0 fixes in the same release as the tests that surfaced them.** Alternative: v0.9.2 infrastructure-only, v0.9.3 carries the fixes. Rationale: identical to D19.8 — the "buggy test → fix → passing test" chain is clearer when a reviewer can see both in one commit. Fixes are all small (1–15 lines each). Evidence: P0-6 through P0-10 above.
+- **D20.3 — `readManifestWithStatus()` as a new function, not a breaking change to `readManifest`.** Alternative: change `readManifest` return type to expose status. Rationale: `readManifest` is called from several sites that only need the records; forcing a struct return would churn unrelated call sites. The new function signals intent — only callers that care about integrity (uninstall) use it. Evidence: `src/placer/backup.ts` both functions coexist.
+- **D20.4 — `minSlaminarVersion` violation is a **warning + skip**, not a fatal error.** Alternative: throw `IncompatibleCatalogVersionError` immediately and abort. Rationale: slaminar's federation model has 6 source layers; one incompatible source shouldn't prevent usable catalogs from the other 5. The resolver logs the warning (so the user knows) and falls through to cache/bundled. The exception class is defined for future use cases where fatal semantics are needed. Evidence: `src/recommender/catalog-resolver.ts` fall-through branch after the `meetsMinSlaminarVersion` check.
+- **D20.5 — Writer partial failure → throw (rollback everything), not "best effort partial".** Alternative: continue writing remaining files on individual errors, report a partial-success result. Rationale: slaminar generates files that reference each other (CLAUDE.md references the plugin, the plugin references tools). "Partial init" is not a meaningful state — either all generated files exist consistently or none do. Rollback to the pre-init state via session backups is cleaner than asking the user to debug half-applied config. Evidence: `src/placer/writer.ts` new throw.
+- **D20.6 — F6 concurrency: reproduce + document, do NOT fix in v0.9.2.** Alternative: add `proper-lockfile` or a pid-lock in this release. Rationale: concurrency safety is a structural change touching init / update / uninstall / catalog update — four write paths with different lifecycle. Phase Q4 (v0.9.3) is scheduled to do rollback atomicity as a whole, and concurrency lock fits that theme. Q3 produces evidence (the three tests in `concurrency.test.ts`) and documentation, so Q4 can land with confidence. Evidence: `docs/qa/reports/phase-q3-exceptions.md` §5 + `tests/fault-injection/concurrency.test.ts`.
+- **D20.7 — ENOSPC test is skipped, not stubbed.** Alternative: simulate via `writeFileSync` overflow against a small quota-limited FS. Rationale: portable ENOSPC simulation on macOS / Linux without admin is not possible without dedicated mount points. Skipping with a comment (`it.skip`) is honest; the cell remains in the matrix documentation for OS-level reviewers. Evidence: `tests/fault-injection/fs.test.ts` F2.c marker.
+- **D20.8 — Keep the existing `readManifest` signature and behavior, add a new function rather than breaking callers.** Parallel to D20.3 — ossified in `_helpers.ts` reuse.
+
+**Cross-refs.** [CHANGELOG v0.9.2](./CHANGELOG.md#092--2026-04-18) · Phase Q3 report: [`docs/qa/reports/phase-q3-exceptions.md`](./docs/qa/reports/phase-q3-exceptions.md) · matrix: [`docs/qa/fault-matrix.md`](./docs/qa/fault-matrix.md) · tests: `tests/fault-injection/*.test.ts` (7 files, 47 tests).
+
+### Cross-Reference Index (v0.5 → v0.9.2)
 
 Every numbered decision above appears in three places — README (here), CHANGELOG (release notes), and design spec (when one exists). Decision IDs are **identical between `README.md` and `README.ko.md`** — use `grep -n "D14\.3" README*.md` to verify parity. File paths can be opened directly to audit claims; test files can be run in isolation with `npm test -- --run <path>`.
 
@@ -1329,6 +1357,14 @@ Every numbered decision above appears in three places — README (here), CHANGEL
 | D19.6 | `SkillUninstallResult.status` enum (not boolean) | v0.9.1 | same | `src/types/index.ts`, `src/skill/installer.ts` | `tests/e2e/skill.test.ts` |
 | D19.7 | `preAction` swallows update-check errors | v0.9.1 | same | `src/cli.ts:preAction` | `tests/e2e/rollback.test.ts` |
 | D19.8 | P0 fixes shipped in same release as QA infra | v0.9.1 | same | — | — |
+| D20.1 | Fault injection via `node:http` stubs + fetch stub (no mock-fs) | v0.9.2 | `harmonic-wishing-pumpkin.md` (QA) | `tests/fault-injection/_helpers.ts` | `tests/fault-injection/*.test.ts` |
+| D20.2 | P0 fixes ship with the tests that surfaced them | v0.9.2 | same | — | — |
+| D20.3 | `readManifestWithStatus` added alongside `readManifest` (no breaking change) | v0.9.2 | same | `src/placer/backup.ts` | `tests/fault-injection/corrupt.test.ts` |
+| D20.4 | `minSlaminarVersion` violation = warn + skip (not fatal) | v0.9.2 | same | `src/recommender/catalog-resolver.ts` | `tests/fault-injection/version.test.ts` |
+| D20.5 | Writer partial failure throws (pipeline rollback restores all) | v0.9.2 | same | `src/placer/writer.ts` | `tests/fault-injection/fs.test.ts` |
+| D20.6 | F6 concurrency: reproduce + document, fix in v0.9.3 (Phase Q4) | v0.9.2 | same | `tests/fault-injection/concurrency.test.ts` | same |
+| D20.7 | ENOSPC skipped (not portably simulable) | v0.9.2 | same | `tests/fault-injection/fs.test.ts` (it.skip) | — |
+| D20.8 | `catalog-mode` validated in 4 previously-raw-cast sites | v0.9.2 | same | `src/cli.ts:validateCatalogMode` | `tests/fault-injection/input.test.ts` |
 
 ### Quality Passes
 

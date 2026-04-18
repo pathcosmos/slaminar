@@ -45,6 +45,7 @@ import { SLAMINAR_VERSION } from './version.js';
 import Table from 'cli-table3';
 
 const VALID_TIERS: readonly TokenTier[] = ['conservative', 'smart', 'rich'];
+const VALID_CATALOG_MODES: readonly CatalogMode[] = ['extend', 'replace'];
 
 function resolveTokenTier(cliValue: string | undefined): TokenTier {
   if (cliValue) {
@@ -56,6 +57,20 @@ function resolveTokenTier(cliValue: string | undefined): TokenTier {
     return cliValue as TokenTier;
   }
   return loadDefaults().defaults.tokenTier ?? 'smart';
+}
+
+// v0.9.2 P0-7 (F7.c): validation for `--catalog-mode` on commands that previously
+// cast the value without checking. `catalog config` and `catalog source add`
+// already validated this; init/recommend/discover did not, so users could pass
+// arbitrary values and have them silently propagate downstream.
+function validateCatalogMode(cliValue: string | undefined): CatalogMode | undefined {
+  if (cliValue === undefined) return undefined;
+  if (!VALID_CATALOG_MODES.includes(cliValue as CatalogMode)) {
+    throw new Error(
+      `--catalog-mode must be one of: ${VALID_CATALOG_MODES.join(', ')} (got '${cliValue}')`,
+    );
+  }
+  return cliValue as CatalogMode;
 }
 
 const program = new Command();
@@ -120,7 +135,7 @@ program
       const tokenTier = resolveTokenTier(options.tokenTier);
 
       timer.start('Initializing');
-      const result = await init(targetPath, { dryRun: options.dryRun, useAi: options.ai, catalogUrl: options.catalog, catalogMode: options.catalogMode as CatalogMode | undefined, tokenTier });
+      const result = await init(targetPath, { dryRun: options.dryRun, useAi: options.ai, catalogUrl: options.catalog, catalogMode: validateCatalogMode(options.catalogMode), tokenTier });
       timer.end(`${result.writtenFiles.length} files written (${result.aiProvider.provider})`);
 
       if (result.aiProvider.available && options.ai !== false) {
@@ -237,7 +252,7 @@ program
       timer.end();
 
       timer.start('Recommending');
-      const plan = await recommend(profile, { catalogUrl: options.catalog, catalogMode: options.catalogMode as CatalogMode | undefined, projectRoot: targetPath, tokenTier });
+      const plan = await recommend(profile, { catalogUrl: options.catalog, catalogMode: validateCatalogMode(options.catalogMode), projectRoot: targetPath, tokenTier });
       timer.end(`${plan.recommended.length} tools recommended`);
 
       console.log(JSON.stringify(plan, null, 2));
@@ -343,6 +358,15 @@ program
       const targetPath = path ?? process.cwd();
       const result = uninstall(targetPath);
       console.log('\nslaminar uninstall complete\n');
+      // v0.9.2 P0-9 (F3.c): warn loudly if manifest was unreadable. This
+      // means we couldn't determine which files had backups, so nothing
+      // was restored even though `.slaminar/` got cleaned up.
+      if (result.manifestCorrupt) {
+        console.log(chalk.red('\n⚠ manifest.json was corrupt — no backups could be read.'));
+        console.log('  Original files (if any were modified by a prior `slaminar init`) were');
+        console.log('  NOT restored. Check git history or backups outside .slaminar/.bk/.\n');
+        process.exitCode = 1;
+      }
       if (result.restoredFiles.length > 0) {
         console.log('Restored:');
         for (const f of result.restoredFiles) console.log(`  ↩️  ${f}`);
@@ -553,7 +577,7 @@ program
         dryRun: options.dryRun ?? false,
         onlyNew: options.onlyNew,
         catalogUrl: options.catalog,
-        catalogMode: options.catalogMode as CatalogMode | undefined,
+        catalogMode: validateCatalogMode(options.catalogMode),
       });
 
       if (options.json) {
@@ -593,7 +617,7 @@ catalogCmd.command('update')
       if (oldCache) backupCache();
 
       console.log('\nFetching latest catalog...');
-      const resolved = await resolveCatalog({ forceRefresh: true, catalogUrl: options.catalog, catalogMode: options.catalogMode as CatalogMode | undefined, projectRoot: process.cwd() });
+      const resolved = await resolveCatalog({ forceRefresh: true, catalogUrl: options.catalog, catalogMode: validateCatalogMode(options.catalogMode), projectRoot: process.cwd() });
 
       if (resolved.source === 'bundled') {
         console.log(chalk.yellow('\n⚠ Remote fetch failed. Using bundled catalog.\n'));

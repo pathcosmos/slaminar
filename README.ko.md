@@ -1372,7 +1372,35 @@ CLAUDE.md 유효성 검증, plugin.json 스키마 검증, 터미널 컬러 테�
 
 **교차 링크.** [CHANGELOG v0.9.1](./CHANGELOG.md#091--2026-04-17) · 설계 계획: `harmonic-wishing-pumpkin.md` (System QA Strategy) · Phase Q1: [`docs/qa/current-state.md`](./docs/qa/current-state.md) · Phase Q2: [`docs/qa/reports/phase-q2-functional.md`](./docs/qa/reports/phase-q2-functional.md) · E2E: `tests/e2e/*.test.ts` (16 files, 60 tests).
 
-### 교차 참조 인덱스 (v0.5 → v0.9.1)
+### Phase 20: Fault-Injection Matrix (v0.9.2)
+
+**동기.** Phase Q2 (v0.9.1) 는 모든 커맨드의 happy path 에 대한 E2E 를 채웠지만, 실패 모드는 여전히 탐사 부족이었습니다. Phase Q1 의 커버리지 매트릭스에서 F6 (concurrency) 는 0%, F1 / F2 / F7 은 큰 갭. Phase Q3 의 역할은 모든 카테고리 — 네트워크 타임아웃 / FS 권한 / 손상 config / 잘못된 CLI 입력 / AI provider 실패 / 동시성 / 버전 불일치 — 에 대해 실제로 fault 를 **주입** 하고 slaminar 가 각 상황에서 어떻게 degrade 하는지 문서화. Fault injection 은 보통 실제 버그를 꺼내므로, Phase 를 "식별한 P0 는 테스트 인프라와 같은 릴리스에 fix" 구조로 구성 — 증거와 수정이 나란히.
+
+**산출물.**
+- `tests/fault-injection/` (신규) — 7 파일, **47 tests / 1 skipped**: `network.test.ts` (로컬 `node:http` stub server), `ai-provider.test.ts` (`vi.stubGlobal('fetch')`), `fs.test.ts` (chmod 000 / symlink loop), `corrupt.test.ts` (직접 bad-JSON 쓰기), `input.test.ts`, `version.test.ts` (stub catalog with `minSlaminarVersion: "99.0.0"`), `concurrency.test.ts` (`Promise.all([runCli, runCli])`)
+- `docs/qa/fault-matrix.md` (신규) — F1–F8 × 영향 커맨드 sparse 매트릭스 + 각 셀의 기대 exit code / stderr 패턴 / side-effect
+- `docs/qa/reports/phase-q3-exceptions.md` (신규) — Phase Q3 산출물 + P0 fix 증명 + P1/P2 티켓 + F6 concurrency 관찰
+- **P0-6 (F7.f)** — `fileCountCap` 음수 허용 fix (`src/setup/wizard.ts:318-322`): `--yes` env 경로가 이제 `Math.max(100, …)` 으로 clamp (인터랙티브 경로와 일치)
+- **P0-7 (F7.c)** — `--catalog-mode` validation helper (`src/cli.ts`): 신규 `validateCatalogMode()` + 4 call sites (init / recommend / discover / catalog update) 가 `extend | replace` 이외 값을 exit 1 로 거부
+- **P0-8 (F8.a)** — `minSlaminarVersion` 게이트 (`src/recommender/catalog-remote.ts`, `src/recommender/catalog-resolver.ts`): 신규 `meetsMinSlaminarVersion()` + `IncompatibleCatalogVersionError`. Resolver 가 카탈로그 요구 버전이 설치 버전보다 높으면 경고 + fallback
+- **P0-9 (F3.c)** — corrupt manifest 표면화 (`src/placer/backup.ts`, `src/rollback/uninstaller.ts`, `src/cli.ts`): 신규 `readManifestWithStatus()` 가 `ok` / `missing` / `corrupt` 구분. `uninstall` 이 manifest 읽을 수 없을 때 빨간 경고 + exit 1 (이전엔 silent "complete")
+- **P0-10 (F2.a)** — 부분 쓰기 실패 escalation (`src/placer/writer.ts`): 어떤 대상 파일이라도 쓰기 에러 시 throw → pipeline 의 rollback catch (v0.9.1 P0-2) 가 모든 session backup 복원. 이전엔 반쪽 상태 + exit 0
+- MSW 2.13.4 devDependency 추가 (Phase Q3 는 현재 `node:http` stub + fetch stub 사용, 향후 network-heavy 시나리오 대비)
+
+**의사결정.**
+
+- **D20.1 — Fault injection 은 로컬 `node:http` stub + `vi.stubGlobal('fetch')`, mock-fs 미도입.** 대안: `mock-fs` 또는 전면 MSW suite. 근거: Phase Q3 착수 시 사용자 결정에 따라 도구 체인 최소화, POSIX-visible 경로 유지. Ephemeral 포트의 실제 HTTP listener 가 slaminar 가 쓰는 실제 경로를 다 커버하고, 글로벌 fetch stub 은 하드코딩된 AI provider endpoint 를 exercise. `mock-fs` 는 slaminar 의 ESM 세팅과 호환성 마찰이 있어 완전 회피. 증거: `tests/fault-injection/network.test.ts` stub server, `tests/fault-injection/ai-provider.test.ts` fetch stub.
+- **D20.2 — P0 fix 를 해당 fix 를 surface 한 테스트와 같은 릴리스에 ship.** 대안: v0.9.2 는 인프라만, v0.9.3 에 fix. 근거: D19.8 과 동일 — "버그 테스트 → fix → 통과 테스트" 사슬이 한 커밋에 보이면 리뷰어가 즉시 이해. fix 들은 모두 작음 (1–15 줄). 증거: P0-6 ~ P0-10.
+- **D20.3 — `readManifestWithStatus()` 신규 함수로 도입, `readManifest` 는 breaking 없이 유지.** 대안: `readManifest` 반환 타입을 구조체로 변경. 근거: `readManifest` 는 여러 곳에서 records 만 필요로 함 — 구조체 반환 강제는 무관한 call site churn. 신규 함수가 의도 신호 — integrity 를 신경 쓰는 caller (uninstall) 만 사용. 증거: `src/placer/backup.ts` 두 함수 공존.
+- **D20.4 — `minSlaminarVersion` 위반은 **경고 + skip**, 즉시 fatal 아님.** 대안: `IncompatibleCatalogVersionError` throw + 중단. 근거: slaminar 의 federation 모델은 6 소스 레이어 — 하나 incompatible 하다고 나머지 5 개까지 막으면 안 됨. Resolver 가 경고 로그 (사용자에게 알림) 후 cache/bundled 로 fall through. Exception 클래스는 향후 fatal 필요 케이스용 예약. 증거: `src/recommender/catalog-resolver.ts` 의 `meetsMinSlaminarVersion` 체크 후 fall-through.
+- **D20.5 — Writer 부분 실패 → throw (전체 rollback), partial success 아님.** 대안: 개별 에러에도 나머지 파일 계속 쓰기 + partial-success 결과 보고. 근거: slaminar 가 생성하는 파일들은 서로 참조 (CLAUDE.md ↔ plugin ↔ tools) — "partial init" 은 의미 없는 상태. session 백업으로 init 이전 상태로 rollback 하는 편이 반쪽 config 디버그 요청보다 깔끔. 증거: `src/placer/writer.ts` 신규 throw.
+- **D20.6 — F6 concurrency: 재현 + 문서화, v0.9.2 에는 fix 안 함.** 대안: `proper-lockfile` 또는 pid-lock 을 이번에. 근거: concurrency 안전성은 init / update / uninstall / catalog update 네 쓰기 경로를 건드리는 구조 변경 — Phase Q4 (v0.9.3) 가 rollback atomicity 전반 담당이라 함께. Q3 는 증거 (concurrency.test.ts 3 tests) + 문서 생성, Q4 가 자신 있게 랜드. 증거: `docs/qa/reports/phase-q3-exceptions.md` §5 + `tests/fault-injection/concurrency.test.ts`.
+- **D20.7 — ENOSPC 는 skip, stub 하지 않음.** 대안: 작은 quota 마운트로 시뮬. 근거: macOS/Linux 에서 admin 없이 포터블 ENOSPC 시뮬은 전용 mount point 없이는 불가. 주석과 함께 `it.skip` 이 정직. OS 레벨 리뷰어를 위해 매트릭스 문서에는 셀 유지. 증거: `tests/fault-injection/fs.test.ts` F2.c.
+- **D20.8 — `catalog-mode` 를 4 개 raw-cast 사이트에서 validation.** D20.2 의 한 사례 — helper 로 통합.
+
+**교차 링크.** [CHANGELOG v0.9.2](./CHANGELOG.md#092--2026-04-18) · Phase Q3 보고서: [`docs/qa/reports/phase-q3-exceptions.md`](./docs/qa/reports/phase-q3-exceptions.md) · 매트릭스: [`docs/qa/fault-matrix.md`](./docs/qa/fault-matrix.md) · 테스트: `tests/fault-injection/*.test.ts` (7 files, 47 tests).
+
+### 교차 참조 인덱스 (v0.5 → v0.9.2)
 
 위의 번호 붙은 모든 의사결정은 3곳에 기록되어 있습니다 — README(여기), CHANGELOG(릴리스 노트), 설계 spec(있을 때). 의사결정 ID는 **`README.md`와 `README.ko.md`에서 동일** — `grep -n "D14\.3" README*.md`로 패리티 검증 가능. 파일 경로는 직접 열어 주장 감사 가능; 테스트 파일은 `npm test -- --run <path>`로 격리 실행.
 
@@ -1432,6 +1460,14 @@ CLAUDE.md 유효성 검증, plugin.json 스키마 검증, 터미널 컬러 테�
 | D19.6 | `SkillUninstallResult.status` enum (boolean 아님) | v0.9.1 | same | `src/types/index.ts`, `src/skill/installer.ts` | `tests/e2e/skill.test.ts` |
 | D19.7 | `preAction` 이 update-check 에러 삼킴 | v0.9.1 | same | `src/cli.ts:preAction` | `tests/e2e/rollback.test.ts` |
 | D19.8 | P0 fix 를 QA 인프라와 같은 릴리스에 묶음 | v0.9.1 | same | — | — |
+| D20.1 | Fault injection 은 `node:http` stub + fetch stub (mock-fs X) | v0.9.2 | `harmonic-wishing-pumpkin.md` (QA) | `tests/fault-injection/_helpers.ts` | `tests/fault-injection/*.test.ts` |
+| D20.2 | P0 fix 를 테스트와 같은 릴리스에 ship | v0.9.2 | same | — | — |
+| D20.3 | `readManifestWithStatus` 를 `readManifest` 와 공존 (breaking 없음) | v0.9.2 | same | `src/placer/backup.ts` | `tests/fault-injection/corrupt.test.ts` |
+| D20.4 | `minSlaminarVersion` 위반 = warn + skip (fatal 아님) | v0.9.2 | same | `src/recommender/catalog-resolver.ts` | `tests/fault-injection/version.test.ts` |
+| D20.5 | Writer 부분 실패 = throw (pipeline rollback 전체 복원) | v0.9.2 | same | `src/placer/writer.ts` | `tests/fault-injection/fs.test.ts` |
+| D20.6 | F6 concurrency: 재현 + 문서화, v0.9.3 Phase Q4 에서 fix | v0.9.2 | same | `tests/fault-injection/concurrency.test.ts` | same |
+| D20.7 | ENOSPC skip (포터블 시뮬 불가) | v0.9.2 | same | `tests/fault-injection/fs.test.ts` (it.skip) | — |
+| D20.8 | `catalog-mode` 를 4 개 raw-cast 사이트에서 validation | v0.9.2 | same | `src/cli.ts:validateCatalogMode` | `tests/fault-injection/input.test.ts` |
 
 ### 품질 개선 (3차례 리뷰)
 

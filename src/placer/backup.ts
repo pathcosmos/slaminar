@@ -61,6 +61,32 @@ export function readManifest(root: string): BackupRecord[] {
   }
 }
 
+/**
+ * v0.9.2 P0-9 (F3.c): expose manifest status so callers (uninstall) can tell
+ * "no backups" from "manifest exists but is unreadable". Previously both
+ * returned `[]` and the uninstaller silently claimed success — potential
+ * data loss if the user's original files had been overwritten.
+ */
+export type ManifestStatus = 'ok' | 'missing' | 'corrupt';
+
+export function readManifestWithStatus(root: string): {
+  records: BackupRecord[];
+  status: ManifestStatus;
+} {
+  const manifestPath = join(root, BK_DIR, MANIFEST_FILE);
+  if (!existsSync(manifestPath)) {
+    return { records: [], status: 'missing' };
+  }
+  try {
+    const data = readFileSync(manifestPath, 'utf-8');
+    const parsed = JSON.parse(data);
+    if (!Array.isArray(parsed)) return { records: [], status: 'corrupt' };
+    return { records: parsed, status: 'ok' };
+  } catch {
+    return { records: [], status: 'corrupt' };
+  }
+}
+
 export function writeManifest(root: string, records: BackupRecord[]): void {
   ensureBkDir(root);
   const manifestPath = join(root, BK_DIR, MANIFEST_FILE);

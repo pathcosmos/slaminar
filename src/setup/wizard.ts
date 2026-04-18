@@ -316,7 +316,10 @@ async function stepDefaults(
           ? process.env.SLAMINAR_EXCLUDE_AUTH_TOOLS !== 'false'
           : current.defaults.excludeAuthTools,
         fileCountCap: process.env.SLAMINAR_FILE_COUNT_CAP
-          ? parseInt(process.env.SLAMINAR_FILE_COUNT_CAP, 10) || current.defaults.fileCountCap
+          ? Math.max(
+              100,
+              parseInt(process.env.SLAMINAR_FILE_COUNT_CAP, 10) || current.defaults.fileCountCap,
+            )
           : current.defaults.fileCountCap,
         verbose: current.defaults.verbose,
         tokenTier:
