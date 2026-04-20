@@ -2,20 +2,22 @@
 
 > slaminar의 기본 카탈로그(`catalog/catalog.json`)에 등록된 도구들을 "무엇이고 언제 쓰나"의 관점에서 설명하는 큐레이션 인덱스입니다. 카탈로그 JSON에 들어가는 구조적 메타데이터(필드 스키마, 설치 명령)는 `docs/catalog-authoring-guide.md`를 보세요.
 
-## 이 문서의 범위 (v0.8.5)
+## 이 문서의 범위 (catalog v2.3.0, 85 tools)
 
-v0.8.5에서 이 문서는 **presentation 카테고리 10개를 모두 상세 기술**하고, 기존 다른 카테고리는 **대표 도구 1개씩**만 샘플로 채웠습니다. 나머지 도구의 상세 설명은 점진적으로 추가됩니다.
+v0.8.5에서 presentation 10종 상세화로 시작한 이 문서가, **2026-04-20 catalog v2.3.0 편입(55 → 85 tools)**을 반영하며 확장 중입니다.
 
 카테고리별 커버리지:
 
-- 완전: Presentation (10/10) ← NEW v0.8.5
-- 대표만: Token/Performance, Planning, Frontend, Testing, Memory, Analysis, Security, Quality, Team, Multi-Agent, DevOps, Database, Framework, Onboarding, Monitoring (각 1개씩)
+- 완전(10/10): Presentation
+- 상세화 진행: Token/Performance, Planning, Frontend, Testing, Memory, Analysis, Security, Quality, Team, Multi-Agent, DevOps, Database, Framework, Onboarding, Monitoring (대표 1개 + v2.3.0 추가분 선별 기술)
+- **신규 섹터(v2.3.0)**: Design & Assets (3), Docs (5), Diagrams (4), AI Infrastructure (2), Meta & Reference (4)
 
-전체 카탈로그 규모는 2026-04-17 기준 56개 도구이며, 이 문서는 그중 25개 전후를 다룹니다. 상세 항목이 없는 도구들도 `catalog.json`에는 완전한 메타데이터가 들어 있어 `slaminar init`의 추천 엔진은 정상 작동합니다.
+상세 항목이 없는 도구들도 `catalog.json`에는 완전한 메타데이터가 들어 있어 `slaminar init`의 추천 엔진은 정상 작동합니다. v2.3.0 편입 30개 도구의 전체 목록과 선발 기준은 `docs/catalog-noauth-candidates-2026-04.md`를 참고하세요.
 
 ## 목차
 
-- [Presentation (10)](#presentation) ← NEW v0.8.5
+- [v2.3.0 추가 도구 요약 (2026-04-20)](#v230-추가-도구-요약-2026-04-20)
+- [Presentation (10)](#presentation)
 - [Token/Performance](#tokenperformance)
 - [Planning](#planning)
 - [Frontend](#frontend)
@@ -31,7 +33,35 @@ v0.8.5에서 이 문서는 **presentation 카테고리 10개를 모두 상세 �
 - [Framework](#framework)
 - [Onboarding](#onboarding)
 - [Monitoring](#monitoring)
+- **NEW**: [Design & Assets](#design--assets)
+- **NEW**: [Docs](#docs)
+- **NEW**: [Diagrams](#diagrams)
+- **NEW**: [AI Infrastructure](#ai-infrastructure)
+- **NEW**: [Meta & Reference](#meta--reference)
 - [TODO — 이후 릴리스에서 확장](#todo--이후-릴리스에서-확장)
+
+---
+
+## v2.3.0 추가 도구 요약 (2026-04-20)
+
+2026-04-20 11-섹터 리서치에서 274개 후보 중 **인증 불필요 + 경량 설치**만 엄선한 30개.
+선발 기준: API 토큰/OAuth/벤더 계정 불필요, 설치 방식은 slaminar 공식 지원(`git-clone / npx / npm-global / pip / marketplace`)만.
+
+| 섹션 | 추가 | 상세(★) |
+|---|---|---|
+| Frontend | vercel-labs/agent-skills, angular/skills, remix-run/agent-skills, expo/skills | vercel-labs ★, angular ★ |
+| Design & Assets | style-dictionary, svgo, svgr | (신규 섹션) |
+| Backend/Fullstack | jeffallan/claude-skills, voltagent/awesome-claude-code-subagents | — |
+| Testing | cypress-mcp | — |
+| Security | socket-mcp | socket-mcp ★ |
+| AI Infrastructure | promptfoo, fastmcp | (신규 섹션) |
+| Docs | redoc, scalar, typedoc, changesets, readme-ai | redoc ★, scalar ★ |
+| Diagrams | mermaid-cli, mcp-mermaid, dbml-cli, likec4 | mermaid-cli ★ |
+| Planning | openspec, claude-task-master, bmad-method | openspec ★ |
+| Monitoring | ccusage | ccusage ★ |
+| Meta & Reference | awesome-claude-code, humanizer, alirezarezvani/claude-skills, karanb192/claude-code-hooks | awesome-claude-code ★, humanizer ★ |
+
+**★ 표시**: 이번 릴리스에서 전체 7-field 상세 기술 완료. 별 없는 항목은 TODO 목록에 편입되어 이후 릴리스에서 상세화.
 
 ---
 
@@ -241,11 +271,27 @@ cd presenton && docker compose up
 
 **예시 워크플로**: 기능 착수 → `spec-kit`으로 스펙 초안 → 승인 후 구현 → 완료 시 스펙과 diff 재확인.
 
-**관련 도구**: planning-with-files(synergy — 계획과 구현 파일을 같이 관리), get-shit-done(스펙 + 실행 결합).
+**관련 도구**: planning-with-files(synergy — 계획과 구현 파일을 같이 관리), get-shit-done(스펙 + 실행 결합), openspec(경량 대안), claude-task-master(PRD → 태스크 그래프 확장).
 
 **비고**: GitHub가 공식 유지. 새 프로젝트의 기본 계획 툴로 안전한 선택.
 
-> _이 카테고리의 나머지 도구들은 후속 릴리스에서 상세 기술 예정 (v0.8.6+)_
+### openspec
+
+**한 줄 요약**: spec-kit의 경량 대안 — 25+ 도구와 슬래시 커맨드로 구성된 spec-driven dev 툴킷.
+
+**사용 시점**: spec-kit이 무겁다고 느껴지거나, spec 구조를 더 단순하게(YAML/Markdown 중심) 관리하고 싶을 때. 41.4k★의 커뮤니티 검증이 있어 신뢰 가능.
+
+**설치**: `npm install -g @fission-ai/openspec`
+
+**선행조건**: Node ≥ 18
+
+**예시 워크플로**: `openspec init` → `/opsx:propose` 슬래시 커맨드로 제안 작성 → 팀 리뷰 후 `/opsx:implement`로 작업 파일 생성 → 구현.
+
+**관련 도구**: spec-kit(정식 대안), claude-task-master(synergy — 스펙 완성 후 태스크 분해), planning-with-files(파일 기반 계획).
+
+**비고**: `tags: ['spec-driven', 'planning', 'universal']`로 분류되어 universal 매칭. spec-kit와 동시 설치 시 conflict-detector가 overlap으로 표기하지만 winner는 지정하지 않음 — 팀 선호에 맡김.
+
+> _이 카테고리의 나머지 도구들(claude-task-master, bmad-method 포함)은 후속 릴리스에서 상세 기술 예정 (v0.8.6+)_
 
 ---
 
@@ -263,11 +309,43 @@ cd presenton && docker compose up
 
 **예시 워크플로**: Next.js 프로젝트에 설치 → Claude Code가 컴포넌트 작성 시 prop 설계·server/client 경계·a11y 속성을 자동 제안.
 
-**관련 도구**: impeccable(synergy — 디자인 시스템 규칙 + React 구현 패턴 조합).
+**관련 도구**: impeccable(synergy — 디자인 시스템 규칙 + React 구현 패턴 조합), vercel-labs/agent-skills(공식 Vercel 패턴), angular/skills(Angular 대체).
 
 **비고**: growing·mature 성숙도에 가장 효과 큼. greenfield에서는 먼저 컴포넌트 구조가 생긴 뒤 도입 권장.
 
-> _이 카테고리의 나머지 도구들은 후속 릴리스에서 상세 기술 예정 (v0.8.6+)_
+### vercel-labs/agent-skills
+
+**한 줄 요약**: Vercel 공식 에이전트 스킬 — React 베스트 프랙티스, 웹 디자인 가이드라인, 컴포지션 패턴, View Transitions.
+
+**사용 시점**: Next.js/React 프로젝트에서 Vercel 플랫폼의 공식 패턴(Server Actions, Middleware, Route Handlers, AI SDK)을 Claude가 일관되게 적용하길 원할 때. senior-frontend가 커뮤니티 기반이라면 이건 **벤더 공식**.
+
+**설치**: `git clone https://github.com/vercel-labs/agent-skills.git`
+
+**선행조건**: 없음
+
+**예시 워크플로**: Next.js 13+ 프로젝트에 스킬 설치 → Claude가 Server Action 작성 시 mutate/revalidate 패턴·Suspense 경계·Streaming 적용을 Vercel 공식 문서 기준으로 안내.
+
+**관련 도구**: senior-frontend(overlap — 커뮤니티 React 패턴 vs 벤더 공식), angular/skills(경쟁 프레임워크 공식 스킬), remix-run/agent-skills(같은 저자/생태계의 React Router 공식).
+
+**비고**: `tags: ['frontend', 'react', 'nextjs', 'vercel', 'skill-collection']`. v2.3.0 추가. Vercel 플랫폼 사용자에게는 사실상 필수, 그 외엔 senior-frontend가 더 범용적.
+
+### angular/skills
+
+**한 줄 요약**: Angular 팀이 공식 유지하는 Angular 개발 에이전트 스킬 (angular-developer, angular-new-app).
+
+**사용 시점**: Angular 14+ 프로젝트에서 Signal API, standalone components, new control flow 문법을 Claude가 최신 공식 권장대로 생성해야 할 때.
+
+**설치**: `git clone https://github.com/angular/skills.git`
+
+**선행조건**: 없음
+
+**예시 워크플로**: 신규 컴포넌트 요청 → `angular-developer` 스킬이 standalone + Signal 기반 템플릿 생성 → 레거시 NgModule 패턴 회피.
+
+**관련 도구**: senior-frontend(React 버전), vercel-labs/agent-skills(Next.js 버전), remix-run/agent-skills(React Router).
+
+**비고**: Angular 팀 공식 저장소라 프레임워크 진화와 동기화 보장. v16 이후 Signal·Deferrable view·Hydration 같은 최신 기능 반영.
+
+> _이 카테고리의 나머지 도구들(remix-run/agent-skills, expo/skills 포함)은 후속 릴리스에서 상세 기술 예정 (v0.8.6+)_
 
 ---
 
@@ -351,9 +429,25 @@ cd presenton && docker compose up
 
 **예시 워크플로**: 신규 API 엔드포인트 추가 → 스킬이 인증 우회·주입·권한 상승 벡터를 체크리스트로 점검.
 
-**관련 도구**: trailofbits/skills(synergy — 공식 감사 스킬과 pentest 스킬 보완).
+**관련 도구**: trailofbits/skills(synergy — 공식 감사 스킬과 pentest 스킬 보완), socket-mcp(공급망 취약점 동시 스캔).
 
 **비고**: growing·mature 성숙도. 보안 책임이 명확한 팀에서 효과.
+
+### socket-mcp
+
+**한 줄 요약**: npm, PyPI, cargo 의존성을 vuln/maintenance/license/malware 관점에서 스코어링하는 공급망 보안 MCP.
+
+**사용 시점**: `package.json`/`requirements.txt`/`Cargo.toml`에 새 의존성을 추가할 때, Claude가 자동으로 Socket 점수를 조회하여 "이 패키지 안전한가?"를 사전 판정하길 원할 때. Snyk/Dependabot의 Claude Code 네이티브 대안.
+
+**설치**: `npx -y @socketsecurity/mcp@latest`
+
+**선행조건**: Node ≥ 18
+
+**예시 워크플로**: 사용자 "axios 추가해줘" → Claude가 socket-mcp로 axios 최신 버전 조회 → 점수·CVE·메인테이너·라이선스 확인 → 문제 없으면 install, 문제 있으면 대안 제시.
+
+**관련 도구**: awesome-claude-skills-security(보안 리뷰 체크리스트와 결합), trailofbits/skills(코드 레벨 감사와 공급망 커버리지 조합).
+
+**비고**: 호스티드 엔드포인트(`https://mcp.socket.dev/`)는 인증 불필요 — 카탈로그에 포함된 이유. 고급 기능(프라이빗 레지스트리, 팀 라이선스 관리)은 유료 계정 필요하지만 기본 조회는 전부 무료.
 
 > _이 카테고리의 나머지 도구들은 후속 릴리스에서 상세 기술 예정 (v0.8.6+)_
 
@@ -527,11 +621,151 @@ cd presenton && docker compose up
 
 **예시 워크플로**: 설치 후 Claude Code 실행 → 상태 창에 실시간 토큰 카운트·세션 길이·모델별 누적 비용 표시 → 주간 리포트로 이상 패턴 발견.
 
-**관련 도구**: caveman(synergy 성격 — 토큰 절감 플러그인과 가시성 결합), everything-claude-code(같은 범주의 베스트 프랙티스 모음).
+**관련 도구**: caveman(synergy 성격 — 토큰 절감 플러그인과 가시성 결합), everything-claude-code(같은 범주의 베스트 프랙티스 모음), ccusage(CLI 기반 오프라인 분석 대안).
 
 **비고**: growing·mature 팀에서 비용 통제가 경영 이슈가 될 때 가장 가치 큼.
 
+### ccusage
+
+**한 줄 요약**: 로컬 세션 JSONL을 읽어 Claude Code/Codex 사용량과 비용을 CLI로 집계하는 도구.
+
+**사용 시점**: claude-hud가 실시간 dashboard면 ccusage는 **오프라인 포렌식** — 이번 달 토큰을 어느 프로젝트·어느 도구 호출·어느 세션에서 썼는지 사후에 파고들 때. 13.1k★로 커뮤니티 사실상 표준.
+
+**설치**: `npm install -g ccusage`
+
+**선행조건**: Node ≥ 18
+
+**예시 워크플로**: `ccusage daily` — 오늘의 모델별 비용 요약 → `ccusage sessions --detail` — 각 세션의 도구 호출 breakdown → 과다 세션 발견 시 원인 분석.
+
+**관련 도구**: claude-hud(실시간 보완), caveman(토큰 절감 정책), everything-claude-code(모범 사례).
+
+**비고**: **완전 오프라인** — 로컬 `~/.claude/projects/**/session.jsonl` 파일만 읽음. API 키·계정 불필요. 프라이버시 친화적.
+
 > _이 카테고리의 나머지 도구들은 후속 릴리스에서 상세 기술 예정 (v0.8.6+)_
+
+---
+
+## Design & Assets
+
+> v2.3.0에서 신설된 섹션. 디자인 토큰과 SVG/이미지 자산 파이프라인을 담당하는 CLI들로 구성됩니다. 전원 npm-global, Node ≥ 18만 있으면 바로 사용.
+
+현재 상세 기술된 도구 없음.
+
+> _style-dictionary, svgo, svgr의 상세 항목은 후속 릴리스에서 추가 예정._
+
+---
+
+## Docs
+
+> v2.3.0 신설. API 레퍼런스 생성, README 자동화, 체인지로그 관리 등 문서 파이프라인 도구.
+
+### redoc
+
+**한 줄 요약**: OpenAPI/Swagger 스펙을 아름다운 인터랙티브 레퍼런스 문서로 렌더링하는 CLI.
+
+**사용 시점**: REST API를 설계·배포 중이고, OpenAPI 스펙을 신뢰할 수 있는 단일 소스로 삼아 **사이드바·3열 레이아웃의 깔끔한 레퍼런스 페이지**를 자동 생성하고 싶을 때. Swagger UI보다 가독성 우수.
+
+**설치**: `npm install -g redoc-cli`
+
+**선행조건**: Node ≥ 18
+
+**예시 워크플로**: CI에서 `redoc-cli build openapi.yaml -o docs/api.html` → 정적 호스팅(S3/GitHub Pages)으로 배포 → 팀 공유.
+
+**관련 도구**: scalar(모던 대안, REST client 포함), typedoc(TypeScript 전용 대안), swagger-ui(같은 목적의 Swagger 공식 렌더러).
+
+**비고**: Redocly가 OSS와 SaaS(Redocly Cloud)로 분리되었는데, 이 CLI는 OSS 부분. 고급 기능(version history, try-it 패널)은 상용 제품에만 있음.
+
+### scalar
+
+**한 줄 요약**: 모던 OpenAPI 레퍼런스 + 내장 REST 클라이언트. Redoc보다 간결·인터랙티브 지향.
+
+**사용 시점**: 단순 레퍼런스 페이지를 넘어 **"문서 안에서 바로 API 호출"** 기능을 제공하고 싶을 때. 내장 REST 클라이언트로 사용자가 인증·요청을 문서 페이지에서 직접 테스트 가능.
+
+**설치**: `npm install -g @scalar/cli`
+
+**선행조건**: Node ≥ 18
+
+**예시 워크플로**: `scalar init` → `scalar preview` 로컬 서버 → OpenAPI 파일 변경 시 실시간 미리보기 → 배포.
+
+**관련 도구**: redoc(레이아웃 대안, 유지보수 오래된 코드베이스엔 더 안정), typedoc(TS 전용), postman(프라이빗 API 유료 대안).
+
+**비고**: 2024–2026 사이 빠르게 성장한 후발주자. UI/UX가 세련되어 SaaS 제품 랜딩 페이지에 쓰기 좋음.
+
+> _typedoc, changesets, readme-ai의 상세 항목은 후속 릴리스에서 추가 예정._
+
+---
+
+## Diagrams
+
+> v2.3.0 신설. "diagram as code" 도구 4종. Mermaid, DBML, LikeC4 등 텍스트 DSL 기반.
+
+### mermaid-cli
+
+**한 줄 요약**: Mermaid 공식 CLI — `.mmd` 다이어그램 스크립트를 SVG/PNG/PDF로 렌더.
+
+**사용 시점**: README의 Mermaid 블록을 정적 이미지로 변환해 GitHub이 아닌 문서 사이트에 embed하거나, CI에서 아키텍처 다이어그램을 빌드 산출물로 포함할 때.
+
+**설치**: `npm install -g @mermaid-js/mermaid-cli`
+
+**선행조건**: Node ≥ 18 (Puppeteer 내부 사용 — Chromium 자동 다운로드)
+
+**예시 워크플로**: `architecture.mmd` 편집 → `mmdc -i architecture.mmd -o architecture.svg` → 문서 사이트(VitePress/Docusaurus)에 포함.
+
+**관련 도구**: mcp-mermaid(AI 통합 MCP 대안), graphify(대규모 코드베이스용 지식 그래프), likec4(C4 모델 전용).
+
+**비고**: Puppeteer 기반이라 첫 실행 시 Chromium 약 300MB 다운로드. CI 환경에서는 캐싱 필수.
+
+> _mcp-mermaid, dbml-cli, likec4의 상세 항목은 후속 릴리스에서 추가 예정._
+
+---
+
+## AI Infrastructure
+
+> v2.3.0 신설. LLM eval, MCP 인프라, 에이전트 관측 도구.
+
+현재 상세 기술된 도구 없음.
+
+> _promptfoo, fastmcp의 상세 항목은 후속 릴리스에서 추가 예정._
+
+---
+
+## Meta & Reference
+
+> v2.3.0 신설. 큐레이티드 awesome 리스트, 스킬 컬렉션, 훅 라이브러리 등 **메타** 레퍼런스.
+
+### awesome-claude-code
+
+**한 줄 요약**: hesreallyhim이 유지하는 Claude Code 생태계의 캐노니컬 awesome 리스트 (39.8k★).
+
+**사용 시점**: "뭐가 있는지 모를 때" — 스킬/훅/슬래시 커맨드/에이전트/플러그인 전 영역을 한 곳에서 확인하고 싶을 때. slaminar 카탈로그가 "검증된 추천"이라면 이건 "거대한 가능성의 지도".
+
+**설치**: `git clone https://github.com/hesreallyhim/awesome-claude-code.git`
+
+**선행조건**: 없음
+
+**예시 워크플로**: 프로젝트 초기 → `awesome-claude-code` 로컬 clone → `README.md` 카테고리별 훑어보기 → 관심 도구 1-2개 추린 뒤 slaminar 카탈로그에 이미 있는지 확인 → 없으면 직접 설치·평가.
+
+**관련 도구**: alirezarezvani/claude-skills(스킬 마켓플레이스 대안), voltagent/awesome-claude-code-subagents(서브에이전트 특화 리스트).
+
+**비고**: **reference 성격** — 실행 가능한 툴이 아니라 링크 모음집. 그래서 `category: skill`로 분류되었지만 실제로는 디렉토리 브라우징 자료. 주간 업데이트 활발.
+
+### humanizer
+
+**한 줄 요약**: AI 글쓰기의 특유한 톤(em-dash, 과도한 격식, 상투적 표현)을 제거하는 스킬 (14.6k★).
+
+**사용 시점**: Claude가 생성한 문서·README·블로그 초안이 너무 "AI스러워서" 사람이 쓴 것처럼 톤을 정제하고 싶을 때. 고객 대응 이메일·외부 커뮤니케이션·마케팅 카피처럼 톤이 중요한 텍스트에 적용.
+
+**설치**: `git clone https://github.com/blader/humanizer.git`
+
+**선행조건**: 없음
+
+**예시 워크플로**: Claude가 블로그 포스트 초안 작성 → humanizer 스킬 호출 → "moreover", "furthermore", "in essence" 같은 패턴·과도한 em-dash·수동태를 줄이고 자연스러운 문장으로 재작성.
+
+**관련 도구**: caveman(같은 철학의 "간결함 강제" 대안, 코드 응답에 초점), everything-claude-code(베스트 프랙티스 일반).
+
+**비고**: 인간이 쓴 텍스트의 진짜 특징을 코드화한 것이 아니라 **AI 텍스트의 고유 마커를 제거**하는 접근. 부작용으로 **지나치게 격식 있는 원문도 비격식적으로** 바뀔 수 있어 기술 문서에는 주의.
+
+> _alirezarezvani/claude-skills, karanb192/claude-code-hooks의 상세 항목은 후속 릴리스에서 추가 예정._
 
 ---
 
@@ -605,6 +839,7 @@ cd presenton && docker compose up
 - apollographql/skills
 - rafaelkamimura/claude-tools
 - claude-elixir-phoenix
+- jeffallan/claude-skills *(v2.3.0 신규)*
 
 ### Onboarding
 
@@ -618,6 +853,47 @@ cd presenton && docker compose up
 
 - call-me (notification)
 - claude-code-lsps (LSP 통합)
+
+### v2.3.0 신규 — 상세 기술 대기 중 (20)
+
+다음은 catalog v2.3.0에서 편입됐지만 위의 `★` 상세 섹션에 아직 포함되지 않은 도구들입니다. 순차적으로 7-필드 형식으로 채워나갈 예정.
+
+**Frontend**
+- remix-run/agent-skills
+- expo/skills
+
+**Design & Assets**
+- style-dictionary
+- svgo
+- svgr
+
+**Backend/Fullstack**
+- voltagent/awesome-claude-code-subagents *(Multi-Agent 섹션에 배치 가능)*
+
+**Testing**
+- cypress-mcp
+
+**AI Infrastructure**
+- promptfoo
+- fastmcp
+
+**Docs**
+- typedoc
+- changesets
+- readme-ai
+
+**Diagrams**
+- mcp-mermaid
+- dbml-cli
+- likec4
+
+**Planning**
+- claude-task-master
+- bmad-method
+
+**Meta & Reference**
+- alirezarezvani/claude-skills
+- karanb192/claude-code-hooks
 
 ---
 
