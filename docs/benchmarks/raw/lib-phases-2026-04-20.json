@@ -1,0 +1,96 @@
+{
+  "warmup": 3,
+  "runs": 15,
+  "results": [
+    {
+      "fixture": "small",
+      "phase": "scan",
+      "label": "scan(small)",
+      "n": 15,
+      "mean": 0.2874138666666667,
+      "stddev": 0.04617178815087041,
+      "min": 0.2451250000000016,
+      "max": 0.4099579999999996
+    },
+    {
+      "fixture": "small",
+      "phase": "analyze",
+      "label": "analyze(small)",
+      "n": 15,
+      "mean": 0.27094706666666707,
+      "stddev": 0.03195547233358032,
+      "min": 0.2236250000000055,
+      "max": 0.32133300000000276
+    },
+    {
+      "fixture": "small",
+      "phase": "recommend",
+      "label": "recommend(small)",
+      "n": 10,
+      "mean": 0.6847165999999845,
+      "stddev": 0.2872041531657211,
+      "min": 0.34745800000001736,
+      "max": 1.0993330000000014
+    },
+    {
+      "fixture": "medium",
+      "phase": "scan",
+      "label": "scan(medium)",
+      "n": 15,
+      "mean": 2.134630533333317,
+      "stddev": 0.256751669029,
+      "min": 1.8740420000000313,
+      "max": 2.761291999999912
+    },
+    {
+      "fixture": "medium",
+      "phase": "analyze",
+      "label": "analyze(medium)",
+      "n": 15,
+      "mean": 2.247477733333335,
+      "stddev": 0.15424976283265518,
+      "min": 2.0450409999999692,
+      "max": 2.5227919999999813
+    },
+    {
+      "fixture": "medium",
+      "phase": "recommend",
+      "label": "recommend(medium)",
+      "n": 10,
+      "mean": 0.1972417000000064,
+      "stddev": 0.05640358943018743,
+      "min": 0.16200000000003456,
+      "max": 0.32749999999998636
+    },
+    {
+      "fixture": "large",
+      "phase": "scan",
+      "label": "scan(large)",
+      "n": 15,
+      "mean": 13.566777733333357,
+      "stddev": 0.4920940138792663,
+      "min": 12.83704200000011,
+      "max": 14.25004100000001
+    },
+    {
+      "fixture": "large",
+      "phase": "analyze",
+      "label": "analyze(large)",
+      "n": 15,
+      "mean": 13.491472199999968,
+      "stddev": 1.1364205456899328,
+      "min": 12.292292000000089,
+      "max": 16.37391700000012
+    },
+    {
+      "fixture": "large",
+      "phase": "recommend",
+      "label": "recommend(large)",
+      "n": 10,
+      "mean": 0.1761455999999953,
+      "stddev": 0.08161397968516358,
+      "min": 0.1248329999998532,
+      "max": 0.4049160000001848
+    }
+  ]
+}

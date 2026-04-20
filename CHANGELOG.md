@@ -5,6 +5,61 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.4] — 2026-04-20
+
+### Added — QA Phase Q5 (Performance Baseline) — measurement-only release
+
+Phase Q5 establishes a numerical performance baseline for regression detection. No code paths change; this release is infrastructure + documentation.
+
+**Dependency-free benchmark runners (hyperfine not required):**
+- `scripts/bench-cli.mjs` — CLI wall-time. Spawns `node dist/cli.js init --dry-run <fixture>` via `spawnSync`, times with `performance.now()`. 3 fixtures × 3 tiers × n=8 = 72 runs + warmup. Emits JSON + Markdown to `docs/benchmarks/raw/cli-wall-time-<date>.{json,md}`.
+- `scripts/bench-lib.mjs` — per-phase breakdown. Imports `dist/core/scanner.js`, `dist/core/pipeline.js`, `dist/recommender/recommender.js` and measures `scan` / `analyze` / `recommend` in-process (Node-startup cost excluded). Emits JSON + MD to `docs/benchmarks/raw/lib-phases-<date>.{json,md}`.
+- `tests/bench/pipeline-phases.bench.ts` — vitest bench equivalent kept for future use. vitest 3.x bench summary is unstable with `describe.each` + `bench`; primary measurement goes through `scripts/` for now.
+- `package.json` scripts: `bench:cli`, `bench:lib`, `bench`.
+
+**Baseline established (v0.9.4):**
+
+CLI wall-time (subprocess, incl. Node startup):
+- small (20 files): 102–104ms
+- medium (500 files): 105–107ms
+- large (5000 files): 121–124ms
+- Tier choice affects wall-time by < 2ms (post-recommend filter, no I/O impact)
+
+Per-phase library breakdown (pipeline only):
+- scan: ~3µs per file — 287µs (small) / 2.1ms (medium) / 13.6ms (large)
+- analyze ≈ scan (5 analyzers measured as near-zero additional cost)
+- recommend: 685µs cold (first catalog read), 176–197µs warm
+
+**Top 3 bottlenecks identified:**
+1. **Node.js startup + module load** — ~85% of CLI wall-time (~90ms out of ~100ms). P2. Candidates: esbuild single-bundle, bun compile, Node compile-cache.
+2. **scan file-tree walk** — linear 3µs/file. P2 for large monorepos. Candidates: `fs.readdir({ recursive, withFileTypes })` + promise-batch.
+3. **recommend cold catalog load** — +500µs one-shot. P3 (no effect in current per-invocation CLI model; memoize would matter only if batch apply moves in-process).
+
+**Regression contract:**
+- Each release runs `npm run bench` and compares raw/ output against `docs/benchmarks/2026-04-20-baseline.md`
+- > 10% regression flags the release commit with a rationale
+- Baseline file is dated; intentional architecture changes add a new dated baseline rather than overwriting
+
+### Documentation
+
+- `docs/benchmarks/2026-04-20-baseline.md` (new) — method, full tables, Top 3, regression contract, macOS-local caveat
+- `docs/qa/reports/phase-q5-performance.md` (new) — Phase Q5 deliverables, key numbers, bottleneck analysis
+- `docs/benchmarks/raw/` (new dir) — auto-generated raw results by date
+
+### Not Changed (deliberate)
+
+- **Zero source code changes** — no P0s surfaced in Q5. Current wall-time (100–130ms) is well within user-comfortable range.
+- **No catalog update optimization** — HOME-scope cache contention is a P2 item from Q4 (Obs-Q4-1), not touched here.
+- **vitest bench integration** — `tests/bench/` exists and can be run manually with `npx vitest bench` but is not in default scripts due to vitest 3.x output instability for our fixture-based test shape.
+
+### Stats
+
+- 66 source modules (unchanged), 81 test files + 1 bench file, **475 tests / 1 skipped** (no test changes)
+- 3 new scripts (`scripts/bench-{cli,lib}.mjs`, `tests/bench/pipeline-phases.bench.ts`)
+- Wall-time unchanged: `npm test` ~1.0s, `npm run test:e2e` ~12s. Add `npm run bench` ~3min (CLI × 72 runs is the bulk).
+
+[0.9.4]: https://github.com/pathcosmos/slaminar/compare/v0.9.3...v0.9.4
+
 ## [0.9.3] — 2026-04-18
 
 ### Added — QA Phase Q4 (Rollback Integrity) + File Lock for Concurrency

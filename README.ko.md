@@ -1438,7 +1438,41 @@ CLAUDE.md 유효성 검증, plugin.json 스키마 검증, 터미널 컬러 테�
 
 **교차 링크.** [CHANGELOG v0.9.3](./CHANGELOG.md#093--2026-04-18) · Phase Q4 보고서: [`docs/qa/reports/phase-q4-rollback.md`](./docs/qa/reports/phase-q4-rollback.md) · 테스트: `tests/e2e/rollback.test.ts`, `tests/fault-injection/concurrency.test.ts`.
 
-### 교차 참조 인덱스 (v0.5 → v0.9.3)
+### Phase 22: Performance Baseline (v0.9.4)
+
+**동기.** v0.9.3 까지 slaminar 는 475 tests (unit / E2E / fault-injection) 의 QA 커버리지를 쌓았지만, 성능 regression 에 대한 **수치 floor 는 부재**. 선의의 변경이 init wall-time 을 2 배로 만들어도 사용자 제보 전까지 모를 수 있음. Phase Q5 는 baseline 을 세우고 병목을 식별해 이후 릴리스를 regression 에 대해 gate.
+
+**산출물.**
+- `scripts/bench-cli.mjs` (신규) — 의존성 없는 CLI wall-time 러너. `spawnSync` + `performance.now()`. 3 fixture × 3 tier × n=8 = 72 runs + warmup. JSON + Markdown 을 `docs/benchmarks/raw/` 에 저장
+- `scripts/bench-lib.mjs` (신규) — library 레벨 phase 분해. `dist/core/scanner.js` / `dist/core/pipeline.js` / `dist/recommender/recommender.js` 를 직접 import. Node 시작 비용 제외 → phase 별 기여 가시화
+- `tests/bench/pipeline-phases.bench.ts` (신규) — `vitest bench` 버전. 유지하되 주 측정은 scripts/ 사용 (vitest 3.x 의 `describe.each + bench` summary 가 불안정)
+- `docs/benchmarks/2026-04-20-baseline.md` (신규) — 날짜 기반 baseline (방법 + 전체 표 + Top 3 병목 + regression 계약)
+- `docs/qa/reports/phase-q5-performance.md` (신규) — Phase 요약
+- `package.json` scripts: `bench:cli`, `bench:lib`, `bench`
+
+**핵심 수치 (v0.9.4 baseline):**
+
+| 측정 | small (20) | medium (500) | large (5000) |
+|---|---|---|---|
+| CLI wall-time | 102–104ms | 105–107ms | 121–124ms |
+| scan | 287µs | 2.1ms | 13.6ms |
+| analyze (scan + 5 analyzers) | 271µs | 2.2ms | 13.5ms |
+| recommend (warm) | ~200µs | ~200µs | ~180µs |
+
+**Top 3 병목**: (1) Node.js 시작 + 모듈 로드 (CLI wall-time 의 ~85%), (2) `scan` 파일 트리 walk (선형 3µs/file), (3) `recommend` cold catalog load (+500µs 1회). **모두 P2/P3 — P0 없음**. 이 릴리스는 소스 코드 변경 0.
+
+**의사결정.**
+
+- **D22.1 — Benchmark 러너는 의존성 없는 스크립트, hyperfine 아님.** 대안: `brew install hyperfine` 개발 전제 요구. 근거: slaminar 는 cross-platform 이며 `npm install -g` 로 설치. 별도 바이너리 설치 요구는 마찰. `spawnSync` + `performance.now()` 로 동일 측정 (mean / stddev / min / max over N) + 어디서나 실행 가능. 증거: `scripts/bench-cli.mjs`, `scripts/bench-lib.mjs`.
+- **D22.2 — 2 레이어 러너: CLI + library.** 대안: 단일 러너. 근거: CLI wall-time 은 Node 시작이 dominant (~90ms/100ms) 라 pipeline regression 판별 불가. Library 러너가 TS 코드만 측정 (import from dist/) → Node 시작이 iteration 에 amortize. 둘 다 필요. 증거: `scripts/bench-cli.mjs` vs `scripts/bench-lib.mjs`.
+- **D22.3 — Raw 결과는 `docs/benchmarks/raw/` 에 commit.** 대안: gitignore. 근거: baseline 은 계약, raw 는 증거. Commit (릴리스당 ~10KB) 하면 향후 리뷰어가 bisect 시 재실행 없이 비교 가능. 파일명 타임스탬프로 덮어쓰기 방지. 증거: `docs/benchmarks/raw/*.{json,md}`.
+- **D22.4 — Baseline 은 날짜 파일, 덮어쓰기 아님.** 대안: 단일 `baseline.md` 를 릴리스마다 갱신. 근거: baseline 히스토리 자체가 유용 — "v0.9.4: 100ms / v1.2.0: 60ms / v2.0.0: 40ms" 스토리. 의도된 architecture win 은 역사 마커 가치 있음. 증거: `docs/benchmarks/2026-04-20-baseline.md` 가 시리즈 첫 번째.
+- **D22.5 — 이번 릴리스에 코드 변경 0.** 대안: micro-optimization 하나라도 동봉 (예: `fs.readdir` batching). 근거: D20.2 / D21.x 의 "fix-with-the-test" 패턴은 실제 P0 가 있을 때만 의미. Q5 는 P0 발견 없음. 추측성 최적화를 넣으면 baseline 첫 측정에 두 변수 (방법론 + 코드 변경) 가 섞임. Pure-infrastructure 릴리스가 baseline 청결 유지. 증거: CHANGELOG "Not Changed".
+- **D22.6 — vitest bench 유지하되 주 측정 아님.** 대안: `tests/bench/*.bench.ts` 제거. 근거: vitest bench 통합은 3.x+ 에서 안정화 예상; scaffolding 유지 저렴. 향후 전환 시 `package.json:bench:lib` 한 줄 변경. 스크립트 기반 선택한 이유는 `describe.each + bench` 가 "NaNx faster" summary artifact 를 만들었기 때문 — 우회가 아니라 버그. 증거: `tests/bench/pipeline-phases.bench.ts` 유지, `package.json:bench:lib` 는 `scripts/bench-lib.mjs` 를 가리킴.
+
+**교차 링크.** [CHANGELOG v0.9.4](./CHANGELOG.md#094--2026-04-20) · [baseline](./docs/benchmarks/2026-04-20-baseline.md) · [Phase Q5 보고서](./docs/qa/reports/phase-q5-performance.md) · [raw data](./docs/benchmarks/raw/).
+
+### 교차 참조 인덱스 (v0.5 → v0.9.4)
 
 위의 번호 붙은 모든 의사결정은 3곳에 기록되어 있습니다 — README(여기), CHANGELOG(릴리스 노트), 설계 spec(있을 때). 의사결정 ID는 **`README.md`와 `README.ko.md`에서 동일** — `grep -n "D14\.3" README*.md`로 패리티 검증 가능. 파일 경로는 직접 열어 주장 감사 가능; 테스트 파일은 `npm test -- --run <path>`로 격리 실행.
 
@@ -1514,6 +1548,12 @@ CLAUDE.md 유효성 검증, plugin.json 스키마 검증, 터미널 컬러 테�
 | D21.6 | R9 (disk full) 는 skip 유지 — D20.7 과 동일 | v0.9.3 | same | `tests/fault-injection/fs.test.ts:F2.c` | — |
 | D21.7 | `catalog update` 는 unlocked (HOME-scope, 연기) | v0.9.3 | same | — | — |
 | D21.8 | `teamConfigCorrupt` 는 경고, hard fail 아님 | v0.9.3 | same | `src/team/config.ts:loadTeamConfigWithStatus`, `src/cli.ts` | `tests/fault-injection/corrupt.test.ts:F3.f` |
+| D22.1 | Benchmark 러너는 의존성 없는 스크립트 (hyperfine X) | v0.9.4 | `harmonic-wishing-pumpkin.md` (QA) | `scripts/bench-{cli,lib}.mjs` | `docs/benchmarks/raw/` |
+| D22.2 | 2 레이어 러너 (CLI wall-time + library phase breakdown) | v0.9.4 | same | same | same |
+| D22.3 | Raw 결과는 `docs/benchmarks/raw/` 에 commit | v0.9.4 | same | `docs/benchmarks/raw/` | — |
+| D22.4 | Baseline 은 날짜 파일, 덮어쓰기 아님 | v0.9.4 | same | `docs/benchmarks/2026-04-20-baseline.md` | — |
+| D22.5 | 이번 릴리스에 코드 변경 0 — pure infrastructure | v0.9.4 | same | — | — |
+| D22.6 | vitest bench 유지하되 주 측정 아님 | v0.9.4 | same | `tests/bench/pipeline-phases.bench.ts` | — |
 
 ### 품질 개선 (3차례 리뷰)
 

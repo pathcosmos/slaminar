@@ -1,0 +1,96 @@
+{
+  "warmup": 2,
+  "runs": 8,
+  "results": [
+    {
+      "fixture": "small",
+      "tier": "conservative",
+      "scenario": "init --dry-run --no-ai --token-tier conservative (small)",
+      "n": 8,
+      "mean": 104.35402600000003,
+      "stddev": 1.139858479767857,
+      "min": 102.79750000000013,
+      "max": 105.86712499999999
+    },
+    {
+      "fixture": "small",
+      "tier": "smart",
+      "scenario": "init --dry-run --no-ai --token-tier smart (small)",
+      "n": 8,
+      "mean": 102.87860924999995,
+      "stddev": 0.8395689004779947,
+      "min": 101.36029199999984,
+      "max": 104.01129200000014
+    },
+    {
+      "fixture": "small",
+      "tier": "rich",
+      "scenario": "init --dry-run --no-ai --token-tier rich (small)",
+      "n": 8,
+      "mean": 101.70579162499996,
+      "stddev": 1.0105059207178124,
+      "min": 100.72833300000002,
+      "max": 104.13658299999997
+    },
+    {
+      "fixture": "medium",
+      "tier": "conservative",
+      "scenario": "init --dry-run --no-ai --token-tier conservative (medium)",
+      "n": 8,
+      "mean": 107.11431249999987,
+      "stddev": 1.1457545638911215,
+      "min": 105.35079200000018,
+      "max": 108.72149999999965
+    },
+    {
+      "fixture": "medium",
+      "tier": "smart",
+      "scenario": "init --dry-run --no-ai --token-tier smart (medium)",
+      "n": 8,
+      "mean": 107.00766137499988,
+      "stddev": 1.7949446593193061,
+      "min": 103.61783300000025,
+      "max": 110.003917
+    },
+    {
+      "fixture": "medium",
+      "tier": "rich",
+      "scenario": "init --dry-run --no-ai --token-tier rich (medium)",
+      "n": 8,
+      "mean": 105.29731762500012,
+      "stddev": 0.6071913908222272,
+      "min": 104.47204099999999,
+      "max": 106.21454200000062
+    },
+    {
+      "fixture": "large",
+      "tier": "conservative",
+      "scenario": "init --dry-run --no-ai --token-tier conservative (large)",
+      "n": 8,
+      "mean": 124.25536962499996,
+      "stddev": 2.6338891518426664,
+      "min": 122.12287499999911,
+      "max": 130.81304100000125
+    },
+    {
+      "fixture": "large",
+      "tier": "smart",
+      "scenario": "init --dry-run --no-ai --token-tier smart (large)",
+      "n": 8,
+      "mean": 123.4245414999998,
+      "stddev": 1.7465962368832522,
+      "min": 120.71212500000001,
+      "max": 126.06875000000036
+    },
+    {
+      "fixture": "large",
+      "tier": "rich",
+      "scenario": "init --dry-run --no-ai --token-tier rich (large)",
+      "n": 8,
+      "mean": 121.15263025000013,
+      "stddev": 1.1720845133058597,
+      "min": 118.7718330000007,
+      "max": 122.68445799999972
+    }
+  ]
+}

@@ -1335,7 +1335,41 @@ Added `catalog config` command for persisting custom catalog URL and mode (exten
 
 **Cross-refs.** [CHANGELOG v0.9.3](./CHANGELOG.md#093--2026-04-18) · Phase Q4 report: [`docs/qa/reports/phase-q4-rollback.md`](./docs/qa/reports/phase-q4-rollback.md) · tests: `tests/e2e/rollback.test.ts`, `tests/fault-injection/concurrency.test.ts`.
 
-### Cross-Reference Index (v0.5 → v0.9.3)
+### Phase 22: Performance Baseline (v0.9.4)
+
+**Motivation.** Through v0.9.3 slaminar accumulated substantial QA coverage — 475 tests across unit / E2E / fault-injection — but had no numerical floor against performance regressions. A future well-intentioned change could double init wall-time without anyone noticing until a user reported it. Phase Q5 establishes a baseline and identifies bottlenecks so future releases can be gated against regression.
+
+**Shipped.**
+- `scripts/bench-cli.mjs` (new) — dependency-free CLI wall-time runner using `spawnSync` + `performance.now()`. 3 fixtures × 3 tiers × n=8 = 72 timed runs + warmup, emitting JSON + Markdown per run to `docs/benchmarks/raw/`.
+- `scripts/bench-lib.mjs` (new) — library-level phase breakdown, importing `dist/core/scanner.js` / `dist/core/pipeline.js` / `dist/recommender/recommender.js` directly. Excludes Node startup cost so per-phase contributions are visible.
+- `tests/bench/pipeline-phases.bench.ts` (new) — `vitest bench` equivalent, retained as scaffolding but not the primary measurement (vitest 3.x bench summary is unstable with our fixture shape).
+- `docs/benchmarks/2026-04-20-baseline.md` (new) — dated baseline with method, full tables, Top 3 bottleneck analysis, and a regression contract.
+- `docs/qa/reports/phase-q5-performance.md` (new) — Phase summary.
+- `package.json` scripts: `bench:cli`, `bench:lib`, `bench`.
+
+**Key numbers (v0.9.4 baseline):**
+
+| Measurement | small (20 files) | medium (500) | large (5000) |
+|---|---|---|---|
+| CLI wall-time | 102–104ms | 105–107ms | 121–124ms |
+| scan | 287µs | 2.1ms | 13.6ms |
+| analyze (= scan + 5 analyzers) | 271µs | 2.2ms | 13.5ms |
+| recommend (warm) | ~200µs | ~200µs | ~180µs |
+
+**Top 3 bottlenecks:** (1) Node.js startup + module load (~85% of CLI wall-time), (2) `scan` file-tree walk (linear 3µs/file), (3) `recommend` cold catalog load (+500µs one-shot). All P2 or P3 — **no performance P0 was found**, so this release ships zero source code changes.
+
+**Decisions.**
+
+- **D22.1 — Benchmark runners are dependency-free scripts, not hyperfine.** Alternative: require `brew install hyperfine` as a dev prereq. Rationale: slaminar is cross-platform and installed via `npm install -g`. Asking contributors to install a separate binary for perf work adds friction. `spawnSync` + `performance.now()` covers the same measurements (mean / stddev / min / max over N runs) and is portable to every environment that can run the CLI itself. Evidence: `scripts/bench-cli.mjs`, `scripts/bench-lib.mjs`.
+- **D22.2 — Two-runner layering: CLI + library.** Alternative: single runner. Rationale: CLI wall-time is dominated by Node startup (~90ms of ~100ms), so it can't discriminate pipeline regressions. The library runner measures just the TS code by importing from `dist/` — Node startup amortizes across all the iterations. Both numbers matter; both are reported. Evidence: `scripts/bench-cli.mjs` vs `scripts/bench-lib.mjs`.
+- **D22.3 — Raw results are committed to `docs/benchmarks/raw/`.** Alternative: gitignore. Rationale: baseline is a contract; raw results are the evidence. Checking them in (~10KB per release) lets future reviewers bisect regressions without re-running bench. Timestamps in filenames prevent overwrite on re-runs. Evidence: `docs/benchmarks/raw/*.{json,md}`.
+- **D22.4 — Baselines are dated files, not overwritten.** Alternative: single `baseline.md` updated each release. Rationale: a history of baselines is itself useful — seeing "v0.9.4: 100ms / v1.2.0: 60ms / v2.0.0: 40ms" tells a story that a live-updated file doesn't. Intentional architectural wins deserve historical markers. Evidence: `docs/benchmarks/2026-04-20-baseline.md` is the first in the series.
+- **D22.5 — Zero code changes in this release.** Alternative: ship at least one micro-optimization (e.g., `fs.readdir` batching) to accompany the baseline. Rationale: D20.2 / D21.x established the "fix-with-the-test" pattern — but it's only meaningful when a real P0 surfaces. Q5 found no P0s. Shipping speculative optimizations would muddy the baseline: we'd have two variables (measurement methodology + code change) confounding the first-run numbers. Pure-infrastructure release keeps the baseline clean. Evidence: CHANGELOG "Not Changed" section.
+- **D22.6 — vitest bench retained but not primary.** Alternative: remove `tests/bench/*.bench.ts`. Rationale: vitest bench integration will likely stabilize in 3.x+; the scaffolding is cheap to keep and switching back in the future is a one-line change in `package.json:bench:lib`. The script-based approach was chosen because `describe.each + bench` produced "NaNx faster" summary artifacts — a bug we'd have to work around, not fix. Evidence: `tests/bench/pipeline-phases.bench.ts` kept, `package.json:bench:lib` points at `scripts/bench-lib.mjs`.
+
+**Cross-refs.** [CHANGELOG v0.9.4](./CHANGELOG.md#094--2026-04-20) · [baseline](./docs/benchmarks/2026-04-20-baseline.md) · [Phase Q5 report](./docs/qa/reports/phase-q5-performance.md) · [raw data](./docs/benchmarks/raw/).
+
+### Cross-Reference Index (v0.5 → v0.9.4)
 
 Every numbered decision above appears in three places — README (here), CHANGELOG (release notes), and design spec (when one exists). Decision IDs are **identical between `README.md` and `README.ko.md`** — use `grep -n "D14\.3" README*.md` to verify parity. File paths can be opened directly to audit claims; test files can be run in isolation with `npm test -- --run <path>`.
 
@@ -1411,6 +1445,12 @@ Every numbered decision above appears in three places — README (here), CHANGEL
 | D21.6 | R9 (disk full) still skipped — same as D20.7 | v0.9.3 | same | `tests/fault-injection/fs.test.ts:F2.c` | — |
 | D21.7 | `catalog update` unlocked (HOME-scope, deferred) | v0.9.3 | same | — | — |
 | D21.8 | `teamConfigCorrupt` surfaced as warning, not hard fail | v0.9.3 | same | `src/team/config.ts:loadTeamConfigWithStatus`, `src/cli.ts` | `tests/fault-injection/corrupt.test.ts:F3.f` |
+| D22.1 | Benchmark runners are dependency-free scripts (no hyperfine) | v0.9.4 | `harmonic-wishing-pumpkin.md` (QA) | `scripts/bench-{cli,lib}.mjs` | `docs/benchmarks/raw/` |
+| D22.2 | Two-runner layering (CLI wall-time + library phase breakdown) | v0.9.4 | same | same | same |
+| D22.3 | Raw results committed to `docs/benchmarks/raw/` | v0.9.4 | same | `docs/benchmarks/raw/` | — |
+| D22.4 | Baselines are dated files, not overwritten | v0.9.4 | same | `docs/benchmarks/2026-04-20-baseline.md` | — |
+| D22.5 | Zero code changes — pure infrastructure + measurement | v0.9.4 | same | — | — |
+| D22.6 | vitest bench retained but not primary | v0.9.4 | same | `tests/bench/pipeline-phases.bench.ts` | — |
 
 ### Quality Passes
 
