@@ -5,6 +5,39 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.5] — 2026-04-20
+
+### Added — QA Phase Q6 Final Summary + v0.9.x Closure
+
+Phase Q6 는 v0.9.1–0.9.4 로 이어진 QA 사이클 (Q1–Q5) 의 종합 roll-up 을 고정한다. 이번 릴리스는 마찰 없는 문서-only 릴리스 — 코드 변경 0, 475 tests 그대로 유지. v0.10+ 작업은 이 보고서를 baseline 으로 출발한다.
+
+**산출물:**
+- `docs/qa/reports/2026-04-20-qa-summary.md` (신규) — Q1–Q5 전체 요약:
+  - 테스트 성장 curve (347 → 475, +37%)
+  - **P0 9 건 모두 fix** (P0-1/2/3/5 @ v0.9.1, P0-6/7/8/9/10 @ v0.9.2)
+  - **P1 2 건 모두 처리** (P1-1 concurrency lock, Obs-Q3-2 corrupt team-config @ v0.9.3)
+  - P2 관찰 10 건 티켓화 (v0.10+ 로 연기)
+  - 28 개 design decisions (D19.1–D22.6)
+  - QA 인프라 최종 상태 — `npm test`, `test:e2e`, `bench` 실행 방법표
+  - **향후 QA 반복 주기 권고** — 매 PR (test:all), 매 minor (Q1 rescan), 매 RC (bench compare), 분기 (fault matrix), 연 (rollback 전수 재점검)
+  - 새 기능 도입 시 QA 체크리스트 (Q2–Q5 패턴 5 단계)
+  - 회고 — 잘 된 것 4 가지, 개선할 것 4 가지
+
+### Stats
+
+- **Zero source changes** — 67 source modules (유지), 475 tests / 1 skipped (유지)
+- v0.9.x 사이클 총 6 릴리스 (v0.9.0 feature + v0.9.1–5 QA): +128 tests / +18 source modules (net, including bench infra)
+- v0.9.x 도입 변경: tokenTier 필터, E2E 인프라, fault-injection 매트릭스, project file-lock, performance baseline
+
+### Next (v0.10 후보, 이번 사이클 범위 밖)
+
+- Node startup 최적화 (esbuild bundle / bun compile) — Perf-#1 해소
+- Catalog federation UI (`slaminar catalog source wizard`)
+- `discover` batch apply in-process 전환 — Perf-#3 memoize 효과 실현
+- CI 기반 performance regression auto-gate
+
+[0.9.5]: https://github.com/pathcosmos/slaminar/compare/v0.9.4...v0.9.5
+
 ## [0.9.4] — 2026-04-20
 
 ### Added — QA Phase Q5 (Performance Baseline) — measurement-only release

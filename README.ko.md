@@ -1472,7 +1472,37 @@ CLAUDE.md 유효성 검증, plugin.json 스키마 검증, 터미널 컬러 테�
 
 **교차 링크.** [CHANGELOG v0.9.4](./CHANGELOG.md#094--2026-04-20) · [baseline](./docs/benchmarks/2026-04-20-baseline.md) · [Phase Q5 보고서](./docs/qa/reports/phase-q5-performance.md) · [raw data](./docs/benchmarks/raw/).
 
-### 교차 참조 인덱스 (v0.5 → v0.9.4)
+### Phase 23: v0.9.x QA Closure (v0.9.5)
+
+**동기.** 5 개 연속 Phase (Q1–Q5) 가 많은 산출물을 만들었습니다 — 128 신규 tests, 9 P0 fix, 2 P1 해소, 10 P2 티켓, 28 design decisions, 신규 인프라 3 개 (E2E / fault-injection / bench). 정리 문서 없이는 v0.10+ 기여자가 5 개 Phase 보고서를 따로 읽어야 상태 파악 가능. Q6 는 그 consolidation. 이번 릴리스는 summary + v0.9.x QA 사이클의 공식 종결.
+
+**산출물 (문서만):**
+- `docs/qa/reports/2026-04-20-qa-summary.md` (신규) — 종합 roll-up:
+  - Test count 성장 curve 347 → 475 (+37%) 시각화
+  - P0/P1/P2 status 표 — 각 fix 의 file:line 포함
+  - Phase 별 28 개 design decisions 인덱스
+  - QA 인프라 커맨드 레퍼런스 (`npm test` / `test:e2e` / `test:all` / `bench:*`)
+  - `docs/qa/`, `docs/benchmarks/`, `tests/e2e/`, `tests/fault-injection/`, `tests/bench/`, `scripts/` 디렉토리 맵
+  - **권장 QA 반복 주기** — 매 PR / 매 minor 릴리스 / 매 RC / 분기 / 연
+  - 새 기능 도입 시 QA 체크리스트 (Q2–Q5 패턴 5 단계)
+  - 회고 — 잘 된 것 4 가지, 개선할 것 4 가지
+
+**v0.9.x delta (v0.9.0–0.9.5 누적):**
+- +128 tests (365 → 475 unit+e2e+fault, 1 skip 유지)
+- +18 source modules (tokenTier feature, E2E helpers, fault helpers, file-lock, bench scripts)
+- +1 runtime dep (`proper-lockfile`), +1 devDep (`msw`)
+- 9 P0 버그 fix, 2 P1 해소, 10 P2 티켓화 → v0.10+
+
+**의사결정.**
+
+- **D23.1 — Q6 를 pure-documentation 릴리스로.** 대안: Q6 를 더 큰 v0.10.0 에 folded. 근거: QA 사이클을 자체 tag 로 닫으면 clean git marker — `git log --grep "v0.9.5"` 가 summary commit 가리킴, 리뷰어가 `git checkout v0.9.5` 로 사이클 종결 시점 전체 상태 볼 수 있음. v0.10.0 과 번들링하면 "마지막 QA" 와 "첫 feature" 내러티브가 섞임. 증거: zero-code-change CHANGELOG.
+- **D23.2 — Summary 는 `docs/qa/reports/`, repo root 아님.** 대안: root 레벨 `QA-SUMMARY.md`. 근거: 기존 5 개 Phase 보고서가 있는 디렉토리와 일관성. 향후 Q7/Q8 summary 는 같은 위치에 같은 날짜 형식으로 → 리더가 `ls docs/qa/reports/*-summary.md` 로 모든 사이클 종결 한 번에 볼 수 있음. 증거: 파일 위치.
+- **D23.3 — Cadence 권고는 summary 에, CI config 아님.** 대안: GitHub Actions schedule 로 인코딩. 근거: cadence 는 human policy (분기마다 무엇을 할지). 일부는 CI 에 가야 맞음 (PR 당 `test:all`), 하지만 "매 minor 릴리스마다 Q1 현황 재스캔" 같은 human-judgment task 는 auto 돌면 안 됨. Summary 가 의도 문서화, CI 는 minimal. 증거: Q6 보고서 §8.
+- **D23.4 — "final" 언어 사용 안 함 — v0.9.x 는 closed 하지만 frozen 아님.** 대안: Q6 를 "QA complete" 로 표현. 근거: Q6 는 cycle 경계이지 종결 주장이 아님. P2 ticket list 가 v0.10+ 구체 후속을 enumerate, cadence 권고가 지속적 QA 작업을 전제. 증거: summary §11 ("다음 major 작업 후보") 과 §8 cadence 표 모두 v0.9.x 를 checkpoint 로 취급.
+
+**교차 링크.** [CHANGELOG v0.9.5](./CHANGELOG.md#095--2026-04-20) · [Q6 summary](./docs/qa/reports/2026-04-20-qa-summary.md) · 이전 Phases: [Q2](./docs/qa/reports/phase-q2-functional.md) · [Q3](./docs/qa/reports/phase-q3-exceptions.md) · [Q4](./docs/qa/reports/phase-q4-rollback.md) · [Q5](./docs/qa/reports/phase-q5-performance.md).
+
+### 교차 참조 인덱스 (v0.5 → v0.9.5)
 
 위의 번호 붙은 모든 의사결정은 3곳에 기록되어 있습니다 — README(여기), CHANGELOG(릴리스 노트), 설계 spec(있을 때). 의사결정 ID는 **`README.md`와 `README.ko.md`에서 동일** — `grep -n "D14\.3" README*.md`로 패리티 검증 가능. 파일 경로는 직접 열어 주장 감사 가능; 테스트 파일은 `npm test -- --run <path>`로 격리 실행.
 
@@ -1554,6 +1584,10 @@ CLAUDE.md 유효성 검증, plugin.json 스키마 검증, 터미널 컬러 테�
 | D22.4 | Baseline 은 날짜 파일, 덮어쓰기 아님 | v0.9.4 | same | `docs/benchmarks/2026-04-20-baseline.md` | — |
 | D22.5 | 이번 릴리스에 코드 변경 0 — pure infrastructure | v0.9.4 | same | — | — |
 | D22.6 | vitest bench 유지하되 주 측정 아님 | v0.9.4 | same | `tests/bench/pipeline-phases.bench.ts` | — |
+| D23.1 | Q6 를 pure-documentation 릴리스로 (깔끔한 cycle 경계) | v0.9.5 | `harmonic-wishing-pumpkin.md` (QA) | — | — |
+| D23.2 | QA summary 는 `docs/qa/reports/`, repo root 아님 | v0.9.5 | same | `docs/qa/reports/2026-04-20-qa-summary.md` | — |
+| D23.3 | Cadence 권고는 summary 에, CI config 아님 | v0.9.5 | same | — | — |
+| D23.4 | v0.9.x QA 는 "closed not frozen" — v0.10+ 후속 명시 | v0.9.5 | same | — | — |
 
 ### 품질 개선 (3차례 리뷰)
 

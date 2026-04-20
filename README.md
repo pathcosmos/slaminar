@@ -1369,7 +1369,37 @@ Added `catalog config` command for persisting custom catalog URL and mode (exten
 
 **Cross-refs.** [CHANGELOG v0.9.4](./CHANGELOG.md#094--2026-04-20) · [baseline](./docs/benchmarks/2026-04-20-baseline.md) · [Phase Q5 report](./docs/qa/reports/phase-q5-performance.md) · [raw data](./docs/benchmarks/raw/).
 
-### Cross-Reference Index (v0.5 → v0.9.4)
+### Phase 23: v0.9.x QA Closure (v0.9.5)
+
+**Motivation.** Five consecutive Phases (Q1–Q5) produced a lot of moving parts — 128 new tests, 9 P0 fixes, 2 P1 resolutions, 10 open P2 tickets, 28 design decisions, three new infrastructures (E2E, fault-injection, bench). Without a consolidation document, a v0.10+ contributor would need to read five separate Phase reports to understand the state. Q6 is that consolidation. This release ships the summary + closes the v0.9.x QA cycle formally.
+
+**Shipped (documentation only):**
+- `docs/qa/reports/2026-04-20-qa-summary.md` (new) — comprehensive roll-up:
+  - Test-count growth curve 347 → 475 (+37%) per release, visualized
+  - P0/P1/P2 status tables with exact file:line references for each fix
+  - 28 design decisions indexed by Phase
+  - QA infrastructure command reference (`npm test` / `test:e2e` / `test:all` / `bench:*`)
+  - Directory map of `docs/qa/`, `docs/benchmarks/`, `tests/e2e/`, `tests/fault-injection/`, `tests/bench/`, `scripts/`
+  - **Recommended QA cadence** — per-PR, per-minor-release, per-RC, quarterly, annual
+  - Feature-introduction checklist (how to extend each QA layer when adding new commands)
+  - Retrospective — 4 things that worked, 4 to improve
+
+**v0.9.x delta (cumulative across v0.9.0–0.9.5):**
+- +128 tests (365 → 475 unit+e2e+fault, 1 skip preserved)
+- +18 source modules (tokenTier feature, E2E helpers, fault helpers, file-lock, bench scripts)
+- +1 runtime dependency (`proper-lockfile`), +1 devDependency (`msw`)
+- 9 P0 bugs fixed, 2 P1s resolved, 10 P2s cataloged for v0.10+
+
+**Decisions.**
+
+- **D23.1 — Ship Q6 as a pure-documentation release.** Alternative: fold Q6 into a larger v0.10.0. Rationale: closing a QA cycle with its own release tag creates a clean git marker — `git log --grep "v0.9.5"` points at the summary commit, and any reviewer can `git checkout v0.9.5` to see the codebase at the exact state when the cycle closed. Bundling with v0.10.0 would mix "last QA" with "first feature" narratives. Evidence: CHANGELOG zero-code-change entry.
+- **D23.2 — Summary lives in `docs/qa/reports/`, not at repo root.** Alternative: a root-level `QA-SUMMARY.md`. Rationale: consistency with the five per-Phase reports that already live there. Future Q7/Q8 summaries will go in the same directory dated similarly, so a reader can `ls docs/qa/reports/*-summary.md` to see all cycle closures. Evidence: file placement.
+- **D23.3 — Cadence recommendations are in the summary, not CI config.** Alternative: encode the cadence as GitHub Actions schedules. Rationale: the cadence is human policy (what to do each quarter). Some parts do belong in CI (`test:all` per-PR), but "rescan Q1 currents-state per-minor-release" is a human-judgment task that shouldn't be auto-run. The summary documents the intent; CI stays minimal. Evidence: §8 of the Q6 report.
+- **D23.4 — No "final" language — explicitly mark v0.9.x as closed but not frozen.** Alternative: phrase Q6 as "QA complete." Rationale: Q6 is a cycle boundary, not a finality claim. The P2 ticket list enumerates concrete follow-ups for v0.10+, and the cadence recommendations assume continuous QA work. Evidence: summary §11 ("다음 major 작업 후보") and §8 cadence table both treat v0.9.x as a checkpoint.
+
+**Cross-refs.** [CHANGELOG v0.9.5](./CHANGELOG.md#095--2026-04-20) · [Q6 summary](./docs/qa/reports/2026-04-20-qa-summary.md) · prior Phases: [Q2](./docs/qa/reports/phase-q2-functional.md) · [Q3](./docs/qa/reports/phase-q3-exceptions.md) · [Q4](./docs/qa/reports/phase-q4-rollback.md) · [Q5](./docs/qa/reports/phase-q5-performance.md).
+
+### Cross-Reference Index (v0.5 → v0.9.5)
 
 Every numbered decision above appears in three places — README (here), CHANGELOG (release notes), and design spec (when one exists). Decision IDs are **identical between `README.md` and `README.ko.md`** — use `grep -n "D14\.3" README*.md` to verify parity. File paths can be opened directly to audit claims; test files can be run in isolation with `npm test -- --run <path>`.
 
@@ -1451,6 +1481,10 @@ Every numbered decision above appears in three places — README (here), CHANGEL
 | D22.4 | Baselines are dated files, not overwritten | v0.9.4 | same | `docs/benchmarks/2026-04-20-baseline.md` | — |
 | D22.5 | Zero code changes — pure infrastructure + measurement | v0.9.4 | same | — | — |
 | D22.6 | vitest bench retained but not primary | v0.9.4 | same | `tests/bench/pipeline-phases.bench.ts` | — |
+| D23.1 | Q6 as pure-documentation release (clean cycle boundary) | v0.9.5 | `harmonic-wishing-pumpkin.md` (QA) | — | — |
+| D23.2 | QA summary lives in `docs/qa/reports/`, not repo root | v0.9.5 | same | `docs/qa/reports/2026-04-20-qa-summary.md` | — |
+| D23.3 | Cadence recommendations in summary, not CI config | v0.9.5 | same | — | — |
+| D23.4 | v0.9.x QA is "closed not frozen" — follow-ups listed for v0.10+ | v0.9.5 | same | — | — |
 
 ### Quality Passes
 
