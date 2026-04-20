@@ -64,10 +64,10 @@ Each phase produces a JSON-serializable IR passed to the next.
 <!-- slaminar:begin:overview -->
 ## Overview
 
-slaminar is a TypeScript ESM CLI (`npm` bin: `slaminar` → `dist/cli.js`, Node ≥18) that scans a target repo, scores community tools from a federation-capable catalog, and generates a tailored `CLAUDE.md` + a Claude Code plugin at `.claude/plugins/slaminar-generated/`. The package auto-deploys a `/slaminar` skill to `~/.claude/skills/slaminar/` via `postinstall`.
+slaminar — Claude Code 생태계 전용 프로젝트 분석/세팅 CLI (`npm` bin: `slaminar` → `dist/cli.js`, Node ≥18). 대상 리포를 `scan → analyze → recommend → plan → generate → place → verify` 7단계 파이프라인으로 처리해 테일러드 `CLAUDE.md`와 `.claude/plugins/slaminar-generated/` 플러그인을 자동 생성하고, 페더레이션 가능한 카탈로그에서 커뮤니티 도구를 점수 매겨 추천합니다. `postinstall` 훅이 `/slaminar` 스킬을 `~/.claude/skills/slaminar/`에 자동 배포합니다.
 
-- **Language:** typescript (ESM, `"type": "module"`)
-- **Pattern:** cli (commander-based, 7-phase pipeline)
+- **Language:** TypeScript (ESM, `"type": "module"`)
+- **Pattern:** CLI (commander-based, 7-phase pipeline)
 - **Maturity:** growing — active, versioned, test-covered, pre-1.0
 - **Current line:** v0.9.x system-QA series (fault injection, rollback integrity, file locking, performance baselines)
 <!-- slaminar:end:overview -->
@@ -87,14 +87,14 @@ Release & benchmarks:
 
 - `npm run bench` — `bench:cli` + `bench:lib` (`scripts/bench-*.mjs`)
 - `npm run verify:catalog` — catalog integrity audit (v0.9.6 addition)
-- `npm run release:patch` — `npm version patch` with tag + commit (**patch-only is the repo policy**; `release:minor`/`release:major` exist but require explicit user approval)
+- `npm run release:patch` — `npm version patch` with tag + commit (**patch-only is repo policy**; `release:minor`/`release:major` exist but require explicit user approval)
 - `prepublishOnly` (auto) — runs `build && test` on `npm publish` as the safety gate
-- `postinstall` (auto) — installs the `/slaminar` skill to `~/.claude/skills/slaminar/` (silent on failure)
+- `postinstall` (auto) — installs `/slaminar` skill to `~/.claude/skills/slaminar/` (silent on failure)
 <!-- slaminar:end:commands -->
 <!-- slaminar:begin:architecture -->
 ## Architecture
 
-Entry point: `src/cli.ts` → `dist/cli.js` (registered as the `slaminar` bin). The CLI dispatches to a 7-phase pipeline, each phase producing a JSON-serialisable IR passed to the next:
+Entry point: `src/cli.ts` → `dist/cli.js` (registered as the `slaminar` bin). Commander dispatches to a 7-phase pipeline, each phase producing a JSON-serialisable IR passed to the next:
 
 ```
 scan → analyze → recommend → plan → generate → place → verify
@@ -103,7 +103,7 @@ scan → analyze → recommend → plan → generate → place → verify
 Top-level modules under `src/` (20 directories):
 
 - **Pipeline phases** — `scanner/`, `analyzer/`, `recommender/`, `planner/`, `generator/`, `placer/`, `validator/`
-- **Reporting & CI** — `reporter/` (chalk tables, markdown reports), `ci/` (exit-code-driven checks)
+- **Reporting & CI** — `reporter/` (chalk tables, markdown reports), `ci/` (exit-code-driven checks for `slaminar check`)
 - **Runtime & setup** — `runtime/` (prereq + runtime detector), `setup/` (`slaminar setup` wizard), `discover/` (bulk project discovery)
 - **Catalog ecosystem** — all in `recommender/` (catalog, catalog-resolver, catalog-cache, catalog-remote, catalog-diff, catalog-merger, catalog-sources federation, scorer, conflict-detector, installer)
 - **Skill self-install** — `skill/` (SKILL.md + installer.ts + post-install.ts auto-deploying `/slaminar` to `~/.claude/skills/slaminar/`)
@@ -124,6 +124,7 @@ Tests live next to code as co-located `*.test.ts` under `vitest`. E2E suites are
 - **Testing** — `vitest` with co-located `*.test.ts`; TDD preferred for new rules in scanner/analyzer/recommender
 - **Commits** — conventional commits; release commits are `chore(release): vX.Y.Z — <theme>`
 - **Docs language** — Korean-first for narrative docs; user-facing CLI prompts are English-only (since v0.8.1)
+- **Release policy** — patch-only bumps unless the user explicitly asks for minor/major; keep `package.json:version` and `src/version.ts:SLAMINAR_VERSION` in sync
 - **Types** — centralised in `src/types/index.ts`; version string single-sourced from `src/version.ts`
 <!-- slaminar:end:conventions -->
 <!-- slaminar:begin:dependencies -->
