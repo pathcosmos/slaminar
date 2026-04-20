@@ -30,19 +30,16 @@ export function validateClaudeMd(root: string): ValidationResult {
   });
 
   // 3. Markers well-formed
+  // Strip fenced + inline code regions before scanning so that literal marker
+  // strings used in documentation (e.g. `<!-- slaminar:begin:SECTION -->`)
+  // don't register as unmatched markers.
+  const markerScanContent = stripCodeRegions(content);
   const beginRegex = /<!--\s*slaminar:begin:(\S+)\s*-->/g;
   const endRegex = /<!--\s*slaminar:end:(\S+)\s*-->/g;
 
-  const begins: string[] = [];
-  const ends: string[] = [];
+  const begins = Array.from(markerScanContent.matchAll(beginRegex), (m) => m[1]);
+  const ends = Array.from(markerScanContent.matchAll(endRegex), (m) => m[1]);
   let match: RegExpExecArray | null;
-
-  while ((match = beginRegex.exec(content)) !== null) {
-    begins.push(match[1]);
-  }
-  while ((match = endRegex.exec(content)) !== null) {
-    ends.push(match[1]);
-  }
 
   const unmatchedBegins = begins.filter(b => !ends.includes(b));
   const unmatchedEnds = ends.filter(e => !begins.includes(e));
@@ -117,4 +114,15 @@ function buildResult(checks: ValidationCheck[]): ValidationResult {
     failCount: checks.filter(c => c.status === 'fail').length,
     warnCount: checks.filter(c => c.status === 'warn').length,
   };
+}
+
+/**
+ * Replace fenced and inline code regions with spaces (newlines preserved) so
+ * that literal marker-like strings used in documentation don't trip regex
+ * scanners that look for real slaminar markers.
+ */
+function stripCodeRegions(content: string): string {
+  return content
+    .replace(/```[\s\S]*?```/g, (block) => block.replace(/[^\n]/g, ' '))
+    .replace(/`[^`\n]*`/g, (span) => ' '.repeat(span.length));
 }

@@ -20,18 +20,18 @@
 | Status | Name | Stars | Auth | Install | 설명 |
 |:------:|------|:-----:|:----:|---------|------|
 | 🟢 | **caveman** | 26K | ❌ | marketplace | 토큰 65% 절약 |
-| 🟢 | **planning-with-files** | 19K | ❌ | npx | Manus 스타일 마크다운 계획 수립 |
-| 🟢 | **everything-claude-code** | 154K | ❌ | git-clone | 성능 최적화 (skills, instincts, memory, security) |
+| 🟢 | **planning-with-files** | 19K | ❌ | git-clone | Manus 스타일 마크다운 계획 수립 (실제 레포: `OthmanAdi/planning-with-files`) |
+| 🟢 | **everything-claude-code** | 161K | ❌ | git-clone | 성능 최적화 (실제 레포: `affaan-m/everything-claude-code`) |
 | 🟢 | **claude-mem** | 53K | ❌ | npx | 세션 캡처 + AI 압축 + 미래 세션 주입 |
 | 🟢 | **claude-hud** | 19K | ❌ | marketplace | 실시간 컨텍스트/에이전트 모니터링 HUD |
 | 🟢 | **homunculus** | 358 | ❌ | marketplace | 작업 패턴 학습 → 자기 진화 |
 | 🟡 | **wshobson/agents** | 34K | ❌ | marketplace | 멀티에이전트 오케스트레이션 (75 plugins) |
 | 🟡 | **Piebald-AI/claude-code-lsps** | 405 | ❌ | marketplace | 20+ 언어 LSP 서버 (정적 분석) |
 | 🟡 | **davila7/claude-code-templates** | — | ❌ | npx | 프로젝트 부트스트랩 템플릿 CLI |
-| 🟡 | **github/spec-kit** | — | ❌ | npx | GitHub 공식 Spec-Driven Development |
+| 🟡 | **github/spec-kit** | — | ❌ | npx | GitHub 공식 Spec-Driven Development (`npx @spec-kit/cli init`) |
 | 🟡 | **0xfurai/claude-code-subagents** | — | ❌ | git-clone | 100+ 프로덕션급 서브에이전트 |
 | ⚪ | **gstack** | 71K | ❌ | git-clone | Garry Tan의 23개 도구 셋업 |
-| ⚪ | **get-shit-done** | 52K | ❌ | npx | 메타 프롬프팅, 스펙 기반 개발 |
+| ⚪ | **get-shit-done** | 55K | ❌ | git-clone | 메타 프롬프팅, 스펙 기반 개발 (실제 레포: `gsd-build/get-shit-done`) |
 | ⚪ | **claude-code-best-practice** | 42K | ❌ | — | Best practices 가이드 |
 | ⚪ | **claude-skills (alirezarezvani)** | 11K | ❌ | git-clone | 232+ skills |
 | ⚪ | **pro-workflow** | 1.9K | ❌ | marketplace | 50+ 세션 메모리, 병렬 worktree |
@@ -57,7 +57,7 @@
 
 | Status | Name | Stars | Auth | Install | 설명 |
 |:------:|------|:-----:|:----:|---------|------|
-| 🟢 | **graphify** | 25K | partial | pip | 코드/문서 → 쿼리 가능 지식 그래프 |
+| 🟢 | **graphify** | 30K | partial | git-clone | 코드/문서 → 쿼리 가능 지식 그래프 (실제 레포: `safishamsi/graphify`) |
 | 🟢 | **cartographer** | 542 | ❌ | marketplace | 코드베이스 매핑 + 문서화 (병렬 서브에이전트) |
 | ⚪ | **codebase-to-course** | 3.4K | ❌ | git-clone | 코드베이스 → HTML 코스 |
 

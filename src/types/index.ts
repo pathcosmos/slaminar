@@ -183,7 +183,14 @@ export interface CatalogTool {
   description: string;
   authRequired: boolean;
   networkRequired: 'none' | 'partial' | 'full';
-  installMethod: 'marketplace' | 'npx' | 'git-clone' | 'pip';
+  installMethod:
+    | 'marketplace'
+    | 'npx'
+    | 'git-clone'
+    | 'pip'
+    | 'npm-global'
+    | 'npm-dev'
+    | 'npm-init';
   installCommands: string[];
   prerequisites: string[];
   tags: string[];

@@ -1,39 +1,21 @@
 import { describe, it, expect } from 'vitest';
 import { getCatalog, findToolByName, getToolsByTag } from '../../src/recommender/catalog.js';
 
-describe('catalog', () => {
-  it('returns non-empty catalog', () => {
-    expect(getCatalog().length).toBeGreaterThan(5);
+describe('catalog (bundled)', () => {
+  it('bundled catalog is intentionally empty since v0.9.6', () => {
+    // Every previous bundled entry was either shadowed by the official catalog
+    // (same name → official wins on priority) or pointed to a phantom source.
+    // Offline first-run falls through to the disk cache instead.
+    expect(getCatalog()).toEqual([]);
   });
 
-  it('all tools have required fields', () => {
-    for (const tool of getCatalog()) {
-      expect(tool.name).toBeTruthy();
-      expect(tool.repo).toBeTruthy();
-      expect(tool.installMethod).toBeTruthy();
-      expect(tool.installCommands.length).toBeGreaterThan(0);
-      expect(typeof tool.authRequired).toBe('boolean');
-    }
-  });
-
-  it('finds tool by name', () => {
-    const tool = findToolByName('caveman');
-    expect(tool).not.toBeNull();
-    expect(tool!.name).toBe('caveman');
-  });
-
-  it('returns null for unknown tool', () => {
+  it('findToolByName returns null on empty bundled catalog', () => {
+    expect(findToolByName('anything')).toBeNull();
     expect(findToolByName('nonexistent')).toBeNull();
   });
 
-  it('finds tools by tag', () => {
-    const tools = getToolsByTag('frontend');
-    expect(tools.length).toBeGreaterThan(0);
-    expect(tools.every(t => t.tags.includes('frontend'))).toBe(true);
-  });
-
-  it('has auth-required tools for exclusion testing', () => {
-    const authTools = getCatalog().filter(t => t.authRequired);
-    expect(authTools.length).toBeGreaterThan(0);
+  it('getToolsByTag returns empty array on empty bundled catalog', () => {
+    expect(getToolsByTag('frontend')).toEqual([]);
+    expect(getToolsByTag('any-tag')).toEqual([]);
   });
 });

@@ -1,6 +1,6 @@
 {
   "name": "slaminar",
-  "version": "0.9.5",
+  "version": "0.9.6",
   "description": "Intelligent project analyzer and setup tool for Claude Code",
   "type": "module",
   "bin": {
@@ -13,6 +13,7 @@
     "test:watch": "vitest",
     "test:e2e": "npm run build && E2E=1 vitest run",
     "test:all": "npm test && npm run test:e2e",
+    "verify:catalog": "node scripts/verify-catalog.mjs",
     "bench:cli": "npm run build && node scripts/bench-cli.mjs",
     "bench:lib": "npm run build && node scripts/bench-lib.mjs",
     "bench": "npm run bench:cli && npm run bench:lib",

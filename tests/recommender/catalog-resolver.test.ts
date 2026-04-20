@@ -25,7 +25,9 @@ describe('catalog-resolver', () => {
     const resolved = await resolveCatalog({ silent: true, catalogUrl: 'https://unreachable.invalid/catalog.json' });
     expect(resolved.source).toBe('bundled');
     expect(resolved.version).toBe('0.0.0');
-    expect(resolved.tools.length).toBeGreaterThan(0);
+    // Bundled catalog is intentionally empty since v0.9.6; fallback still
+    // produces a well-formed (empty) resolved catalog without throwing.
+    expect(Array.isArray(resolved.tools)).toBe(true);
     expect(resolved.stale).toBe(false);
   });
 
@@ -55,7 +57,7 @@ describe('catalog-resolver', () => {
     const resolved = await resolveCatalog({ silent: true, catalogUrl: 'https://custom.example.com/catalog.json' });
     // Custom URL will fail (no server), should fall back to bundled
     expect(resolved.source).toBe('bundled');
-    expect(resolved.tools.length).toBeGreaterThan(0);
+    expect(Array.isArray(resolved.tools)).toBe(true);
   });
 
   it('returns stale cache when cache is expired and remote fails', async () => {
@@ -185,7 +187,7 @@ describe('catalog-resolver', () => {
     };
     const resolved = await resolveCatalog({ silent: true, sources: [bundledSource(), dead] });
     expect(resolved.source).toBe('bundled');
-    expect(resolved.tools.length).toBeGreaterThan(0);
+    expect(Array.isArray(resolved.tools)).toBe(true);
   });
 
   it('explicit sources option bypasses loadEffectiveSources discovery', async () => {

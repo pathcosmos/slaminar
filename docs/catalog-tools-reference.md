@@ -51,7 +51,7 @@ slaminar v0.8.5에서 새로 추가된 presentation 스택입니다. Markdown/PD
 
 **예시 워크플로**: pandas/matplotlib로 데이터 시각화 → python-pptx로 슬라이드 구성 → Playwright 또는 PyMuPDF로 PNG 썸네일 export → 압축 리포트 패키지.
 
-**관련 도구**: md2pptx(Markdown 프런트엔드), powerpointer(최신 mistune + python-pptx 스택), pymupdf(슬라이드 썸네일 생성).
+**관련 도구**: md2pptx(Markdown 프런트엔드), pymupdf(슬라이드 썸네일 생성).
 
 **비고**: slaminar 자체 presentation 파이프라인의 **코어 스택**. 오픈소스·경량·Python-native의 세 가지를 동시에 만족해서 채택됨. 셰이프·표·이미지·차트 같은 원시 OOXML 구성요소를 직접 조작하므로 러닝 커브는 있지만, Markdown 컨버터들이 이 라이브러리를 내부적으로 깔고 쓰므로 이해해 두면 디버깅이 쉬워집니다.
 
@@ -67,30 +67,14 @@ slaminar v0.8.5에서 새로 추가된 presentation 스택입니다. Markdown/PD
 
 **예시 워크플로**: `docs/release-notes.md` → `md2pptx release-notes.md release-notes.pptx` → 사내 공유.
 
-**관련 도구**: python-pptx(md2pptx가 내부에서 사용), powerpointer(더 최신의 Markdown→PPTX 대안).
+**관련 도구**: python-pptx(md2pptx가 내부에서 사용).
 
-**비고**: 성숙하고 안정적이지만, 코드 블록·다이어그램 처리는 상대적으로 단순합니다. 풍부한 기술 슬라이드가 필요하면 powerpointer 쪽이 낫습니다. 텍스트-우선(text-first) 변환기라는 점을 기억.
+**비고**: 성숙하고 안정적. 코드 블록·다이어그램 처리는 단순한 편이라 텍스트-우선 변환기라는 점을 기억. 설치 방식은 v0.9.6 감사에서 `pip` → `git-clone`으로 교정 (PyPI 패키지가 아님).
 
-### powerpointer
-
-**한 줄 요약**: 2026-04에 공개된 최신 Markdown→PPTX 생성기. mistune 파서 + python-pptx + 이미지 rasterize.
-
-**사용 시점**: 기술 발표용 슬라이드를 Markdown으로 작성하고, 코드 블록·Mermaid 다이어그램을 슬라이드 안에 **깨끗한 이미지**로 박아야 할 때. md2pptx의 대안이 필요한 현대적 워크플로.
-
-**설치**:
-
-```bash
-git clone https://github.com/krisvdm/powerpointer
-pip install -r powerpointer/requirements.txt
-```
-
-**선행조건**: Python ≥ 3.10
-
-**예시 워크플로**: `talk.md`(fenced 코드 + Mermaid 포함) → powerpointer가 코드·다이어그램을 PNG로 래스터라이즈 → python-pptx로 슬라이드에 배치.
-
-**관련 도구**: md2pptx(비교 대상, powerpointer가 카탈로그에서 추천 승자), python-pptx(런타임 의존성).
-
-**비고**: 2026-04 공개의 신규 도구라 생태계·테마는 md2pptx보다 덜 성숙하지만, 코드·도식 렌더링 품질은 우수합니다. 카탈로그의 relations 배열에서 `md2pptx` vs `powerpointer` 충돌의 **winner**로 기록되어 있습니다.
+<!-- powerpointer section removed in v0.9.6: catalog's `krisvdm/powerpointer`
+returned 404 on GitHub and no verifiable alternative owner was found. The
+catalog description (mistune + python-pptx + 2026-04 release) did not match
+the two candidate repos surfaced by search. See CHANGELOG v0.9.6. -->
 
 ### pymupdf
 

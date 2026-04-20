@@ -16,6 +16,12 @@ import { loadTeamConfig, saveTeamConfig } from './team/config.js';
 import type { CatalogMode, CatalogSource, TokenTier } from './types/index.js';
 import { loadCache, backupCache, rollbackCache, isCacheValid } from './recommender/catalog-cache.js';
 import { diffCatalogs, formatDiff } from './recommender/catalog-diff.js';
+import {
+  routeInstall,
+  executePlan,
+  appendAudit,
+  defaultRefDir,
+} from './recommender/installer-router.js';
 import { fetchRemoteCatalog } from './recommender/catalog-remote.js';
 import {
   addSource,
@@ -281,6 +287,110 @@ program
       process.exitCode = 1;
     }
   });
+
+program
+  .command('install [names...]')
+  .description('Safely install catalog-recommended tools (routes clones to refs, gates scaffolders)')
+  .option('--all [path]', 'Install every recommended tool for the project at [path] (defaults to CWD)')
+  .option('--target <path>', 'Target project directory for scaffolder-type installs (npm-init/npm-dev/npx)')
+  .option('--ref-dir <path>', `Clone destination for git-clone entries (default: ${defaultRefDir()})`)
+  .option('--dry-run', 'Print the install plan without executing')
+  .option('--catalog <url>', 'Use custom catalog URL')
+  .action(
+    async (
+      names: string[],
+      options: {
+        all?: string | boolean;
+        target?: string;
+        refDir?: string;
+        dryRun?: boolean;
+        catalog?: string;
+      },
+    ) => {
+      try {
+        const catalogPath =
+          typeof options.all === 'string' ? options.all : process.cwd();
+        const resolved = await resolveCatalog({
+          silent: true,
+          catalogUrl: options.catalog,
+          projectRoot: catalogPath,
+        });
+
+        let targets: string[];
+        if (options.all !== undefined) {
+          const { profile } = analyze(catalogPath);
+          const plan = await recommend(profile, {
+            catalogUrl: options.catalog,
+            projectRoot: catalogPath,
+          });
+          targets = plan.recommended.map((r) => r.tool.name);
+          if (targets.length === 0) {
+            console.log(chalk.yellow('No tools recommended for this project.'));
+            return;
+          }
+          console.log(
+            chalk.bold(`Installing ${targets.length} recommended tool(s): ${targets.join(', ')}\n`),
+          );
+        } else {
+          if (names.length === 0) {
+            console.error('Pass one or more tool names, or use --all.');
+            process.exitCode = 1;
+            return;
+          }
+          targets = names;
+        }
+
+        const missing = targets.filter((n) => !resolved.tools.find((t) => t.name === n));
+        if (missing.length > 0) {
+          console.error(chalk.red(`Unknown tool(s): ${missing.join(', ')}`));
+          process.exitCode = 1;
+          return;
+        }
+
+        let failures = 0;
+        for (const name of targets) {
+          const tool = resolved.tools.find((t) => t.name === name)!;
+          const plan = routeInstall(tool, { target: options.target, refDir: options.refDir });
+
+          console.log(chalk.bold(`\n▶ ${tool.name}`) + chalk.dim(`  (${plan.method} → ${plan.action})`));
+          for (const note of plan.notes) console.log(`  ${chalk.dim(note)}`);
+
+          if (plan.blocked) {
+            console.log(chalk.yellow(`  ⊘ blocked: ${plan.blocked}`));
+            failures++;
+            continue;
+          }
+
+          for (const { bin, args } of plan.commands) {
+            console.log(chalk.dim(`  $ ${bin} ${args.join(' ')}`));
+          }
+
+          if (options.dryRun) {
+            console.log(chalk.cyan('  (dry-run — nothing executed)'));
+            continue;
+          }
+
+          const result = executePlan(plan);
+          appendAudit(result);
+          if (result.success) {
+            console.log(chalk.green(`  ✓ ${result.output.split('\n').pop() || 'done'}`));
+          } else {
+            console.log(chalk.red(`  ✗ ${result.error ?? 'failed'}`));
+            failures++;
+          }
+        }
+
+        if (failures > 0) {
+          console.log(chalk.yellow(`\n${failures} install(s) blocked or failed.`));
+          process.exitCode = 1;
+        }
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        console.error(`\nError: ${message}\n`);
+        process.exitCode = 1;
+      }
+    },
+  );
 
 program
   .command('status [path]')

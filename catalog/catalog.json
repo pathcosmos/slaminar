@@ -1,268 +1,8 @@
 {
-  "version": "2.1.0",
+  "version": "2.2.0",
   "minSlaminarVersion": "0.3.0",
-  "updatedAt": "2026-04-17T18:00:00Z",
+  "updatedAt": "2026-04-20T02:59:05Z",
   "tools": [
-    {
-      "name": "caveman",
-      "repo": "anthropics/caveman",
-      "category": "plugin",
-      "description": "Token-saving plugin that reduces verbose output and optimizes context usage.",
-      "authRequired": false,
-      "networkRequired": "none",
-      "installMethod": "marketplace",
-      "installCommands": ["/install-plugin caveman"],
-      "prerequisites": [],
-      "tags": ["token-saving", "universal", "optimization"],
-      "maturityFit": ["greenfield", "early", "growing", "mature"]
-    },
-    {
-      "name": "planning-with-files",
-      "repo": "anthropics/planning-with-files",
-      "category": "skill",
-      "description": "Structured planning skill that creates and manages implementation plans as files.",
-      "authRequired": false,
-      "networkRequired": "none",
-      "installMethod": "npx",
-      "installCommands": ["npx planning-with-files init"],
-      "prerequisites": [],
-      "tags": ["planning", "universal", "workflow"],
-      "maturityFit": ["greenfield", "early", "growing", "mature"]
-    },
-    {
-      "name": "impeccable",
-      "repo": "anthropics/impeccable",
-      "category": "plugin",
-      "description": "Frontend and React design plugin that enforces design system conventions and best practices.",
-      "authRequired": false,
-      "networkRequired": "none",
-      "installMethod": "marketplace",
-      "installCommands": ["/install-plugin impeccable"],
-      "prerequisites": [],
-      "tags": ["frontend", "react", "design", "ui"],
-      "maturityFit": ["early", "growing", "mature"]
-    },
-    {
-      "name": "playwright-skill",
-      "repo": "anthropics/playwright-skill",
-      "category": "skill",
-      "description": "End-to-end testing skill using Playwright for browser automation and frontend testing.",
-      "authRequired": false,
-      "networkRequired": "none",
-      "installMethod": "marketplace",
-      "installCommands": ["/install-plugin playwright-skill"],
-      "prerequisites": [],
-      "tags": ["testing", "frontend", "e2e", "browser"],
-      "maturityFit": ["growing", "mature"]
-    },
-    {
-      "name": "get-shit-done",
-      "repo": "anthropics/get-shit-done",
-      "category": "skill",
-      "description": "Spec-driven development skill for CLI tools that enforces structured implementation workflows.",
-      "authRequired": false,
-      "networkRequired": "none",
-      "installMethod": "npx",
-      "installCommands": ["npx get-shit-done init"],
-      "prerequisites": [],
-      "tags": ["spec-driven", "cli", "workflow", "productivity"],
-      "maturityFit": ["greenfield", "early", "growing", "mature"]
-    },
-    {
-      "name": "claude-mem",
-      "repo": "anthropics/claude-mem",
-      "category": "plugin",
-      "description": "Memory management plugin for long-running sessions, persisting context across conversations.",
-      "authRequired": false,
-      "networkRequired": "none",
-      "installMethod": "npx",
-      "installCommands": ["npx claude-mem init"],
-      "prerequisites": ["node >= 18"],
-      "tags": ["memory", "long-running", "context"],
-      "maturityFit": ["growing", "mature"]
-    },
-    {
-      "name": "graphify",
-      "repo": "anthropics/graphify",
-      "category": "agent",
-      "description": "Knowledge graph builder for large codebases, mapping relationships between modules and symbols.",
-      "authRequired": false,
-      "networkRequired": "partial",
-      "installMethod": "pip",
-      "installCommands": ["pip install graphify"],
-      "prerequisites": ["python >= 3.10"],
-      "tags": ["knowledge-graph", "large-codebase", "analysis", "visualization"],
-      "maturityFit": ["growing", "mature"]
-    },
-    {
-      "name": "cartographer",
-      "repo": "anthropics/cartographer",
-      "category": "plugin",
-      "description": "Codebase mapping plugin that generates navigable maps of project structure and dependencies.",
-      "authRequired": false,
-      "networkRequired": "none",
-      "installMethod": "marketplace",
-      "installCommands": ["/install-plugin cartographer"],
-      "prerequisites": [],
-      "tags": ["codebase-mapping", "navigation", "architecture"],
-      "maturityFit": ["growing", "mature"]
-    },
-    {
-      "name": "trailofbits/skills",
-      "repo": "trailofbits/skills",
-      "category": "skill",
-      "description": "Security-focused skills from Trail of Bits for vulnerability detection and secure coding.",
-      "authRequired": false,
-      "networkRequired": "none",
-      "installMethod": "marketplace",
-      "installCommands": ["/install-plugin trailofbits/skills"],
-      "prerequisites": [],
-      "tags": ["security", "audit", "vulnerability"],
-      "maturityFit": ["growing", "mature"]
-    },
-    {
-      "name": "everything-claude-code",
-      "repo": "anthropics/everything-claude-code",
-      "category": "workflow",
-      "description": "Performance and token-saving collection of best-practice configurations and workflows.",
-      "authRequired": false,
-      "networkRequired": "none",
-      "installMethod": "git-clone",
-      "installCommands": ["git clone https://github.com/anthropics/everything-claude-code.git"],
-      "prerequisites": [],
-      "tags": ["performance", "token-saving", "best-practices", "universal"],
-      "maturityFit": ["greenfield", "early", "growing", "mature"]
-    },
-    {
-      "name": "claude-hud",
-      "repo": "anthropics/claude-hud",
-      "category": "plugin",
-      "description": "Monitoring dashboard plugin that tracks token usage, session metrics, and performance.",
-      "authRequired": false,
-      "networkRequired": "none",
-      "installMethod": "marketplace",
-      "installCommands": ["/install-plugin claude-hud"],
-      "prerequisites": ["node >= 18"],
-      "tags": ["monitoring", "metrics", "dashboard"],
-      "maturityFit": ["growing", "mature"]
-    },
-    {
-      "name": "homunculus",
-      "repo": "anthropics/homunculus",
-      "category": "agent",
-      "description": "Pattern-learning agent that observes coding patterns and suggests improvements over time.",
-      "authRequired": false,
-      "networkRequired": "none",
-      "installMethod": "marketplace",
-      "installCommands": ["/install-plugin homunculus"],
-      "prerequisites": [],
-      "tags": ["pattern-learning", "ai", "automation"],
-      "maturityFit": ["growing", "mature"]
-    },
-    {
-      "name": "claude-octopus",
-      "repo": "anthropics/claude-octopus",
-      "category": "plugin",
-      "description": "Multi-model orchestration plugin that coordinates between different AI models.",
-      "authRequired": true,
-      "networkRequired": "full",
-      "installMethod": "marketplace",
-      "installCommands": ["/install-plugin claude-octopus"],
-      "prerequisites": [],
-      "tags": ["multi-model", "orchestration"],
-      "maturityFit": ["growing", "mature"]
-    },
-    {
-      "name": "call-me",
-      "repo": "anthropics/call-me",
-      "category": "plugin",
-      "description": "Phone notification plugin that calls you when long-running tasks complete.",
-      "authRequired": true,
-      "networkRequired": "full",
-      "installMethod": "marketplace",
-      "installCommands": ["/install-plugin call-me"],
-      "prerequisites": [],
-      "tags": ["phone", "notification", "alerts"],
-      "maturityFit": ["growing", "mature"]
-    },
-    {
-      "name": "wshobson/agents",
-      "repo": "wshobson/agents",
-      "category": "agent",
-      "description": "Agent marketplace with multi-agent orchestration capabilities for diverse workflows.",
-      "authRequired": false,
-      "networkRequired": "none",
-      "installMethod": "marketplace",
-      "installCommands": ["/install-plugin wshobson/agents"],
-      "prerequisites": [],
-      "tags": ["orchestration", "multi-agent", "universal"],
-      "maturityFit": ["greenfield", "early", "growing", "mature"]
-    },
-    {
-      "name": "claude-code-lsps",
-      "repo": "Piebald-AI/claude-code-lsps",
-      "category": "plugin",
-      "description": "LSP integration plugin that adds static analysis and language server features to Claude Code.",
-      "authRequired": false,
-      "networkRequired": "none",
-      "installMethod": "marketplace",
-      "installCommands": ["/install-plugin claude-code-lsps"],
-      "prerequisites": [],
-      "tags": ["lsp", "static-analysis", "universal"],
-      "maturityFit": ["growing", "mature"]
-    },
-    {
-      "name": "terraform-skill",
-      "repo": "antonbabenko/terraform-skill",
-      "category": "skill",
-      "description": "Terraform infrastructure-as-code skill for provisioning and managing cloud resources.",
-      "authRequired": false,
-      "networkRequired": "none",
-      "installMethod": "git-clone",
-      "installCommands": ["git clone https://github.com/antonbabenko/terraform-skill.git"],
-      "prerequisites": [],
-      "tags": ["devops", "terraform", "iac"],
-      "maturityFit": ["growing", "mature"]
-    },
-    {
-      "name": "claude-code-templates",
-      "repo": "davila7/claude-code-templates",
-      "category": "workflow",
-      "description": "Project bootstrapping templates for quickly scaffolding new projects with Claude Code.",
-      "authRequired": false,
-      "networkRequired": "none",
-      "installMethod": "npx",
-      "installCommands": ["npx claude-code-templates init"],
-      "prerequisites": [],
-      "tags": ["bootstrap", "templates", "universal"],
-      "maturityFit": ["greenfield", "early", "growing", "mature"]
-    },
-    {
-      "name": "laravel/agent-skills",
-      "repo": "laravel/agent-skills",
-      "category": "skill",
-      "description": "Official Laravel agent skills for PHP/Laravel backend development.",
-      "authRequired": false,
-      "networkRequired": "none",
-      "installMethod": "git-clone",
-      "installCommands": ["git clone https://github.com/laravel/agent-skills.git"],
-      "prerequisites": [],
-      "tags": ["php", "laravel", "backend"],
-      "maturityFit": ["growing", "mature"]
-    },
-    {
-      "name": "claude-on-rails",
-      "repo": "obie/claude-on-rails",
-      "category": "skill",
-      "description": "Ruby on Rails skill for Rails-specific development patterns and conventions.",
-      "authRequired": false,
-      "networkRequired": "none",
-      "installMethod": "git-clone",
-      "installCommands": ["git clone https://github.com/obie/claude-on-rails.git"],
-      "prerequisites": [],
-      "tags": ["ruby", "rails", "backend"],
-      "maturityFit": ["growing", "mature"]
-    },
     {
       "name": "apollographql/skills",
       "repo": "apollographql/skills",
@@ -271,36 +11,19 @@
       "authRequired": false,
       "networkRequired": "none",
       "installMethod": "git-clone",
-      "installCommands": ["git clone https://github.com/apollographql/skills.git"],
+      "installCommands": [
+        "git clone https://github.com/apollographql/skills.git"
+      ],
       "prerequisites": [],
-      "tags": ["graphql", "api", "backend"],
-      "maturityFit": ["growing", "mature"]
-    },
-    {
-      "name": "spec-kit",
-      "repo": "github/spec-kit",
-      "category": "skill",
-      "description": "Spec-driven development skill for structured planning and implementation workflows.",
-      "authRequired": false,
-      "networkRequired": "none",
-      "installMethod": "npx",
-      "installCommands": ["npx spec-kit init"],
-      "prerequisites": [],
-      "tags": ["spec-driven", "planning", "universal"],
-      "maturityFit": ["greenfield", "early", "growing", "mature"]
-    },
-    {
-      "name": "claude-code-subagents",
-      "repo": "0xfurai/claude-code-subagents",
-      "category": "agent",
-      "description": "Subagent orchestration framework for delegating tasks to specialized agents.",
-      "authRequired": false,
-      "networkRequired": "none",
-      "installMethod": "git-clone",
-      "installCommands": ["git clone https://github.com/0xfurai/claude-code-subagents.git"],
-      "prerequisites": [],
-      "tags": ["subagents", "universal"],
-      "maturityFit": ["growing", "mature"]
+      "tags": [
+        "graphql",
+        "api",
+        "backend"
+      ],
+      "maturityFit": [
+        "growing",
+        "mature"
+      ]
     },
     {
       "name": "awesome-claude-skills-security",
@@ -310,258 +33,86 @@
       "authRequired": false,
       "networkRequired": "none",
       "installMethod": "git-clone",
-      "installCommands": ["git clone https://github.com/Eyadkelleh/awesome-claude-skills-security.git"],
+      "installCommands": [
+        "git clone https://github.com/Eyadkelleh/awesome-claude-skills-security.git"
+      ],
       "prerequisites": [],
-      "tags": ["security", "pentest"],
-      "maturityFit": ["growing", "mature"]
-    },
-
-    {
-      "name": "hashicorp/agent-skills",
-      "repo": "hashicorp/agent-skills",
-      "category": "skill",
-      "description": "Official HashiCorp Terraform/Packer skills for IaC style, testing, stacks, and cloud provisioning.",
-      "authRequired": false,
-      "networkRequired": "none",
-      "installMethod": "marketplace",
-      "installCommands": ["/install-plugin hashicorp/agent-skills"],
-      "prerequisites": [],
-      "tags": ["devops", "terraform", "iac", "packer", "cloud"],
-      "maturityFit": ["growing", "mature"]
+      "tags": [
+        "security",
+        "pentest"
+      ],
+      "maturityFit": [
+        "growing",
+        "mature"
+      ]
     },
     {
-      "name": "devops-claude-skills",
-      "repo": "ahmedasmar/devops-claude-skills",
-      "category": "skill",
-      "description": "DevOps skill set: K8s troubleshooting, CI/CD optimization, GitOps, monitoring, AWS cost optimization.",
-      "authRequired": false,
-      "networkRequired": "none",
-      "installMethod": "git-clone",
-      "installCommands": ["git clone https://github.com/ahmedasmar/devops-claude-skills.git"],
-      "prerequisites": [],
-      "tags": ["devops", "kubernetes", "ci-cd", "monitoring", "aws"],
-      "maturityFit": ["growing", "mature"]
-    },
-    {
-      "name": "container-use",
-      "repo": "dagger/container-use",
+      "name": "call-me",
+      "repo": "anthropics/call-me",
       "category": "plugin",
-      "description": "Sandboxed development environments for coding agents, isolated container execution.",
-      "authRequired": false,
-      "networkRequired": "none",
-      "installMethod": "git-clone",
-      "installCommands": ["git clone https://github.com/dagger/container-use.git"],
-      "prerequisites": ["docker"],
-      "tags": ["devops", "sandbox", "container", "isolation"],
-      "maturityFit": ["growing", "mature"]
-    },
-    {
-      "name": "oh-my-claudecode",
-      "repo": "Yeachan-Heo/oh-my-claudecode",
-      "category": "agent",
-      "description": "Teams-first orchestration with 19 agents, 28 skills, Socratic questioning, and N-agent coordination.",
-      "authRequired": false,
-      "networkRequired": "none",
-      "installMethod": "git-clone",
-      "installCommands": ["git clone https://github.com/Yeachan-Heo/oh-my-claudecode.git"],
-      "prerequisites": [],
-      "tags": ["team", "orchestration", "multi-agent", "workflow"],
-      "maturityFit": ["growing", "mature"]
-    },
-    {
-      "name": "vibe-kanban",
-      "repo": "BloopAI/vibe-kanban",
-      "category": "agent",
-      "description": "Kanban board for 10+ coding agents with isolated git worktrees for parallel multi-agent work.",
-      "authRequired": false,
-      "networkRequired": "none",
-      "installMethod": "git-clone",
-      "installCommands": ["git clone https://github.com/BloopAI/vibe-kanban.git"],
-      "prerequisites": [],
-      "tags": ["team", "kanban", "multi-agent", "parallel", "workflow"],
-      "maturityFit": ["growing", "mature"]
-    },
-    {
-      "name": "ccpm",
-      "repo": "automazeio/ccpm",
-      "category": "agent",
-      "description": "Project management via GitHub Issues and git worktrees for organized parallel development.",
-      "authRequired": false,
-      "networkRequired": "none",
-      "installMethod": "git-clone",
-      "installCommands": ["git clone https://github.com/automazeio/ccpm.git"],
-      "prerequisites": ["git"],
-      "tags": ["project-management", "github", "workflow", "team"],
-      "maturityFit": ["growing", "mature"]
-    },
-    {
-      "name": "vibeguard",
-      "repo": "majiayu000/vibeguard",
-      "category": "hook",
-      "description": "Quality gate with 88 rules, 13 hooks, 14 agents for real-time AI hallucination interception.",
-      "authRequired": false,
-      "networkRequired": "none",
-      "installMethod": "git-clone",
-      "installCommands": ["git clone https://github.com/majiayu000/vibeguard.git"],
-      "prerequisites": [],
-      "tags": ["quality", "validation", "hooks", "universal"],
-      "maturityFit": ["early", "growing", "mature"]
-    },
-    {
-      "name": "review-squad",
-      "repo": "2389-research/review-squad",
-      "category": "agent",
-      "description": "Multi-perspective code review with subagent panels: experts, generalists, and detail-focused reviewers.",
-      "authRequired": false,
-      "networkRequired": "none",
-      "installMethod": "git-clone",
-      "installCommands": ["git clone https://github.com/2389-research/review-squad.git"],
-      "prerequisites": [],
-      "tags": ["code-review", "quality", "team", "universal"],
-      "maturityFit": ["growing", "mature"]
-    },
-    {
-      "name": "obey",
-      "repo": "Lexxes-Projects/obey",
-      "category": "hook",
-      "description": "Rule enforcement with 17 lifecycle hooks and 3 scopes for automatic coding standards compliance.",
-      "authRequired": false,
-      "networkRequired": "none",
+      "description": "Phone notification plugin that calls you when long-running tasks complete.",
+      "authRequired": true,
+      "networkRequired": "full",
       "installMethod": "marketplace",
-      "installCommands": ["/install-plugin obey"],
+      "installCommands": [
+        "/install-plugin call-me"
+      ],
       "prerequisites": [],
-      "tags": ["rules", "hooks", "standards", "team", "universal"],
-      "maturityFit": ["early", "growing", "mature"]
+      "tags": [
+        "phone",
+        "notification",
+        "alerts"
+      ],
+      "maturityFit": [
+        "growing",
+        "mature"
+      ]
     },
     {
-      "name": "supabase/agent-skills",
-      "repo": "supabase/agent-skills",
-      "category": "skill",
-      "description": "Official Supabase skills for PostgreSQL database, Auth, Storage, and real-time features.",
-      "authRequired": false,
-      "networkRequired": "partial",
-      "installMethod": "git-clone",
-      "installCommands": ["git clone https://github.com/supabase/agent-skills.git"],
-      "prerequisites": [],
-      "tags": ["database", "supabase", "postgresql", "backend", "auth"],
-      "maturityFit": ["growing", "mature"]
-    },
-    {
-      "name": "pg-aiguide",
-      "repo": "timescale/pg-aiguide",
-      "category": "skill",
-      "description": "PostgreSQL MCP server by Timescale for database query, analysis, and optimization.",
-      "authRequired": false,
-      "networkRequired": "none",
-      "installMethod": "git-clone",
-      "installCommands": ["git clone https://github.com/timescale/pg-aiguide.git"],
-      "prerequisites": ["postgresql"],
-      "tags": ["database", "postgresql", "sql", "backend"],
-      "maturityFit": ["growing", "mature"]
-    },
-    {
-      "name": "reporecall",
-      "repo": "proofofwork-agency/reporecall",
-      "category": "agent",
-      "description": "Local codebase memory with tree-sitter AST (22 languages), hybrid keyword+vector search, and call-graph.",
-      "authRequired": false,
-      "networkRequired": "none",
-      "installMethod": "git-clone",
-      "installCommands": ["git clone https://github.com/proofofwork-agency/reporecall.git"],
-      "prerequisites": [],
-      "tags": ["memory", "large-codebase", "search", "analysis"],
-      "maturityFit": ["growing", "mature"]
-    },
-    {
-      "name": "knowledge-graph",
-      "repo": "hilyfux/knowledge-graph",
+      "name": "cartographer",
+      "repo": "anthropics/cartographer",
       "category": "plugin",
-      "description": "Zero-dependency git-native memory layer, pure bash, ~3ms per event for lightweight context persistence.",
-      "authRequired": false,
-      "networkRequired": "none",
-      "installMethod": "git-clone",
-      "installCommands": ["git clone https://github.com/hilyfux/knowledge-graph.git"],
-      "prerequisites": ["git"],
-      "tags": ["memory", "lightweight", "context", "universal"],
-      "maturityFit": ["greenfield", "early", "growing", "mature"]
-    },
-    {
-      "name": "tdd-guard",
-      "repo": "nizos/tdd-guard",
-      "category": "hook",
-      "description": "Blocks TDD-violating file changes via hooks, enforcing test-first development workflow.",
-      "authRequired": false,
-      "networkRequired": "none",
-      "installMethod": "git-clone",
-      "installCommands": ["git clone https://github.com/nizos/tdd-guard.git"],
-      "prerequisites": [],
-      "tags": ["testing", "tdd", "hooks", "quality", "universal"],
-      "maturityFit": ["early", "growing", "mature"]
-    },
-    {
-      "name": "test-kitchen",
-      "repo": "2389-research/test-kitchen",
-      "category": "agent",
-      "description": "Parallel implementation exploration with competing subagents and automated comparison.",
-      "authRequired": false,
-      "networkRequired": "none",
-      "installMethod": "git-clone",
-      "installCommands": ["git clone https://github.com/2389-research/test-kitchen.git"],
-      "prerequisites": [],
-      "tags": ["testing", "exploration", "architecture", "universal"],
-      "maturityFit": ["growing", "mature"]
-    },
-    {
-      "name": "senior-frontend",
-      "repo": "senior-frontend/skills",
-      "category": "skill",
-      "description": "React/Next.js/TypeScript patterns, bundle analysis, and accessibility best practices for frontend projects.",
+      "description": "Codebase mapping plugin that generates navigable maps of project structure and dependencies.",
       "authRequired": false,
       "networkRequired": "none",
       "installMethod": "marketplace",
-      "installCommands": ["/install-plugin senior-frontend"],
+      "installCommands": [
+        "/install-plugin cartographer"
+      ],
       "prerequisites": [],
-      "tags": ["frontend", "react", "nextjs", "typescript", "accessibility"],
-      "maturityFit": ["growing", "mature"]
+      "tags": [
+        "codebase-mapping",
+        "navigation",
+        "architecture"
+      ],
+      "maturityFit": [
+        "growing",
+        "mature"
+      ]
     },
     {
-      "name": "developer-kit",
-      "repo": "giuseppe-trisciuoglio/developer-kit",
-      "category": "skill",
-      "description": "150+ skills for Java/Spring Boot, TypeScript, Python, PHP, and AWS including CRUD generation.",
+      "name": "caveman",
+      "repo": "anthropics/caveman",
+      "category": "plugin",
+      "description": "Token-saving plugin that reduces verbose output and optimizes context usage.",
       "authRequired": false,
       "networkRequired": "none",
       "installMethod": "marketplace",
-      "installCommands": ["/install-plugin developer-kit"],
+      "installCommands": [
+        "/install-plugin caveman"
+      ],
       "prerequisites": [],
-      "tags": ["java", "spring", "typescript", "python", "php", "aws", "backend"],
-      "maturityFit": ["growing", "mature"]
-    },
-    {
-      "name": "rafaelkamimura/claude-tools",
-      "repo": "rafaelkamimura/claude-tools",
-      "category": "agent",
-      "description": "FastAPI backend skills with 46 specialized agents for Python backend development.",
-      "authRequired": false,
-      "networkRequired": "none",
-      "installMethod": "git-clone",
-      "installCommands": ["git clone https://github.com/rafaelkamimura/claude-tools.git"],
-      "prerequisites": ["python >= 3.10"],
-      "tags": ["python", "fastapi", "backend", "api"],
-      "maturityFit": ["growing", "mature"]
-    },
-    {
-      "name": "claude-elixir-phoenix",
-      "repo": "oliver-kriska/claude-elixir-phoenix",
-      "category": "agent",
-      "description": "20 specialist agents for Elixir/Phoenix functional web framework development.",
-      "authRequired": false,
-      "networkRequired": "none",
-      "installMethod": "git-clone",
-      "installCommands": ["git clone https://github.com/oliver-kriska/claude-elixir-phoenix.git"],
-      "prerequisites": ["elixir"],
-      "tags": ["elixir", "phoenix", "backend", "functional"],
-      "maturityFit": ["growing", "mature"]
+      "tags": [
+        "token-saving",
+        "universal",
+        "optimization"
+      ],
+      "maturityFit": [
+        "greenfield",
+        "early",
+        "growing",
+        "mature"
+      ]
     },
     {
       "name": "cc-safe-setup",
@@ -571,23 +122,554 @@
       "authRequired": false,
       "networkRequired": "none",
       "installMethod": "npx",
-      "installCommands": ["npx cc-safe-setup"],
+      "installCommands": [
+        "npx cc-safe-setup"
+      ],
       "prerequisites": [],
-      "tags": ["safety", "hooks", "onboarding", "universal"],
-      "maturityFit": ["greenfield", "early", "growing"]
+      "tags": [
+        "safety",
+        "hooks",
+        "onboarding",
+        "universal"
+      ],
+      "maturityFit": [
+        "greenfield",
+        "early",
+        "growing"
+      ]
     },
     {
-      "name": "preflight",
-      "repo": "preflight-dev/preflight",
+      "name": "ccpm",
+      "repo": "automazeio/ccpm",
+      "category": "agent",
+      "description": "Project management via GitHub Issues and git worktrees for organized parallel development.",
+      "authRequired": false,
+      "networkRequired": "none",
+      "installMethod": "git-clone",
+      "installCommands": [
+        "git clone https://github.com/automazeio/ccpm.git"
+      ],
+      "prerequisites": [
+        "git"
+      ],
+      "tags": [
+        "project-management",
+        "github",
+        "workflow",
+        "team"
+      ],
+      "maturityFit": [
+        "growing",
+        "mature"
+      ]
+    },
+    {
+      "name": "claude-code-lsps",
+      "repo": "Piebald-AI/claude-code-lsps",
       "category": "plugin",
-      "description": "24-tool MCP catching vague prompts, providing 12-category scorecards and cost estimation.",
+      "description": "LSP integration plugin that adds static analysis and language server features to Claude Code.",
+      "authRequired": false,
+      "networkRequired": "none",
+      "installMethod": "marketplace",
+      "installCommands": [
+        "/install-plugin claude-code-lsps"
+      ],
+      "prerequisites": [],
+      "tags": [
+        "lsp",
+        "static-analysis",
+        "universal"
+      ],
+      "maturityFit": [
+        "growing",
+        "mature"
+      ]
+    },
+    {
+      "name": "claude-code-subagents",
+      "repo": "0xfurai/claude-code-subagents",
+      "category": "agent",
+      "description": "Subagent orchestration framework for delegating tasks to specialized agents.",
+      "authRequired": false,
+      "networkRequired": "none",
+      "installMethod": "git-clone",
+      "installCommands": [
+        "git clone https://github.com/0xfurai/claude-code-subagents.git"
+      ],
+      "prerequisites": [],
+      "tags": [
+        "subagents",
+        "universal"
+      ],
+      "maturityFit": [
+        "growing",
+        "mature"
+      ]
+    },
+    {
+      "name": "claude-code-templates",
+      "repo": "davila7/claude-code-templates",
+      "category": "workflow",
+      "description": "Project bootstrapping templates for quickly scaffolding new projects with Claude Code.",
       "authRequired": false,
       "networkRequired": "none",
       "installMethod": "npx",
-      "installCommands": ["npx preflight-dev"],
+      "installCommands": [
+        "npx claude-code-templates init"
+      ],
       "prerequisites": [],
-      "tags": ["quality", "prompt", "cost", "universal"],
-      "maturityFit": ["greenfield", "early", "growing", "mature"]
+      "tags": [
+        "bootstrap",
+        "templates",
+        "universal"
+      ],
+      "maturityFit": [
+        "greenfield",
+        "early",
+        "growing",
+        "mature"
+      ]
+    },
+    {
+      "name": "claude-elixir-phoenix",
+      "repo": "oliver-kriska/claude-elixir-phoenix",
+      "category": "agent",
+      "description": "20 specialist agents for Elixir/Phoenix functional web framework development.",
+      "authRequired": false,
+      "networkRequired": "none",
+      "installMethod": "git-clone",
+      "installCommands": [
+        "git clone https://github.com/oliver-kriska/claude-elixir-phoenix.git"
+      ],
+      "prerequisites": [
+        "elixir"
+      ],
+      "tags": [
+        "elixir",
+        "phoenix",
+        "backend",
+        "functional"
+      ],
+      "maturityFit": [
+        "growing",
+        "mature"
+      ]
+    },
+    {
+      "name": "claude-hud",
+      "repo": "anthropics/claude-hud",
+      "category": "plugin",
+      "description": "Monitoring dashboard plugin that tracks token usage, session metrics, and performance.",
+      "authRequired": false,
+      "networkRequired": "none",
+      "installMethod": "marketplace",
+      "installCommands": [
+        "/install-plugin claude-hud"
+      ],
+      "prerequisites": [
+        "node >= 18"
+      ],
+      "tags": [
+        "monitoring",
+        "metrics",
+        "dashboard"
+      ],
+      "maturityFit": [
+        "growing",
+        "mature"
+      ]
+    },
+    {
+      "name": "claude-mem",
+      "repo": "anthropics/claude-mem",
+      "category": "plugin",
+      "description": "Memory management plugin for long-running sessions, persisting context across conversations.",
+      "authRequired": false,
+      "networkRequired": "none",
+      "installMethod": "npx",
+      "installCommands": [
+        "npx claude-mem init"
+      ],
+      "prerequisites": [
+        "node >= 18"
+      ],
+      "tags": [
+        "memory",
+        "long-running",
+        "context"
+      ],
+      "maturityFit": [
+        "growing",
+        "mature"
+      ]
+    },
+    {
+      "name": "claude-octopus",
+      "repo": "anthropics/claude-octopus",
+      "category": "plugin",
+      "description": "Multi-model orchestration plugin that coordinates between different AI models.",
+      "authRequired": true,
+      "networkRequired": "full",
+      "installMethod": "marketplace",
+      "installCommands": [
+        "/install-plugin claude-octopus"
+      ],
+      "prerequisites": [],
+      "tags": [
+        "multi-model",
+        "orchestration"
+      ],
+      "maturityFit": [
+        "growing",
+        "mature"
+      ]
+    },
+    {
+      "name": "claude-on-rails",
+      "repo": "obie/claude-on-rails",
+      "category": "skill",
+      "description": "Ruby on Rails skill for Rails-specific development patterns and conventions.",
+      "authRequired": false,
+      "networkRequired": "none",
+      "installMethod": "git-clone",
+      "installCommands": [
+        "git clone https://github.com/obie/claude-on-rails.git"
+      ],
+      "prerequisites": [],
+      "tags": [
+        "ruby",
+        "rails",
+        "backend"
+      ],
+      "maturityFit": [
+        "growing",
+        "mature"
+      ]
+    },
+    {
+      "name": "container-use",
+      "repo": "dagger/container-use",
+      "category": "plugin",
+      "description": "Sandboxed development environments for coding agents, isolated container execution.",
+      "authRequired": false,
+      "networkRequired": "none",
+      "installMethod": "git-clone",
+      "installCommands": [
+        "git clone https://github.com/dagger/container-use.git"
+      ],
+      "prerequisites": [
+        "docker"
+      ],
+      "tags": [
+        "devops",
+        "sandbox",
+        "container",
+        "isolation"
+      ],
+      "maturityFit": [
+        "growing",
+        "mature"
+      ]
+    },
+    {
+      "name": "developer-kit",
+      "repo": "giuseppe-trisciuoglio/developer-kit",
+      "category": "skill",
+      "description": "150+ skills for Java/Spring Boot, TypeScript, Python, PHP, and AWS including CRUD generation.",
+      "authRequired": false,
+      "networkRequired": "none",
+      "installMethod": "marketplace",
+      "installCommands": [
+        "/install-plugin developer-kit"
+      ],
+      "prerequisites": [],
+      "tags": [
+        "java",
+        "spring",
+        "typescript",
+        "python",
+        "php",
+        "aws",
+        "backend"
+      ],
+      "maturityFit": [
+        "growing",
+        "mature"
+      ]
+    },
+    {
+      "name": "devops-claude-skills",
+      "repo": "ahmedasmar/devops-claude-skills",
+      "category": "skill",
+      "description": "DevOps skill set: K8s troubleshooting, CI/CD optimization, GitOps, monitoring, AWS cost optimization.",
+      "authRequired": false,
+      "networkRequired": "none",
+      "installMethod": "git-clone",
+      "installCommands": [
+        "git clone https://github.com/ahmedasmar/devops-claude-skills.git"
+      ],
+      "prerequisites": [],
+      "tags": [
+        "devops",
+        "kubernetes",
+        "ci-cd",
+        "monitoring",
+        "aws"
+      ],
+      "maturityFit": [
+        "growing",
+        "mature"
+      ]
+    },
+    {
+      "name": "everything-claude-code",
+      "repo": "affaan-m/everything-claude-code",
+      "category": "workflow",
+      "description": "Performance and token-saving collection of best-practice configurations and workflows.",
+      "authRequired": false,
+      "networkRequired": "none",
+      "installMethod": "git-clone",
+      "installCommands": [
+        "git clone https://github.com/affaan-m/everything-claude-code.git"
+      ],
+      "prerequisites": [],
+      "tags": [
+        "performance",
+        "token-saving",
+        "best-practices",
+        "universal"
+      ],
+      "maturityFit": [
+        "greenfield",
+        "early",
+        "growing",
+        "mature"
+      ]
+    },
+    {
+      "name": "get-shit-done",
+      "repo": "gsd-build/get-shit-done",
+      "category": "skill",
+      "description": "Light-weight meta-prompting, context engineering and spec-driven development system for Claude Code (by TÂCHES).",
+      "authRequired": false,
+      "networkRequired": "none",
+      "installMethod": "git-clone",
+      "installCommands": [
+        "git clone https://github.com/gsd-build/get-shit-done.git"
+      ],
+      "prerequisites": [],
+      "tags": [
+        "spec-driven",
+        "cli",
+        "workflow",
+        "productivity",
+        "meta-prompting"
+      ],
+      "maturityFit": [
+        "greenfield",
+        "early",
+        "growing",
+        "mature"
+      ]
+    },
+    {
+      "name": "graphify",
+      "repo": "safishamsi/graphify",
+      "category": "skill",
+      "description": "AI coding assistant skill that turns any folder of code, docs, papers, images, or videos into a queryable knowledge graph.",
+      "authRequired": false,
+      "networkRequired": "partial",
+      "installMethod": "git-clone",
+      "installCommands": [
+        "git clone https://github.com/safishamsi/graphify.git"
+      ],
+      "prerequisites": [
+        "python >= 3.10"
+      ],
+      "tags": [
+        "knowledge-graph",
+        "large-codebase",
+        "analysis",
+        "visualization"
+      ],
+      "maturityFit": [
+        "growing",
+        "mature"
+      ]
+    },
+    {
+      "name": "hashicorp/agent-skills",
+      "repo": "hashicorp/agent-skills",
+      "category": "skill",
+      "description": "Official HashiCorp Terraform/Packer skills for IaC style, testing, stacks, and cloud provisioning.",
+      "authRequired": false,
+      "networkRequired": "none",
+      "installMethod": "marketplace",
+      "installCommands": [
+        "/install-plugin hashicorp/agent-skills"
+      ],
+      "prerequisites": [],
+      "tags": [
+        "devops",
+        "terraform",
+        "iac",
+        "packer",
+        "cloud"
+      ],
+      "maturityFit": [
+        "growing",
+        "mature"
+      ]
+    },
+    {
+      "name": "homunculus",
+      "repo": "anthropics/homunculus",
+      "category": "agent",
+      "description": "Pattern-learning agent that observes coding patterns and suggests improvements over time.",
+      "authRequired": false,
+      "networkRequired": "none",
+      "installMethod": "marketplace",
+      "installCommands": [
+        "/install-plugin homunculus"
+      ],
+      "prerequisites": [],
+      "tags": [
+        "pattern-learning",
+        "ai",
+        "automation"
+      ],
+      "maturityFit": [
+        "growing",
+        "mature"
+      ]
+    },
+    {
+      "name": "impeccable",
+      "repo": "anthropics/impeccable",
+      "category": "plugin",
+      "description": "Frontend and React design plugin that enforces design system conventions and best practices.",
+      "authRequired": false,
+      "networkRequired": "none",
+      "installMethod": "marketplace",
+      "installCommands": [
+        "/install-plugin impeccable"
+      ],
+      "prerequisites": [],
+      "tags": [
+        "frontend",
+        "react",
+        "design",
+        "ui"
+      ],
+      "maturityFit": [
+        "early",
+        "growing",
+        "mature"
+      ]
+    },
+    {
+      "name": "knowledge-graph",
+      "repo": "hilyfux/knowledge-graph",
+      "category": "plugin",
+      "description": "Zero-dependency git-native memory layer, pure bash, ~3ms per event for lightweight context persistence.",
+      "authRequired": false,
+      "networkRequired": "none",
+      "installMethod": "git-clone",
+      "installCommands": [
+        "git clone https://github.com/hilyfux/knowledge-graph.git"
+      ],
+      "prerequisites": [
+        "git"
+      ],
+      "tags": [
+        "memory",
+        "lightweight",
+        "context",
+        "universal"
+      ],
+      "maturityFit": [
+        "greenfield",
+        "early",
+        "growing",
+        "mature"
+      ]
+    },
+    {
+      "name": "laravel/agent-skills",
+      "repo": "laravel/agent-skills",
+      "category": "skill",
+      "description": "Official Laravel agent skills for PHP/Laravel backend development.",
+      "authRequired": false,
+      "networkRequired": "none",
+      "installMethod": "git-clone",
+      "installCommands": [
+        "git clone https://github.com/laravel/agent-skills.git"
+      ],
+      "prerequisites": [],
+      "tags": [
+        "php",
+        "laravel",
+        "backend"
+      ],
+      "maturityFit": [
+        "growing",
+        "mature"
+      ]
+    },
+    {
+      "name": "marp",
+      "repo": "marp-team/marp",
+      "category": "workflow",
+      "description": "Markdown presentation ecosystem with VS Code extension + CLI. Converts Markdown to HTML/PDF/PPTX. Declarative directive-style configuration.",
+      "authRequired": false,
+      "networkRequired": "none",
+      "installMethod": "npm-global",
+      "installCommands": [
+        "npm install -g @marp-team/marp-cli"
+      ],
+      "prerequisites": [
+        "node>=18"
+      ],
+      "tags": [
+        "presentation",
+        "slides",
+        "markdown",
+        "cli",
+        "vscode"
+      ],
+      "maturityFit": [
+        "greenfield",
+        "early",
+        "growing",
+        "mature"
+      ]
+    },
+    {
+      "name": "md2pptx",
+      "repo": "MartinPacker/md2pptx",
+      "category": "skill",
+      "description": "Markdown-to-PowerPoint converter built on python-pptx. Text-first slide generation from Markdown source files.",
+      "authRequired": false,
+      "networkRequired": "none",
+      "installMethod": "git-clone",
+      "installCommands": [
+        "git clone https://github.com/MartinPacker/md2pptx.git"
+      ],
+      "prerequisites": [
+        "python>=3.11"
+      ],
+      "tags": [
+        "presentation",
+        "pptx",
+        "markdown",
+        "python",
+        "conversion"
+      ],
+      "maturityFit": [
+        "greenfield",
+        "early",
+        "growing"
+      ]
     },
     {
       "name": "moyu",
@@ -597,62 +679,69 @@
       "authRequired": false,
       "networkRequired": "none",
       "installMethod": "marketplace",
-      "installCommands": ["/install-plugin moyu"],
+      "installCommands": [
+        "/install-plugin moyu"
+      ],
       "prerequisites": [],
-      "tags": ["simplicity", "quality", "universal"],
-      "maturityFit": ["greenfield", "early", "growing", "mature"]
+      "tags": [
+        "simplicity",
+        "quality",
+        "universal"
+      ],
+      "maturityFit": [
+        "greenfield",
+        "early",
+        "growing",
+        "mature"
+      ]
     },
     {
-      "name": "python-pptx",
-      "repo": "scanny/python-pptx",
-      "category": "skill",
-      "description": "Python-native OOXML PowerPoint generation library. Create .pptx files programmatically with slides, shapes, tables, and images.",
+      "name": "obey",
+      "repo": "Lexxes-Projects/obey",
+      "category": "hook",
+      "description": "Rule enforcement with 17 lifecycle hooks and 3 scopes for automatic coding standards compliance.",
       "authRequired": false,
       "networkRequired": "none",
-      "installMethod": "pip",
-      "installCommands": ["pip install python-pptx"],
-      "prerequisites": ["python>=3.8"],
-      "tags": ["presentation", "pptx", "slides", "python", "ooxml"],
-      "maturityFit": ["greenfield", "early", "growing", "mature"]
+      "installMethod": "marketplace",
+      "installCommands": [
+        "/install-plugin obey"
+      ],
+      "prerequisites": [],
+      "tags": [
+        "rules",
+        "hooks",
+        "standards",
+        "team",
+        "universal"
+      ],
+      "maturityFit": [
+        "early",
+        "growing",
+        "mature"
+      ]
     },
     {
-      "name": "md2pptx",
-      "repo": "MartinPacker/md2pptx",
-      "category": "skill",
-      "description": "Markdown-to-PowerPoint converter built on python-pptx. Text-first slide generation from Markdown source files.",
-      "authRequired": false,
-      "networkRequired": "none",
-      "installMethod": "pip",
-      "installCommands": ["pip install md2pptx"],
-      "prerequisites": ["python>=3.11"],
-      "tags": ["presentation", "pptx", "markdown", "python", "conversion"],
-      "maturityFit": ["greenfield", "early", "growing"]
-    },
-    {
-      "name": "powerpointer",
-      "repo": "krisvdm/powerpointer",
-      "category": "skill",
-      "description": "Modern Markdown-to-PPTX generator (2026-04) using mistune parser + python-pptx. Rasterizes code blocks and diagrams to PNG for clean embedding.",
+      "name": "oh-my-claudecode",
+      "repo": "Yeachan-Heo/oh-my-claudecode",
+      "category": "agent",
+      "description": "Teams-first orchestration with 19 agents, 28 skills, Socratic questioning, and N-agent coordination.",
       "authRequired": false,
       "networkRequired": "none",
       "installMethod": "git-clone",
-      "installCommands": ["git clone https://github.com/krisvdm/powerpointer", "pip install -r powerpointer/requirements.txt"],
-      "prerequisites": ["python>=3.10"],
-      "tags": ["presentation", "pptx", "markdown", "python", "mistune"],
-      "maturityFit": ["early", "growing"]
-    },
-    {
-      "name": "pymupdf",
-      "repo": "pymupdf/PyMuPDF",
-      "category": "skill",
-      "description": "MuPDF Python bindings for high-performance PDF processing. 10-20x faster than pdftoppm for PDF → image conversion. AGPL license.",
-      "authRequired": false,
-      "networkRequired": "none",
-      "installMethod": "pip",
-      "installCommands": ["pip install pymupdf"],
-      "prerequisites": ["python>=3.9"],
-      "tags": ["pdf", "image", "python", "performance", "presentation"],
-      "maturityFit": ["early", "growing", "mature"]
+      "installCommands": [
+        "git clone https://github.com/Yeachan-Heo/oh-my-claudecode.git"
+      ],
+      "prerequisites": [],
+      "tags": [
+        "team",
+        "orchestration",
+        "multi-agent",
+        "workflow"
+      ],
+      "maturityFit": [
+        "growing",
+        "mature"
+      ]
     },
     {
       "name": "pdf2image",
@@ -662,10 +751,76 @@
       "authRequired": false,
       "networkRequired": "none",
       "installMethod": "pip",
-      "installCommands": ["pip install pdf2image"],
-      "prerequisites": ["python>=3.7", "poppler-utils"],
-      "tags": ["pdf", "image", "python", "poppler", "presentation"],
-      "maturityFit": ["greenfield", "early", "growing", "mature"]
+      "installCommands": [
+        "pip install pdf2image"
+      ],
+      "prerequisites": [
+        "python>=3.7",
+        "poppler-utils"
+      ],
+      "tags": [
+        "pdf",
+        "image",
+        "python",
+        "poppler",
+        "presentation"
+      ],
+      "maturityFit": [
+        "greenfield",
+        "early",
+        "growing",
+        "mature"
+      ]
+    },
+    {
+      "name": "pg-aiguide",
+      "repo": "timescale/pg-aiguide",
+      "category": "skill",
+      "description": "PostgreSQL MCP server by Timescale for database query, analysis, and optimization.",
+      "authRequired": false,
+      "networkRequired": "none",
+      "installMethod": "git-clone",
+      "installCommands": [
+        "git clone https://github.com/timescale/pg-aiguide.git"
+      ],
+      "prerequisites": [
+        "postgresql"
+      ],
+      "tags": [
+        "database",
+        "postgresql",
+        "sql",
+        "backend"
+      ],
+      "maturityFit": [
+        "growing",
+        "mature"
+      ]
+    },
+    {
+      "name": "planning-with-files",
+      "repo": "OthmanAdi/planning-with-files",
+      "category": "skill",
+      "description": "Claude Code skill implementing Manus-style persistent markdown planning — the workflow pattern behind the $2B acquisition.",
+      "authRequired": false,
+      "networkRequired": "none",
+      "installMethod": "git-clone",
+      "installCommands": [
+        "git clone https://github.com/OthmanAdi/planning-with-files.git"
+      ],
+      "prerequisites": [],
+      "tags": [
+        "planning",
+        "universal",
+        "workflow",
+        "markdown"
+      ],
+      "maturityFit": [
+        "greenfield",
+        "early",
+        "growing",
+        "mature"
+      ]
     },
     {
       "name": "playwright",
@@ -674,50 +829,74 @@
       "description": "Cross-browser automation and HTML→PDF rendering. 2026 benchmarks show Playwright outperforms Chrome Headless and Puppeteer on cold/warm latency and output size.",
       "authRequired": false,
       "networkRequired": "partial",
-      "installMethod": "npx",
-      "installCommands": ["npm install -D @playwright/test", "npx playwright install chromium"],
-      "prerequisites": ["node>=18"],
-      "tags": ["html-to-pdf", "browser", "testing", "presentation", "automation"],
-      "maturityFit": ["early", "growing", "mature"]
+      "installMethod": "npm-dev",
+      "installCommands": [
+        "npm install -D @playwright/test",
+        "npx playwright install chromium"
+      ],
+      "prerequisites": [
+        "node>=18"
+      ],
+      "tags": [
+        "html-to-pdf",
+        "browser",
+        "testing",
+        "presentation",
+        "automation"
+      ],
+      "maturityFit": [
+        "early",
+        "growing",
+        "mature"
+      ]
     },
     {
-      "name": "slidev",
-      "repo": "slidevjs/slidev",
-      "category": "workflow",
-      "description": "Markdown-based presentation framework for developers. Vue 3 + Vite, supports PPTX/PDF/HTML/video export. Strong syntax-highlighting via Shiki.",
+      "name": "playwright-skill",
+      "repo": "anthropics/playwright-skill",
+      "category": "skill",
+      "description": "End-to-end testing skill using Playwright for browser automation and frontend testing.",
       "authRequired": false,
-      "networkRequired": "partial",
-      "installMethod": "npx",
-      "installCommands": ["npm init slidev@latest"],
-      "prerequisites": ["node>=18"],
-      "tags": ["presentation", "slides", "markdown", "vue", "dev-focused"],
-      "maturityFit": ["greenfield", "early", "growing", "mature"]
+      "networkRequired": "none",
+      "installMethod": "marketplace",
+      "installCommands": [
+        "/install-plugin playwright-skill"
+      ],
+      "prerequisites": [],
+      "tags": [
+        "testing",
+        "frontend",
+        "e2e",
+        "browser"
+      ],
+      "maturityFit": [
+        "growing",
+        "mature"
+      ]
     },
     {
-      "name": "marp",
-      "repo": "marp-team/marp",
-      "category": "workflow",
-      "description": "Markdown presentation ecosystem with VS Code extension + CLI. Converts Markdown to HTML/PDF/PPTX. Declarative directive-style configuration.",
+      "name": "preflight",
+      "repo": "preflight-dev/preflight",
+      "category": "plugin",
+      "description": "24-tool MCP catching vague prompts, providing 12-category scorecards and cost estimation.",
       "authRequired": false,
       "networkRequired": "none",
       "installMethod": "npx",
-      "installCommands": ["npm install -g @marp-team/marp-cli"],
-      "prerequisites": ["node>=18"],
-      "tags": ["presentation", "slides", "markdown", "cli", "vscode"],
-      "maturityFit": ["greenfield", "early", "growing", "mature"]
-    },
-    {
-      "name": "reveal.js",
-      "repo": "hakimel/reveal.js",
-      "category": "workflow",
-      "description": "HTML presentation framework. The most mature open-source slide engine — extensive plugin ecosystem, theme system, and export to PDF/print.",
-      "authRequired": false,
-      "networkRequired": "none",
-      "installMethod": "git-clone",
-      "installCommands": ["git clone https://github.com/hakimel/reveal.js.git", "cd reveal.js && npm install"],
-      "prerequisites": ["node>=18"],
-      "tags": ["presentation", "slides", "html", "web", "plugin-ecosystem"],
-      "maturityFit": ["greenfield", "early", "growing", "mature"]
+      "installCommands": [
+        "npx preflight-dev"
+      ],
+      "prerequisites": [],
+      "tags": [
+        "quality",
+        "prompt",
+        "cost",
+        "universal"
+      ],
+      "maturityFit": [
+        "greenfield",
+        "early",
+        "growing",
+        "mature"
+      ]
     },
     {
       "name": "presenton",
@@ -727,151 +906,645 @@
       "authRequired": false,
       "networkRequired": "partial",
       "installMethod": "git-clone",
-      "installCommands": ["git clone https://github.com/presenton/presenton", "cd presenton && docker compose up"],
-      "prerequisites": ["docker>=20"],
-      "tags": ["presentation", "ai", "slides", "open-source", "gamma-alternative"],
-      "maturityFit": ["early", "growing"]
+      "installCommands": [
+        "git clone https://github.com/presenton/presenton",
+        "cd presenton && docker compose up"
+      ],
+      "prerequisites": [
+        "docker>=20"
+      ],
+      "tags": [
+        "presentation",
+        "ai",
+        "slides",
+        "open-source",
+        "gamma-alternative"
+      ],
+      "maturityFit": [
+        "early",
+        "growing"
+      ]
+    },
+    {
+      "name": "pymupdf",
+      "repo": "pymupdf/PyMuPDF",
+      "category": "skill",
+      "description": "MuPDF Python bindings for high-performance PDF processing. 10-20x faster than pdftoppm for PDF → image conversion. AGPL license.",
+      "authRequired": false,
+      "networkRequired": "none",
+      "installMethod": "pip",
+      "installCommands": [
+        "pip install pymupdf"
+      ],
+      "prerequisites": [
+        "python>=3.9"
+      ],
+      "tags": [
+        "pdf",
+        "image",
+        "python",
+        "performance",
+        "presentation"
+      ],
+      "maturityFit": [
+        "early",
+        "growing",
+        "mature"
+      ]
+    },
+    {
+      "name": "python-pptx",
+      "repo": "scanny/python-pptx",
+      "category": "skill",
+      "description": "Python-native OOXML PowerPoint generation library. Create .pptx files programmatically with slides, shapes, tables, and images.",
+      "authRequired": false,
+      "networkRequired": "none",
+      "installMethod": "pip",
+      "installCommands": [
+        "pip install python-pptx"
+      ],
+      "prerequisites": [
+        "python>=3.8"
+      ],
+      "tags": [
+        "presentation",
+        "pptx",
+        "slides",
+        "python",
+        "ooxml"
+      ],
+      "maturityFit": [
+        "greenfield",
+        "early",
+        "growing",
+        "mature"
+      ]
+    },
+    {
+      "name": "rafaelkamimura/claude-tools",
+      "repo": "rafaelkamimura/claude-tools",
+      "category": "agent",
+      "description": "FastAPI backend skills with 46 specialized agents for Python backend development.",
+      "authRequired": false,
+      "networkRequired": "none",
+      "installMethod": "git-clone",
+      "installCommands": [
+        "git clone https://github.com/rafaelkamimura/claude-tools.git"
+      ],
+      "prerequisites": [
+        "python >= 3.10"
+      ],
+      "tags": [
+        "python",
+        "fastapi",
+        "backend",
+        "api"
+      ],
+      "maturityFit": [
+        "growing",
+        "mature"
+      ]
+    },
+    {
+      "name": "reporecall",
+      "repo": "proofofwork-agency/reporecall",
+      "category": "agent",
+      "description": "Local codebase memory with tree-sitter AST (22 languages), hybrid keyword+vector search, and call-graph.",
+      "authRequired": false,
+      "networkRequired": "none",
+      "installMethod": "git-clone",
+      "installCommands": [
+        "git clone https://github.com/proofofwork-agency/reporecall.git"
+      ],
+      "prerequisites": [],
+      "tags": [
+        "memory",
+        "large-codebase",
+        "search",
+        "analysis"
+      ],
+      "maturityFit": [
+        "growing",
+        "mature"
+      ]
+    },
+    {
+      "name": "reveal.js",
+      "repo": "hakimel/reveal.js",
+      "category": "workflow",
+      "description": "HTML presentation framework. The most mature open-source slide engine — extensive plugin ecosystem, theme system, and export to PDF/print.",
+      "authRequired": false,
+      "networkRequired": "none",
+      "installMethod": "git-clone",
+      "installCommands": [
+        "git clone https://github.com/hakimel/reveal.js.git",
+        "cd reveal.js && npm install"
+      ],
+      "prerequisites": [
+        "node>=18"
+      ],
+      "tags": [
+        "presentation",
+        "slides",
+        "html",
+        "web",
+        "plugin-ecosystem"
+      ],
+      "maturityFit": [
+        "greenfield",
+        "early",
+        "growing",
+        "mature"
+      ]
+    },
+    {
+      "name": "review-squad",
+      "repo": "2389-research/review-squad",
+      "category": "agent",
+      "description": "Multi-perspective code review with subagent panels: experts, generalists, and detail-focused reviewers.",
+      "authRequired": false,
+      "networkRequired": "none",
+      "installMethod": "git-clone",
+      "installCommands": [
+        "git clone https://github.com/2389-research/review-squad.git"
+      ],
+      "prerequisites": [],
+      "tags": [
+        "code-review",
+        "quality",
+        "team",
+        "universal"
+      ],
+      "maturityFit": [
+        "growing",
+        "mature"
+      ]
+    },
+    {
+      "name": "senior-frontend",
+      "repo": "senior-frontend/skills",
+      "category": "skill",
+      "description": "React/Next.js/TypeScript patterns, bundle analysis, and accessibility best practices for frontend projects.",
+      "authRequired": false,
+      "networkRequired": "none",
+      "installMethod": "marketplace",
+      "installCommands": [
+        "/install-plugin senior-frontend"
+      ],
+      "prerequisites": [],
+      "tags": [
+        "frontend",
+        "react",
+        "nextjs",
+        "typescript",
+        "accessibility"
+      ],
+      "maturityFit": [
+        "growing",
+        "mature"
+      ]
+    },
+    {
+      "name": "slidev",
+      "repo": "slidevjs/slidev",
+      "category": "workflow",
+      "description": "Markdown-based presentation framework for developers. Vue 3 + Vite, supports PPTX/PDF/HTML/video export. Strong syntax-highlighting via Shiki.",
+      "authRequired": false,
+      "networkRequired": "partial",
+      "installMethod": "npm-init",
+      "installCommands": [
+        "npm init slidev@latest"
+      ],
+      "prerequisites": [
+        "node>=18"
+      ],
+      "tags": [
+        "presentation",
+        "slides",
+        "markdown",
+        "vue",
+        "dev-focused"
+      ],
+      "maturityFit": [
+        "greenfield",
+        "early",
+        "growing",
+        "mature"
+      ]
+    },
+    {
+      "name": "spec-kit",
+      "repo": "github/spec-kit",
+      "category": "skill",
+      "description": "Spec-driven development skill for structured planning and implementation workflows.",
+      "authRequired": false,
+      "networkRequired": "none",
+      "installMethod": "npx",
+      "installCommands": [
+        "npx @spec-kit/cli init"
+      ],
+      "prerequisites": [],
+      "tags": [
+        "spec-driven",
+        "planning",
+        "universal"
+      ],
+      "maturityFit": [
+        "greenfield",
+        "early",
+        "growing",
+        "mature"
+      ]
+    },
+    {
+      "name": "supabase/agent-skills",
+      "repo": "supabase/agent-skills",
+      "category": "skill",
+      "description": "Official Supabase skills for PostgreSQL database, Auth, Storage, and real-time features.",
+      "authRequired": false,
+      "networkRequired": "partial",
+      "installMethod": "git-clone",
+      "installCommands": [
+        "git clone https://github.com/supabase/agent-skills.git"
+      ],
+      "prerequisites": [],
+      "tags": [
+        "database",
+        "supabase",
+        "postgresql",
+        "backend",
+        "auth"
+      ],
+      "maturityFit": [
+        "growing",
+        "mature"
+      ]
+    },
+    {
+      "name": "tdd-guard",
+      "repo": "nizos/tdd-guard",
+      "category": "hook",
+      "description": "Blocks TDD-violating file changes via hooks, enforcing test-first development workflow.",
+      "authRequired": false,
+      "networkRequired": "none",
+      "installMethod": "git-clone",
+      "installCommands": [
+        "git clone https://github.com/nizos/tdd-guard.git"
+      ],
+      "prerequisites": [],
+      "tags": [
+        "testing",
+        "tdd",
+        "hooks",
+        "quality",
+        "universal"
+      ],
+      "maturityFit": [
+        "early",
+        "growing",
+        "mature"
+      ]
+    },
+    {
+      "name": "terraform-skill",
+      "repo": "antonbabenko/terraform-skill",
+      "category": "skill",
+      "description": "Terraform infrastructure-as-code skill for provisioning and managing cloud resources.",
+      "authRequired": false,
+      "networkRequired": "none",
+      "installMethod": "git-clone",
+      "installCommands": [
+        "git clone https://github.com/antonbabenko/terraform-skill.git"
+      ],
+      "prerequisites": [],
+      "tags": [
+        "devops",
+        "terraform",
+        "iac"
+      ],
+      "maturityFit": [
+        "growing",
+        "mature"
+      ]
+    },
+    {
+      "name": "test-kitchen",
+      "repo": "2389-research/test-kitchen",
+      "category": "agent",
+      "description": "Parallel implementation exploration with competing subagents and automated comparison.",
+      "authRequired": false,
+      "networkRequired": "none",
+      "installMethod": "git-clone",
+      "installCommands": [
+        "git clone https://github.com/2389-research/test-kitchen.git"
+      ],
+      "prerequisites": [],
+      "tags": [
+        "testing",
+        "exploration",
+        "architecture",
+        "universal"
+      ],
+      "maturityFit": [
+        "growing",
+        "mature"
+      ]
+    },
+    {
+      "name": "trailofbits/skills",
+      "repo": "trailofbits/skills",
+      "category": "skill",
+      "description": "Security-focused skills from Trail of Bits for vulnerability detection and secure coding.",
+      "authRequired": false,
+      "networkRequired": "none",
+      "installMethod": "marketplace",
+      "installCommands": [
+        "/install-plugin trailofbits/skills"
+      ],
+      "prerequisites": [],
+      "tags": [
+        "security",
+        "audit",
+        "vulnerability"
+      ],
+      "maturityFit": [
+        "growing",
+        "mature"
+      ]
+    },
+    {
+      "name": "vibe-kanban",
+      "repo": "BloopAI/vibe-kanban",
+      "category": "agent",
+      "description": "Kanban board for 10+ coding agents with isolated git worktrees for parallel multi-agent work.",
+      "authRequired": false,
+      "networkRequired": "none",
+      "installMethod": "git-clone",
+      "installCommands": [
+        "git clone https://github.com/BloopAI/vibe-kanban.git"
+      ],
+      "prerequisites": [],
+      "tags": [
+        "team",
+        "kanban",
+        "multi-agent",
+        "parallel",
+        "workflow"
+      ],
+      "maturityFit": [
+        "growing",
+        "mature"
+      ]
+    },
+    {
+      "name": "vibeguard",
+      "repo": "majiayu000/vibeguard",
+      "category": "hook",
+      "description": "Quality gate with 88 rules, 13 hooks, 14 agents for real-time AI hallucination interception.",
+      "authRequired": false,
+      "networkRequired": "none",
+      "installMethod": "git-clone",
+      "installCommands": [
+        "git clone https://github.com/majiayu000/vibeguard.git"
+      ],
+      "prerequisites": [],
+      "tags": [
+        "quality",
+        "validation",
+        "hooks",
+        "universal"
+      ],
+      "maturityFit": [
+        "early",
+        "growing",
+        "mature"
+      ]
+    },
+    {
+      "name": "wshobson/agents",
+      "repo": "wshobson/agents",
+      "category": "agent",
+      "description": "Agent marketplace with multi-agent orchestration capabilities for diverse workflows.",
+      "authRequired": false,
+      "networkRequired": "none",
+      "installMethod": "marketplace",
+      "installCommands": [
+        "/install-plugin wshobson/agents"
+      ],
+      "prerequisites": [],
+      "tags": [
+        "orchestration",
+        "multi-agent",
+        "universal"
+      ],
+      "maturityFit": [
+        "greenfield",
+        "early",
+        "growing",
+        "mature"
+      ]
     }
   ],
   "suggestions": [],
   "relations": [
     {
-      "tools": ["caveman", "everything-claude-code"],
+      "tools": [
+        "caveman",
+        "everything-claude-code"
+      ],
       "relation": "overlap",
       "resolution": "both provide token optimization — pick one",
       "winner": "everything-claude-code"
     },
     {
-      "tools": ["planning-with-files", "get-shit-done"],
-      "relation": "synergy",
-      "resolution": "planning + execution complement each other"
-    },
-    {
-      "tools": ["graphify", "cartographer"],
-      "relation": "overlap",
-      "resolution": "both map codebases — graphify for large, cartographer for small"
-    },
-    {
-      "tools": ["claude-mem", "everything-claude-code"],
+      "tools": [
+        "claude-mem",
+        "everything-claude-code"
+      ],
       "relation": "synergy",
       "resolution": "memory + performance optimization complement each other"
     },
     {
-      "tools": ["planning-with-files", "spec-kit"],
-      "relation": "synergy",
-      "resolution": "structured planning + spec-driven development"
-    },
-    {
-      "tools": ["trailofbits/skills", "awesome-claude-skills-security"],
+      "tools": [
+        "trailofbits/skills",
+        "awesome-claude-skills-security"
+      ],
       "relation": "synergy",
       "resolution": "audit skills + pentest skills complement each other"
     },
     {
-      "tools": ["terraform-skill", "hashicorp/agent-skills"],
+      "tools": [
+        "terraform-skill",
+        "hashicorp/agent-skills"
+      ],
       "relation": "synergy",
       "resolution": "community patterns + official HashiCorp skills complement each other"
     },
     {
-      "tools": ["terraform-skill", "devops-claude-skills"],
+      "tools": [
+        "terraform-skill",
+        "devops-claude-skills"
+      ],
       "relation": "synergy",
       "resolution": "IaC + CI/CD/monitoring/K8s cover full DevOps lifecycle"
     },
     {
-      "tools": ["oh-my-claudecode", "vibe-kanban"],
+      "tools": [
+        "oh-my-claudecode",
+        "vibe-kanban"
+      ],
       "relation": "overlap",
       "resolution": "both orchestrate multi-agent teams — pick based on style preference",
       "winner": "oh-my-claudecode"
     },
     {
-      "tools": ["claude-mem", "reporecall"],
+      "tools": [
+        "claude-mem",
+        "reporecall"
+      ],
       "relation": "overlap",
       "resolution": "session memory vs codebase memory — reporecall for large projects",
       "winner": "reporecall"
     },
     {
-      "tools": ["claude-mem", "knowledge-graph"],
+      "tools": [
+        "claude-mem",
+        "knowledge-graph"
+      ],
       "relation": "overlap",
       "resolution": "heavy memory vs lightweight memory — knowledge-graph for small projects",
       "winner": "claude-mem"
     },
     {
-      "tools": ["graphify", "reporecall"],
-      "relation": "overlap",
-      "resolution": "both analyze large codebases — graphify for visualization, reporecall for search"
-    },
-    {
-      "tools": ["impeccable", "senior-frontend"],
+      "tools": [
+        "impeccable",
+        "senior-frontend"
+      ],
       "relation": "synergy",
       "resolution": "design quality + React/Next.js patterns complement each other"
     },
     {
-      "tools": ["vibeguard", "obey"],
+      "tools": [
+        "vibeguard",
+        "obey"
+      ],
       "relation": "overlap",
       "resolution": "both enforce quality via hooks — vibeguard broader, obey more customizable",
       "winner": "vibeguard"
     },
     {
-      "tools": ["tdd-guard", "playwright-skill"],
+      "tools": [
+        "tdd-guard",
+        "playwright-skill"
+      ],
       "relation": "synergy",
       "resolution": "TDD enforcement + e2e testing cover full test spectrum"
     },
     {
-      "tools": ["supabase/agent-skills", "pg-aiguide"],
+      "tools": [
+        "supabase/agent-skills",
+        "pg-aiguide"
+      ],
       "relation": "overlap",
       "resolution": "both cover PostgreSQL — supabase for Supabase users, pg-aiguide for raw PostgreSQL"
     },
     {
-      "tools": ["preflight", "moyu"],
+      "tools": [
+        "preflight",
+        "moyu"
+      ],
       "relation": "synergy",
       "resolution": "prompt quality + code simplicity — reduce waste at both ends"
     },
     {
-      "tools": ["cc-safe-setup", "vibeguard"],
+      "tools": [
+        "cc-safe-setup",
+        "vibeguard"
+      ],
       "relation": "synergy",
       "resolution": "quick safety hooks + comprehensive quality gate"
     },
     {
-      "tools": ["laravel/agent-skills", "developer-kit"],
+      "tools": [
+        "laravel/agent-skills",
+        "developer-kit"
+      ],
       "relation": "synergy",
       "resolution": "Laravel-specific + polyglot backend skills"
     },
     {
-      "tools": ["ccpm", "vibe-kanban"],
+      "tools": [
+        "ccpm",
+        "vibe-kanban"
+      ],
       "relation": "overlap",
       "resolution": "both manage parallel work — ccpm for GitHub Issues, vibe-kanban for kanban style",
       "winner": "vibe-kanban"
     },
     {
-      "tools": ["python-pptx", "md2pptx"],
+      "tools": [
+        "python-pptx",
+        "md2pptx"
+      ],
       "relation": "synergy",
       "resolution": "md2pptx is a Markdown front-end that delegates actual .pptx writing to python-pptx — they form one stack"
     },
     {
-      "tools": ["python-pptx", "powerpointer"],
-      "relation": "synergy",
-      "resolution": "powerpointer uses python-pptx under the hood plus mistune + image rasterization; same stack, richer handling"
-    },
-    {
-      "tools": ["md2pptx", "powerpointer"],
-      "relation": "overlap",
-      "resolution": "both are Markdown→PPTX converters on python-pptx — md2pptx is mature/text-first, powerpointer (2026-04) handles code blocks and diagrams better",
-      "winner": "powerpointer"
-    },
-    {
-      "tools": ["pymupdf", "pdf2image"],
+      "tools": [
+        "pymupdf",
+        "pdf2image"
+      ],
       "relation": "overlap",
       "resolution": "both convert PDF pages to images — pdf2image wraps Poppler/pdftoppm, pymupdf is 10-20x faster but AGPL-licensed",
       "winner": "pymupdf"
     },
     {
-      "tools": ["slidev", "marp"],
+      "tools": [
+        "slidev",
+        "marp"
+      ],
       "relation": "overlap",
       "resolution": "both convert Markdown to slides — Slidev richer (Vue components, PPTX export), Marp simpler (CLI + VS Code focus)"
     },
     {
-      "tools": ["presenton", "slidev"],
+      "tools": [
+        "presenton",
+        "slidev"
+      ],
       "relation": "synergy",
       "resolution": "Presenton generates structured content via AI, Slidev polishes and exports it — chain them for AI-assisted deck pipelines"
+    },
+    {
+      "tools": [
+        "planning-with-files",
+        "get-shit-done"
+      ],
+      "relation": "synergy",
+      "resolution": "planning + execution complement each other"
+    },
+    {
+      "tools": [
+        "graphify",
+        "cartographer"
+      ],
+      "relation": "overlap",
+      "resolution": "both map codebases — graphify for large, cartographer for small"
+    },
+    {
+      "tools": [
+        "planning-with-files",
+        "spec-kit"
+      ],
+      "relation": "synergy",
+      "resolution": "structured planning + spec-driven development"
+    },
+    {
+      "tools": [
+        "graphify",
+        "reporecall"
+      ],
+      "relation": "overlap",
+      "resolution": "both analyze large codebases — graphify for visualization, reporecall for search"
     }
   ]
 }

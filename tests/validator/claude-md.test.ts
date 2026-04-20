@@ -55,4 +55,48 @@ describe('validateClaudeMd', () => {
       expect(result.checks.some(c => c.status === 'fail' || c.status === 'warn')).toBe(true);
     } finally { rmSync(dir, { recursive: true }); }
   });
+
+  it('ignores marker-like strings inside inline code spans', () => {
+    const dir = createDir({
+      'CLAUDE.md': [
+        '# CLAUDE.md',
+        '## Key Patterns',
+        '- Ownership markers (`<!-- slaminar:begin:SECTION -->`) track generated sections',
+        '',
+        '<!-- slaminar:begin:overview -->',
+        'content',
+        '<!-- slaminar:end:overview -->',
+      ].join('\n'),
+      'package.json': '{}',
+    });
+    try {
+      const result = validateClaudeMd(dir);
+      const marker = result.checks.find(c => c.name === 'markers-well-formed');
+      expect(marker?.status).toBe('pass');
+    } finally { rmSync(dir, { recursive: true }); }
+  });
+
+  it('ignores marker-like strings inside fenced code blocks', () => {
+    const dir = createDir({
+      'CLAUDE.md': [
+        '# CLAUDE.md',
+        '## Example',
+        '```',
+        '<!-- slaminar:begin:SECTION -->',
+        'body',
+        '<!-- slaminar:end:SECTION -->',
+        '```',
+        '',
+        '<!-- slaminar:begin:real -->',
+        'content',
+        '<!-- slaminar:end:real -->',
+      ].join('\n'),
+      'package.json': '{}',
+    });
+    try {
+      const result = validateClaudeMd(dir);
+      const marker = result.checks.find(c => c.name === 'markers-well-formed');
+      expect(marker?.status).toBe('pass');
+    } finally { rmSync(dir, { recursive: true }); }
+  });
 });

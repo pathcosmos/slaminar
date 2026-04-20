@@ -1399,7 +1399,37 @@ Added `catalog config` command for persisting custom catalog URL and mode (exten
 
 **Cross-refs.** [CHANGELOG v0.9.5](./CHANGELOG.md#095--2026-04-20) · [Q6 summary](./docs/qa/reports/2026-04-20-qa-summary.md) · prior Phases: [Q2](./docs/qa/reports/phase-q2-functional.md) · [Q3](./docs/qa/reports/phase-q3-exceptions.md) · [Q4](./docs/qa/reports/phase-q4-rollback.md) · [Q5](./docs/qa/reports/phase-q5-performance.md).
 
-### Cross-Reference Index (v0.5 → v0.9.5)
+### Phase 24: Catalog Integrity Audit + Validator + Installer Router (v0.9.6)
+
+**Motivation.** Running `/slaminar` on the slaminar source repo itself (meta/dogfood case) surfaced three distinct bugs that had been latent for multiple releases. (a) The marker validator counted literal marker strings quoted inside inline code as real begins, flagging `CLAUDE.md` as mismatched whenever the file documented its own marker syntax. (b) An ad-hoc check of the top-5 recommended tools revealed that 3 of them resolved to non-existent `anthropics/*` repositories or, worse, to an unrelated npm package name-collision (`get-shit-done` = Pomodoro timer). (c) There was no `slaminar install` subcommand, so users ran raw install commands from `slaminar recommend` output — commands that assumed the CWD was the target project and silently polluted the working tree when that assumption was wrong (e.g., running on slaminar's own repo).
+
+**Shipped.**
+- `src/validator/claude-md.ts` — `stripCodeRegions()` helper neutralises fenced and inline code before scanning for marker pairs. +2 regression tests (inline span case, fenced block case).
+- `scripts/verify-catalog.mjs` (new) + `npm run verify:catalog` — HEAD-checks every GitHub repo, npm package, and PyPI project in `catalog/catalog.json`. Heuristically compares npm descriptions to catalog descriptions to catch name collisions. Non-zero exit on hard failures; treats marketplace entries and GitHub rate-limit as warnings. Supports `GITHUB_TOKEN` env for the 5000/hr authed cap.
+- `.github/workflows/catalog-audit.yml` (new) — runs the script weekly + on catalog-touching PRs + on manual dispatch; files/updates a tracking issue on failure.
+- `catalog/catalog.json` — 7 tool entries rewritten to match reality: `everything-claude-code` → `affaan-m/*`, `md2pptx` → git-clone of `MartinPacker/*`, `spec-kit` → `npx @spec-kit/cli init`, `planning-with-files` → git-clone of `OthmanAdi/*`, `graphify` → git-clone of `safishamsi/*`, `get-shit-done` → git-clone of `gsd-build/*`. `powerpointer` removed (no verifiable source). Catalog `2.1.0 → 2.2.0`; tools 56 → 55; relations 26 → 24.
+- `src/types/index.ts` — `installMethod` enum extended with `npm-global`, `npm-dev`, `npm-init`. `marp`, `playwright`, `slidev` reclassified to match reality.
+- `src/recommender/catalog.ts` — `BUNDLED_CATALOG` emptied (all 14 entries were shadowed by identically-named official entries AND pointed to the same phantom `anthropics/*` owners). First-run offline still works through the disk cache layer.
+- `src/recommender/installer-router.ts` (new) + `slaminar install` subcommand — routes each install method to a safe target:
+  - `git-clone` → `~/.config/slaminar/refs/<tool>/` (CWD-untouched)
+  - `npm-global`, `pip` → global installs, CWD-independent
+  - `npm-dev`, `npm-init`, `npx` → scaffolders; blocked unless `--target <path>` is passed
+  - `marketplace` → surfaces a reminder that `/install-plugin X` runs inside Claude Code, not the shell
+  Supports `--all`, `--dry-run`, `--ref-dir`. Writes a JSONL audit log at `~/.config/slaminar/install-audit.jsonl`. +9 router tests.
+
+**Decisions.**
+
+- **D24.1 — Strip code regions only for the marker scan, not for every scanner.** Alternative: neutralise code regions globally for every regex sweep in `validateClaudeMd`. Rationale: the `npm run` scan on the same content depends on backtick-quoted commands (`` `npm run build` `` is how CLAUDE.md normally references scripts); stripping code globally would break it. Scoped neutralisation — a separate `markerScanContent` variable — is the narrowest fix. Evidence: `src/validator/claude-md.ts` — only the marker-well-formed check uses the stripped content; the `commands-valid` check keeps the raw text.
+- **D24.2 — Keep the bundled catalog empty, not "fallback snapshot of the official."** Alternative: replace the 14 shadowed entries with a trimmed snapshot of verified official tools so offline-first-run has something to show. Rationale: any static snapshot starts rotting the moment it ships; the catalog-cache layer already covers offline use after the first successful fetch; and every historical bundled entry turned out to be a phantom anyway, which is evidence that bundled data cannot be maintained faithfully alongside an authoritative remote. Accepting that the bundled catalog is permanently empty makes the contract honest. Evidence: comment block in `src/recommender/catalog.ts`.
+- **D24.3 — `slaminar install` never installs into the current working directory for scaffolders without explicit `--target`.** Alternative: default `--target` to `process.cwd()` with a confirmation prompt. Rationale: `npm init foo` / `npm install -D bar` mutate the CWD irreversibly (package.json / lockfile changes). A meta-case user running `slaminar install` from slaminar's own source tree almost never wants slaminar's repo to become `bar`'s target. A blocked-with-explanation default is safer than an overridable default; users who do want CWD just pass `--target .`. Evidence: `routeInstall()` branch for scaffolder methods returns `blocked` unless `opts.target` is set.
+- **D24.4 — Retargeting phantom owners takes priority over deleting them.** Alternative: keep all unverifiable entries deleted, as the first-pass audit did. Rationale: the initial sweep checked only `catalog/catalog.json` in isolation and concluded that `anthropics/planning-with-files`, `anthropics/graphify`, `anthropics/get-shit-done` didn't exist. A cross-reference against `README.md` external links (which were already documented with the *real* owners — `OthmanAdi/*`, `safishamsi/*`, `gsd-build/*`) showed the catalog was wrong but the docs weren't. Three real, high-star tools would have been silently lost if the audit had stopped at "not in catalog." The workflow for future audits now reads the README before proposing deletions. Evidence: first-pass commit history + CHANGELOG § "Note on the initial audit error".
+- **D24.5 — `installMethod` enum extension over a new `installKind` field.** Alternative: add a parallel `installKind` discriminator and keep `installMethod` as a coarse bucket. Rationale: every downstream consumer of `installMethod` already treats it as a free string (see the Grep in Phase 24 review). Adding two fields would require every reporter, differ, and display path to decide which one to read. Extending the union keeps one source of truth and is forward-compatible — new methods (e.g., `bun-global`) will just widen the union. Evidence: `src/recommender/installer.ts` special-cases only `'marketplace'`; reporters print `tool.installMethod` verbatim.
+
+**Stats.** Tests 367 → 373 (+9 router, +2 validator, −6 content-dependent bundled). Catalog 56 → 55 tools. `src/recommender/catalog.ts` −176 lines. One new CI workflow, one new audit script, one new CLI subcommand.
+
+**Cross-refs.** [CHANGELOG v0.9.6](./CHANGELOG.md#096--2026-04-20) · audit script: [`scripts/verify-catalog.mjs`](./scripts/verify-catalog.mjs) · CI workflow: [`.github/workflows/catalog-audit.yml`](./.github/workflows/catalog-audit.yml) · installer router: [`src/recommender/installer-router.ts`](./src/recommender/installer-router.ts).
+
+### Cross-Reference Index (v0.5 → v0.9.6)
 
 Every numbered decision above appears in three places — README (here), CHANGELOG (release notes), and design spec (when one exists). Decision IDs are **identical between `README.md` and `README.ko.md`** — use `grep -n "D14\.3" README*.md` to verify parity. File paths can be opened directly to audit claims; test files can be run in isolation with `npm test -- --run <path>`.
 
@@ -1502,7 +1532,7 @@ Features under consideration for future releases:
 | **`catalog source` CLI** | `source add/list/remove/enable/disable/test` commands | **Shipped v0.8** |
 | **`SLAMINAR_CATALOG_SOURCES` env var** | Multi-catalog config via environment for CI | **Shipped v0.8** |
 | **Personal tools** | `personalTools` field in local config | Stub (type exists) |
-| **`slaminar install`** | Install recommended tools directly | Planned |
+| **`slaminar install`** | Install recommended tools directly with install-method routing (git-clone → ref dir, scaffolders require `--target`) | **Shipped v0.9.6** |
 | **Catalog trust enforcement** | v0.9 — prompt before installing `untrusted` sources, detect risky install commands (`rm`, `sudo`, `curl \| bash`), HTTPS-required policy, signed-catalog `verified` trust | Planned (v0.9) |
 | **`npm:@scope/name` source type** | v0.9 — install catalogs via npm for private-registry teams | Planned (v0.9) |
 | **Legacy field cleanup** | v0.9 — remove deprecated `catalogUrl`/`catalogMode` single-value fields | Planned (v0.9) |

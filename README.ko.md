@@ -1502,7 +1502,37 @@ CLAUDE.md 유효성 검증, plugin.json 스키마 검증, 터미널 컬러 테�
 
 **교차 링크.** [CHANGELOG v0.9.5](./CHANGELOG.md#095--2026-04-20) · [Q6 summary](./docs/qa/reports/2026-04-20-qa-summary.md) · 이전 Phases: [Q2](./docs/qa/reports/phase-q2-functional.md) · [Q3](./docs/qa/reports/phase-q3-exceptions.md) · [Q4](./docs/qa/reports/phase-q4-rollback.md) · [Q5](./docs/qa/reports/phase-q5-performance.md).
 
-### 교차 참조 인덱스 (v0.5 → v0.9.5)
+### Phase 24: 카탈로그 정합성 감사 + Validator + Installer Router (v0.9.6)
+
+**동기.** 슬라미나 소스 리포 자체에 `/slaminar` 를 돌리는 메타/도그푸드 케이스에서 3 가지 잠재 버그가 드러났다. (a) 마커 validator 가 백틱 안의 리터럴 마커 문자열을 실제 begin 으로 세어서, `CLAUDE.md` 가 자기 자신의 마커 문법을 문서화할 때마다 mismatch 로 표시되었다. (b) 상위 5개 추천 도구를 즉석 확인한 결과 3 개가 존재하지 않는 `anthropics/*` 레포이거나, 더 나쁘게는 무관한 npm 패키지 이름 충돌 (`get-shit-done` = Pomodoro 타이머) 이었다. (c) `slaminar install` 서브커맨드가 없어 사용자가 `slaminar recommend` 출력의 raw 설치 명령을 직접 실행해야 했고, 그 명령들은 CWD 가 대상 프로젝트라고 가정해서 (슬라미나 자기 리포 위에서 실행 같은 경우) 워킹 트리를 조용히 더럽혔다.
+
+**출시 내역.**
+- `src/validator/claude-md.ts` — `stripCodeRegions()` 헬퍼로 fenced + inline 코드를 마커 스캔 전에 무효화. 회귀 테스트 2 개 추가 (inline span, fenced block).
+- `scripts/verify-catalog.mjs` (신규) + `npm run verify:catalog` — `catalog/catalog.json` 의 모든 GitHub 레포/npm 패키지/PyPI 프로젝트를 HEAD 체크. npm 설명과 카탈로그 설명을 휴리스틱으로 대조해 이름 충돌 잡아냄. hard failure 시 non-zero exit, marketplace/GitHub ratelimit 는 warning 취급. `GITHUB_TOKEN` env 로 5000/hr 인증 cap 활용.
+- `.github/workflows/catalog-audit.yml` (신규) — 스크립트를 주간 + 카탈로그 수정 PR + 수동 dispatch 에서 실행; 실패 시 이슈 자동 생성/갱신.
+- `catalog/catalog.json` — 7 개 엔트리를 실제 상태에 맞게 재작성: `everything-claude-code` → `affaan-m/*`, `md2pptx` → `MartinPacker/*` git-clone, `spec-kit` → `npx @spec-kit/cli init`, `planning-with-files` → `OthmanAdi/*` git-clone, `graphify` → `safishamsi/*` git-clone, `get-shit-done` → `gsd-build/*` git-clone. `powerpointer` 는 완전히 제거 (검증 가능한 소스 없음). 카탈로그 `2.1.0 → 2.2.0`; tools 56 → 55; relations 26 → 24.
+- `src/types/index.ts` — `installMethod` enum 에 `npm-global`, `npm-dev`, `npm-init` 추가. `marp`, `playwright`, `slidev` 재분류.
+- `src/recommender/catalog.ts` — `BUNDLED_CATALOG` 비움 (14 개 엔트리 전부 공식 카탈로그의 동명 엔트리에 shadow 되며, 전부 동일한 `anthropics/*` phantom owner 였음). 첫 실행 오프라인은 disk cache 레이어로 여전히 동작.
+- `src/recommender/installer-router.ts` (신규) + `slaminar install` 서브커맨드 — 각 설치 방식을 안전한 target 으로 라우팅:
+  - `git-clone` → `~/.config/slaminar/refs/<tool>/` (CWD 건드리지 않음)
+  - `npm-global`, `pip` → 전역 설치, CWD 무관
+  - `npm-dev`, `npm-init`, `npx` → scaffolder; `--target <path>` 없으면 block
+  - `marketplace` → `/install-plugin X` 는 Claude Code 안에서 실행하라는 안내
+  `--all`, `--dry-run`, `--ref-dir` 지원. JSONL 감사 로그 `~/.config/slaminar/install-audit.jsonl` 에 기록. 라우터 테스트 9 개 추가.
+
+**의사결정.**
+
+- **D24.1 — 마커 스캔에만 코드 영역 제거, 모든 스캐너에 적용하지 않음.** 대안: `validateClaudeMd` 내 모든 regex sweep 에 전역 적용. 근거: 같은 콘텐츠의 `npm run` 스캔은 백틱 인용 명령에 의존 (CLAUDE.md 는 보통 `` `npm run build` `` 처럼 스크립트를 참조). 전역 제거는 이 검사를 깨뜨림. 별도 `markerScanContent` 변수로 스코프 한정한 neutralisation 이 최소 변경. 증거: `src/validator/claude-md.ts` — marker-well-formed 체크만 stripped content 사용, `commands-valid` 는 raw text 유지.
+- **D24.2 — 번들 카탈로그는 영구히 빈 상태 유지, "공식의 fallback 스냅샷" 아님.** 대안: 검증된 공식 도구의 trimmed 스냅샷으로 교체. 근거: 정적 스냅샷은 배포 즉시 썩기 시작; catalog-cache 레이어가 첫 성공 fetch 이후 오프라인을 이미 커버; 모든 historical 번들 엔트리가 phantom 이었다는 건 번들 데이터가 권위 있는 remote 와 함께 충실히 유지될 수 없다는 증거. "번들은 영구히 빔" 을 받아들이는 게 계약에 정직. 증거: `src/recommender/catalog.ts` 주석 블록.
+- **D24.3 — `slaminar install` 은 scaffolder 에 대해 `--target` 없으면 절대 CWD 설치 안 함.** 대안: `--target` 기본값을 `process.cwd()` 로, 확인 prompt. 근거: `npm init foo` / `npm install -D bar` 는 CWD 를 되돌릴 수 없게 변경 (package.json / lockfile). 메타 케이스 사용자가 슬라미나 소스 트리에서 `slaminar install` 을 돌릴 때 슬라미나 리포가 bar 의 대상이 되기를 원하는 경우는 거의 없음. 설명과 함께 block 하는 기본값이 override 가능한 기본값보다 안전; CWD 원하면 `--target .` 넘기면 됨. 증거: `routeInstall()` 의 scaffolder 분기는 `opts.target` 없으면 `blocked` 반환.
+- **D24.4 — phantom owner 재지정이 삭제보다 우선.** 대안: 첫 패스처럼 검증 불가 엔트리 전부 삭제 유지. 근거: 초기 sweep 은 `catalog/catalog.json` 만 격리 체크해서 `anthropics/planning-with-files`, `anthropics/graphify`, `anthropics/get-shit-done` 가 없다고 결론. `README.md` 외부 링크 (이미 실제 owner 로 문서화되어 있던 — `OthmanAdi/*`, `safishamsi/*`, `gsd-build/*`) 교차 확인 결과 카탈로그만 틀렸고 문서는 맞았다. 감사가 "카탈로그에 없음" 에서 멈췄다면 실존하는 high-star 도구 3 개를 조용히 잃을 뻔함. 향후 감사 워크플로는 삭제 제안 전 README 를 먼저 읽음. 증거: 첫 패스 commit 히스토리 + CHANGELOG § "Note on the initial audit error".
+- **D24.5 — 새 `installKind` 필드 대신 `installMethod` enum 확장.** 대안: 별도 `installKind` 디스크리미네이터 추가하고 `installMethod` 를 거친 bucket 으로 유지. 근거: 모든 `installMethod` 하위 소비자가 이미 자유 문자열로 취급 (Phase 24 리뷰의 Grep 결과 참조). 필드 2 개는 모든 리포터/differ/디스플레이 경로가 어느 쪽을 읽을지 결정해야 함. union 확장은 단일 source of truth 유지 + forward-compatible — 새 method (예: `bun-global`) 는 union 을 넓히기만 하면 됨. 증거: `src/recommender/installer.ts` 는 `'marketplace'` 만 special-case; 리포터는 `tool.installMethod` 를 그대로 출력.
+
+**스탯.** Tests 367 → 373 (+9 router, +2 validator, −6 콘텐츠 의존 bundled). Catalog 56 → 55 tools. `src/recommender/catalog.ts` −176 lines. 새 CI 워크플로 1 개, 새 감사 스크립트 1 개, 새 CLI 서브커맨드 1 개.
+
+**교차 링크.** [CHANGELOG v0.9.6](./CHANGELOG.md#096--2026-04-20) · 감사 스크립트: [`scripts/verify-catalog.mjs`](./scripts/verify-catalog.mjs) · CI 워크플로: [`.github/workflows/catalog-audit.yml`](./.github/workflows/catalog-audit.yml) · installer router: [`src/recommender/installer-router.ts`](./src/recommender/installer-router.ts).
+
+### 교차 참조 인덱스 (v0.5 → v0.9.6)
 
 위의 번호 붙은 모든 의사결정은 3곳에 기록되어 있습니다 — README(여기), CHANGELOG(릴리스 노트), 설계 spec(있을 때). 의사결정 ID는 **`README.md`와 `README.ko.md`에서 동일** — `grep -n "D14\.3" README*.md`로 패리티 검증 가능. 파일 경로는 직접 열어 주장 감사 가능; 테스트 파일은 `npm test -- --run <path>`로 격리 실행.
 
@@ -1628,7 +1658,7 @@ CLAUDE.md 유효성 검증, plugin.json 스키마 검증, 터미널 컬러 테�
 | **`catalog source` CLI** | `source add/list/remove/enable/disable/test` | **v0.8 배포됨** |
 | **`SLAMINAR_CATALOG_SOURCES` 환경변수** | CI용 멀티 카탈로그 환경변수 | **v0.8 배포됨** |
 | **개인 도구** | 로컬 config의 `personalTools` 필드 | 스텁(타입만 존재) |
-| **`slaminar install`** | 추천 도구를 CLI에서 직접 설치 | 계획 |
+| **`slaminar install`** | 추천 도구를 CLI에서 직접 설치 — install-method별 라우팅 (git-clone은 ref dir로, scaffolder는 `--target` 필수) | **v0.9.6 배포됨** |
 | **카탈로그 trust enforcement** | v0.9 — `untrusted` 소스 설치 전 prompt, 위험 명령 탐지(`rm`, `sudo`, `curl \| bash`), HTTPS 강제, 서명 `verified` trust | 계획 (v0.9) |
 | **`npm:@scope/name` 소스 타입** | v0.9 — private-registry 팀을 위한 npm 카탈로그 | 계획 (v0.9) |
 | **Legacy 필드 정리** | v0.9 — deprecated `catalogUrl`/`catalogMode` 단일 필드 제거 | 계획 (v0.9) |

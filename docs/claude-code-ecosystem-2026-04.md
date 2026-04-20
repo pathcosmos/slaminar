@@ -3,6 +3,8 @@
 > **Researched:** 2026-04-16
 > **Purpose:** slaminar 카탈로그 확장 후보 + 생태계 전반 참고 자료
 > **Previous:** [`claude-code-ecosystem.md`](./claude-code-ecosystem.md) (2026-04-14, 1차 조사)
+>
+> **Note (v0.9.6, 2026-04-20):** 이 문서는 조사 시점의 스냅샷입니다. 이후 `catalog/catalog.json` 감사에서 owner 필드 오류가 교정되어 문서의 일부 `Install` 열이 실제 카탈로그와 다를 수 있습니다. 권위 있는 최신 상태는 `catalog/catalog.json`과 [CHANGELOG v0.9.6](../CHANGELOG.md#096--2026-04-20)을 참고하세요. 주요 교정: `planning-with-files`/`graphify`/`get-shit-done`은 git-clone(실제 owner: `OthmanAdi`/`safishamsi`/`gsd-build`), `everything-claude-code` → `affaan-m/*`, `powerpointer` 제거.
 
 이 문서는 slaminar v0.1.0 게시 이후 진행한 **2차 생태계 조사** 결과입니다. 2026년 4월 기준 활발한 Claude Code 플러그인/스킬/도구를 카테고리별로 정리하고, slaminar 카탈로그에 추가할 Top 10 후보를 점수화하여 제시합니다.
 

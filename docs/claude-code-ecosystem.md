@@ -2,6 +2,8 @@
 
 > Researched: 2026-04-14
 > Purpose: slaminar 설계 참고 + 프로젝트 분석 시 추천 후보 풀
+>
+> **Note (v0.9.6, 2026-04-20):** 조사 당시의 역사적 스냅샷입니다. 현재 카탈로그 상태는 `catalog/catalog.json`과 [CHANGELOG v0.9.6](../CHANGELOG.md#096--2026-04-20) 참고. v0.9.6에서 owner 필드 교정 및 일부 엔트리 재분류.
 
 ---
 

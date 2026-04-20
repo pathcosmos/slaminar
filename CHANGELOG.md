@@ -5,6 +5,49 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.6] — 2026-04-20
+
+### Fixed — catalog integrity audit + validator false positive
+
+Surfaced during a self-run of `/slaminar` against the slaminar source repo itself. Both a CLAUDE.md validator bug and multiple phantom catalog entries were uncovered and fixed.
+
+**`validator/claude-md` — strip code regions before marker scan:**
+- `src/validator/claude-md.ts` regex was scanning raw content, so literal marker strings quoted inside inline code (e.g. `` `<!-- slaminar:begin:SECTION -->` ``) tripped the "unmatched begins" check. The fix (`stripCodeRegions`) neutralises fenced and inline code spans before scanning so real markers are the only ones counted.
+- +2 regression tests in `tests/validator/claude-md.test.ts` (inline code span case, fenced block case).
+
+**`catalog/catalog.json` — 7 entries with wrong metadata, corrected via cross-reference with `README*.md` and `docs/claude-code-*` (audit = 12.5% of 56):**
+- `everything-claude-code` — phantom `anthropics/*`; retargeted to `affaan-m/everything-claude-code` (161k⭐).
+- `md2pptx` — `pip install md2pptx` was not on PyPI; switched to `installMethod: git-clone` with `MartinPacker/md2pptx`.
+- `spec-kit` — `npx spec-kit init` was not on npm; switched to `npx @spec-kit/cli init`.
+- `planning-with-files` — phantom `anthropics/*`; retargeted to `OthmanAdi/planning-with-files` (19k⭐). Reclassified `npx → git-clone` (it's a Claude Code skill, not an npm package).
+- `graphify` — phantom `anthropics/*`; retargeted to `safishamsi/graphify` (30k⭐). Reclassified `pip → git-clone`.
+- `get-shit-done` — phantom `anthropics/*`; retargeted to `gsd-build/get-shit-done` (55k⭐). Reclassified `npx → git-clone` — the npm package name collides with an unrelated Pomodoro timer, which is why the prior metadata silently did the wrong thing.
+- `powerpointer` — **removed entirely**: the catalog's `krisvdm` user does not exist on GitHub, and neither README nor docs surface any alternative owner (candidate `CyberTimon/Powerpointer` is a GPT-based generator, not the mistune+python-pptx stack the catalog described). 2 relations referencing it were pruned.
+- Catalog bumped `version: 2.1.0 → 2.2.0`.
+
+**Note on the initial audit error:** v0.9.6's first pass deleted `planning-with-files`, `graphify`, and `get-shit-done` as unfindable phantoms. A follow-up cross-check against `README.md` found that the *catalog* owners were wrong but the *README* owners (`OthmanAdi/…`, `safishamsi/…`, `gsd-build/…`) pointed to real, high-star repositories. All three were restored with the correct metadata before this release was finalised. The CHANGELOG reflects the corrected end state, not the intermediate deletion.
+
+**Schema — `installMethod` enum extended:**
+- `src/types/index.ts` now accepts `npm-global | npm-dev | npm-init` in addition to the existing values. Three entries reclassified to match reality: `marp → npm-global`, `playwright → npm-dev`, `slidev → npm-init`. The `installCommands` strings were already correct; only the metadata field was wrong.
+
+**`BUNDLED_CATALOG` emptied:**
+- All 14 entries in `src/recommender/catalog.ts` were shadowed by same-name entries in the official catalog (official wins on priority) AND were themselves phantom sources. Replaced with `[]` + explanatory comment. Offline first-run still works via the disk cache layer. Tests in `catalog.test.ts` and `catalog-resolver.test.ts` updated to the new empty-bundled contract.
+
+**`scripts/verify-catalog.mjs` — new audit tool:**
+- Walks every tool in `catalog/catalog.json`; verifies git-clone entries against the GitHub API, npm/pip entries against the registry, and (heuristically) checks that npm package descriptions line up with the catalog description so that name-collisions like `get-shit-done` surface as warnings.
+- Handles `npm install -g`, `npm install -D`, `npm init` (resolves to `create-*`), and scoped packages.
+- Non-zero exit on hard failures (`gh-404`, `npm-404`, `pypi-404`, `parse-error`); allows `unverified` (marketplace), `npm-desc-mismatch` (heuristic), `gh-ratelimit` (transient).
+- `GITHUB_TOKEN` env lifts the 60/hr unauth cap to 5000/hr.
+- Registered as `npm run verify:catalog`.
+
+### Stats
+
+- Catalog: 56 → 55 tools (1 removed: `powerpointer`; 3 retargeted: `planning-with-files`, `graphify`, `get-shit-done`), 26 → 24 relations (2 powerpointer relations dropped).
+- Tests: 367 → 373 (6 content-dependent bundled tests replaced with 3 contract tests, +2 validator regression tests, +9 installer-router tests).
+- Lines: `src/recommender/catalog.ts` −176 (dead bundled entries gone).
+
+[0.9.6]: https://github.com/pathcosmos/slaminar/compare/v0.9.5...v0.9.6
+
 ## [0.9.5] — 2026-04-20
 
 ### Added — QA Phase Q6 Final Summary + v0.9.x Closure
