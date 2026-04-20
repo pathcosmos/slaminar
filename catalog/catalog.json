@@ -1,7 +1,7 @@
 {
-  "version": "2.2.0",
+  "version": "2.3.0",
   "minSlaminarVersion": "0.3.0",
-  "updatedAt": "2026-04-20T02:59:05Z",
+  "updatedAt": "2026-04-20T13:20:49Z",
   "tools": [
     {
       "name": "apollographql/skills",
@@ -1340,6 +1340,765 @@
       "maturityFit": [
         "greenfield",
         "early",
+        "growing",
+        "mature"
+      ]
+    },
+    {
+      "name": "vercel-labs/agent-skills",
+      "repo": "vercel-labs/agent-skills",
+      "category": "skill",
+      "description": "Vercel's official agent skills — React best practices, web-design guidelines, composition patterns, view transitions.",
+      "authRequired": false,
+      "networkRequired": "none",
+      "installMethod": "git-clone",
+      "installCommands": [
+        "git clone https://github.com/vercel-labs/agent-skills.git"
+      ],
+      "prerequisites": [],
+      "tags": [
+        "frontend",
+        "react",
+        "nextjs",
+        "vercel",
+        "skill-collection"
+      ],
+      "maturityFit": [
+        "greenfield",
+        "early",
+        "growing",
+        "mature"
+      ]
+    },
+    {
+      "name": "angular/skills",
+      "repo": "angular/skills",
+      "category": "skill",
+      "description": "Angular team's official agent skills (angular-developer, angular-new-app).",
+      "authRequired": false,
+      "networkRequired": "none",
+      "installMethod": "git-clone",
+      "installCommands": [
+        "git clone https://github.com/angular/skills.git"
+      ],
+      "prerequisites": [],
+      "tags": [
+        "frontend",
+        "angular",
+        "typescript",
+        "skill-collection"
+      ],
+      "maturityFit": [
+        "greenfield",
+        "early",
+        "growing",
+        "mature"
+      ]
+    },
+    {
+      "name": "remix-run/agent-skills",
+      "repo": "remix-run/agent-skills",
+      "category": "skill",
+      "description": "React Router (Remix) official skills for routing, loaders, actions, and forms.",
+      "authRequired": false,
+      "networkRequired": "none",
+      "installMethod": "git-clone",
+      "installCommands": [
+        "git clone https://github.com/remix-run/agent-skills.git"
+      ],
+      "prerequisites": [],
+      "tags": [
+        "frontend",
+        "react",
+        "remix",
+        "router",
+        "skill-collection"
+      ],
+      "maturityFit": [
+        "greenfield",
+        "early",
+        "growing",
+        "mature"
+      ]
+    },
+    {
+      "name": "expo/skills",
+      "repo": "expo/skills",
+      "category": "skill",
+      "description": "Expo's official skills for building React Native UI, data fetching, and deployment.",
+      "authRequired": false,
+      "networkRequired": "none",
+      "installMethod": "git-clone",
+      "installCommands": [
+        "git clone https://github.com/expo/skills.git"
+      ],
+      "prerequisites": [],
+      "tags": [
+        "mobile",
+        "react-native",
+        "expo",
+        "skill-collection"
+      ],
+      "maturityFit": [
+        "greenfield",
+        "early",
+        "growing",
+        "mature"
+      ]
+    },
+    {
+      "name": "style-dictionary",
+      "repo": "style-dictionary/style-dictionary",
+      "category": "workflow",
+      "description": "Cross-platform design tokens build system — transform and distribute tokens to CSS, iOS, Android, and more.",
+      "authRequired": false,
+      "networkRequired": "none",
+      "installMethod": "npm-global",
+      "installCommands": [
+        "npm install -g style-dictionary"
+      ],
+      "prerequisites": [
+        "node>=18"
+      ],
+      "tags": [
+        "design-tokens",
+        "design-system",
+        "cli",
+        "universal"
+      ],
+      "maturityFit": [
+        "growing",
+        "mature"
+      ]
+    },
+    {
+      "name": "svgo",
+      "repo": "svg/svgo",
+      "category": "workflow",
+      "description": "De-facto SVG optimizer CLI — minifies and cleans SVG files with configurable plugins.",
+      "authRequired": false,
+      "networkRequired": "none",
+      "installMethod": "npm-global",
+      "installCommands": [
+        "npm install -g svgo"
+      ],
+      "prerequisites": [
+        "node>=18"
+      ],
+      "tags": [
+        "svg",
+        "assets",
+        "optimization",
+        "cli",
+        "universal"
+      ],
+      "maturityFit": [
+        "greenfield",
+        "early",
+        "growing",
+        "mature"
+      ]
+    },
+    {
+      "name": "svgr",
+      "repo": "gregberge/svgr",
+      "category": "workflow",
+      "description": "Transform SVGs into ready-to-use React or React Native components with a configurable CLI.",
+      "authRequired": false,
+      "networkRequired": "none",
+      "installMethod": "npm-global",
+      "installCommands": [
+        "npm install -g @svgr/cli"
+      ],
+      "prerequisites": [
+        "node>=18"
+      ],
+      "tags": [
+        "svg",
+        "react",
+        "assets",
+        "cli",
+        "frontend"
+      ],
+      "maturityFit": [
+        "growing",
+        "mature"
+      ]
+    },
+    {
+      "name": "jeffallan/claude-skills",
+      "repo": "Jeffallan/claude-skills",
+      "category": "skill",
+      "description": "66 full-stack framework skills (NestJS, Django, FastAPI, Spring, Laravel, Rails, .NET) via plugin marketplace.",
+      "authRequired": false,
+      "networkRequired": "none",
+      "installMethod": "marketplace",
+      "installCommands": [
+        "/plugin marketplace add jeffallan/claude-skills"
+      ],
+      "prerequisites": [],
+      "tags": [
+        "backend",
+        "fullstack",
+        "skill-collection",
+        "universal"
+      ],
+      "maturityFit": [
+        "growing",
+        "mature"
+      ]
+    },
+    {
+      "name": "voltagent/awesome-claude-code-subagents",
+      "repo": "VoltAgent/awesome-claude-code-subagents",
+      "category": "agent",
+      "description": "130+ specialized subagents spanning the full development lifecycle — backend, frontend, databases, DevOps, security.",
+      "authRequired": false,
+      "networkRequired": "none",
+      "installMethod": "git-clone",
+      "installCommands": [
+        "git clone https://github.com/VoltAgent/awesome-claude-code-subagents.git"
+      ],
+      "prerequisites": [],
+      "tags": [
+        "subagents",
+        "universal",
+        "skill-collection"
+      ],
+      "maturityFit": [
+        "growing",
+        "mature"
+      ]
+    },
+    {
+      "name": "socket-mcp",
+      "repo": "SocketDev/socket-mcp",
+      "category": "plugin",
+      "description": "Supply-chain security MCP scoring npm, PyPI, and cargo dependencies for vulns, maintenance, and license risk.",
+      "authRequired": false,
+      "networkRequired": "partial",
+      "installMethod": "npx",
+      "installCommands": [
+        "npx -y @socketsecurity/mcp@latest"
+      ],
+      "prerequisites": [
+        "node>=18"
+      ],
+      "tags": [
+        "security",
+        "supply-chain",
+        "mcp",
+        "universal"
+      ],
+      "maturityFit": [
+        "growing",
+        "mature"
+      ]
+    },
+    {
+      "name": "cypress-mcp",
+      "repo": "jams4code/cypress-mcp",
+      "category": "plugin",
+      "description": "AI-driven Cypress E2E test execution, debug, and iteration via MCP with 11 tools supporting Cypress 12-15.",
+      "authRequired": false,
+      "networkRequired": "none",
+      "installMethod": "npx",
+      "installCommands": [
+        "npx cypress-mcp"
+      ],
+      "prerequisites": [
+        "node>=18"
+      ],
+      "tags": [
+        "testing",
+        "e2e",
+        "cypress",
+        "mcp"
+      ],
+      "maturityFit": [
+        "growing",
+        "mature"
+      ]
+    },
+    {
+      "name": "promptfoo",
+      "repo": "promptfoo/promptfoo",
+      "category": "workflow",
+      "description": "LLM eval and red-team CLI with YAML-driven test cases, provider routing, and CI-ready reports.",
+      "authRequired": false,
+      "networkRequired": "partial",
+      "installMethod": "npm-global",
+      "installCommands": [
+        "npm install -g promptfoo"
+      ],
+      "prerequisites": [
+        "node>=18"
+      ],
+      "tags": [
+        "llm",
+        "eval",
+        "testing",
+        "cli",
+        "universal"
+      ],
+      "maturityFit": [
+        "growing",
+        "mature"
+      ]
+    },
+    {
+      "name": "fastmcp",
+      "repo": "jlowin/fastmcp",
+      "category": "workflow",
+      "description": "Pythonic framework for building MCP servers and clients — powers a large share of community MCP servers.",
+      "authRequired": false,
+      "networkRequired": "none",
+      "installMethod": "pip",
+      "installCommands": [
+        "pip install fastmcp"
+      ],
+      "prerequisites": [
+        "python>=3.10"
+      ],
+      "tags": [
+        "mcp",
+        "python",
+        "framework",
+        "universal"
+      ],
+      "maturityFit": [
+        "growing",
+        "mature"
+      ]
+    },
+    {
+      "name": "redoc",
+      "repo": "Redocly/redoc",
+      "category": "workflow",
+      "description": "OpenAPI/Swagger reference renderer — generates beautiful interactive API documentation from a spec.",
+      "authRequired": false,
+      "networkRequired": "none",
+      "installMethod": "npm-global",
+      "installCommands": [
+        "npm install -g redoc-cli"
+      ],
+      "prerequisites": [
+        "node>=18"
+      ],
+      "tags": [
+        "docs",
+        "openapi",
+        "swagger",
+        "api",
+        "cli"
+      ],
+      "maturityFit": [
+        "growing",
+        "mature"
+      ]
+    },
+    {
+      "name": "scalar",
+      "repo": "scalar/scalar",
+      "category": "workflow",
+      "description": "Modern OpenAPI reference renderer and REST client with a clean UI and embedded playground.",
+      "authRequired": false,
+      "networkRequired": "none",
+      "installMethod": "npm-global",
+      "installCommands": [
+        "npm install -g @scalar/cli"
+      ],
+      "prerequisites": [
+        "node>=18"
+      ],
+      "tags": [
+        "docs",
+        "openapi",
+        "api",
+        "cli"
+      ],
+      "maturityFit": [
+        "growing",
+        "mature"
+      ]
+    },
+    {
+      "name": "typedoc",
+      "repo": "TypeStrong/typedoc",
+      "category": "workflow",
+      "description": "Documentation generator for TypeScript projects — extracts API reference from source + TSDoc comments.",
+      "authRequired": false,
+      "networkRequired": "none",
+      "installMethod": "npm-global",
+      "installCommands": [
+        "npm install -g typedoc"
+      ],
+      "prerequisites": [
+        "node>=18"
+      ],
+      "tags": [
+        "docs",
+        "typescript",
+        "api-reference",
+        "cli"
+      ],
+      "maturityFit": [
+        "growing",
+        "mature"
+      ]
+    },
+    {
+      "name": "changesets",
+      "repo": "changesets/changesets",
+      "category": "workflow",
+      "description": "Versioning and changelog manager built for monorepos — captures intent in markdown then composes releases.",
+      "authRequired": false,
+      "networkRequired": "none",
+      "installMethod": "npm-global",
+      "installCommands": [
+        "npm install -g @changesets/cli"
+      ],
+      "prerequisites": [
+        "node>=18"
+      ],
+      "tags": [
+        "release",
+        "changelog",
+        "versioning",
+        "cli",
+        "monorepo"
+      ],
+      "maturityFit": [
+        "growing",
+        "mature"
+      ]
+    },
+    {
+      "name": "readme-ai",
+      "repo": "eli64s/readme-ai",
+      "category": "workflow",
+      "description": "AI-powered README generator CLI with OpenAI, Anthropic, Gemini, and Ollama backends.",
+      "authRequired": false,
+      "networkRequired": "partial",
+      "installMethod": "pip",
+      "installCommands": [
+        "pip install readmeai"
+      ],
+      "prerequisites": [
+        "python>=3.9"
+      ],
+      "tags": [
+        "docs",
+        "readme",
+        "ai",
+        "cli",
+        "universal"
+      ],
+      "maturityFit": [
+        "greenfield",
+        "early",
+        "growing",
+        "mature"
+      ]
+    },
+    {
+      "name": "mermaid-cli",
+      "repo": "mermaid-js/mermaid-cli",
+      "category": "workflow",
+      "description": "Official Mermaid CLI — renders .mmd diagrams to SVG, PNG, or PDF with theming and custom config.",
+      "authRequired": false,
+      "networkRequired": "none",
+      "installMethod": "npm-global",
+      "installCommands": [
+        "npm install -g @mermaid-js/mermaid-cli"
+      ],
+      "prerequisites": [
+        "node>=18"
+      ],
+      "tags": [
+        "diagrams",
+        "mermaid",
+        "visualization",
+        "cli",
+        "universal"
+      ],
+      "maturityFit": [
+        "greenfield",
+        "early",
+        "growing",
+        "mature"
+      ]
+    },
+    {
+      "name": "dbml-cli",
+      "repo": "holistics/dbml",
+      "category": "workflow",
+      "description": "Database markup language CLI — write schemas as DBML and generate SQL DDL or ER diagrams.",
+      "authRequired": false,
+      "networkRequired": "none",
+      "installMethod": "npm-global",
+      "installCommands": [
+        "npm install -g @dbml/cli"
+      ],
+      "prerequisites": [
+        "node>=18"
+      ],
+      "tags": [
+        "database",
+        "schema",
+        "er-diagram",
+        "cli"
+      ],
+      "maturityFit": [
+        "growing",
+        "mature"
+      ]
+    },
+    {
+      "name": "likec4",
+      "repo": "likec4/likec4",
+      "category": "workflow",
+      "description": "DSL and toolchain for live C4 architecture diagrams generated from code — model, view, and publish.",
+      "authRequired": false,
+      "networkRequired": "none",
+      "installMethod": "npx",
+      "installCommands": [
+        "npx likec4 start"
+      ],
+      "prerequisites": [
+        "node>=18"
+      ],
+      "tags": [
+        "architecture",
+        "c4",
+        "diagrams",
+        "docs"
+      ],
+      "maturityFit": [
+        "growing",
+        "mature"
+      ]
+    },
+    {
+      "name": "openspec",
+      "repo": "Fission-AI/OpenSpec",
+      "category": "workflow",
+      "description": "Lightweight spec-driven development toolkit — alternative to spec-kit with 25+ tools and slash commands.",
+      "authRequired": false,
+      "networkRequired": "none",
+      "installMethod": "npm-global",
+      "installCommands": [
+        "npm install -g @fission-ai/openspec"
+      ],
+      "prerequisites": [
+        "node>=18"
+      ],
+      "tags": [
+        "spec-driven",
+        "planning",
+        "universal"
+      ],
+      "maturityFit": [
+        "greenfield",
+        "early",
+        "growing",
+        "mature"
+      ]
+    },
+    {
+      "name": "claude-task-master",
+      "repo": "eyaltoledano/claude-task-master",
+      "category": "plugin",
+      "description": "AI-powered task management MCP — parses PRDs into dependency-aware task graphs for Claude Code.",
+      "authRequired": false,
+      "networkRequired": "none",
+      "installMethod": "npx",
+      "installCommands": [
+        "npx -y task-master-ai"
+      ],
+      "prerequisites": [
+        "node>=18"
+      ],
+      "tags": [
+        "planning",
+        "tasks",
+        "prd",
+        "mcp",
+        "universal"
+      ],
+      "maturityFit": [
+        "growing",
+        "mature"
+      ]
+    },
+    {
+      "name": "bmad-method",
+      "repo": "bmad-code-org/BMAD-METHOD",
+      "category": "workflow",
+      "description": "Breakthrough Method for Agile AI-Driven Development — 9 specialized agents covering the full SDLC.",
+      "authRequired": false,
+      "networkRequired": "none",
+      "installMethod": "npx",
+      "installCommands": [
+        "npx bmad-method install --tools claude-code"
+      ],
+      "prerequisites": [
+        "node>=18"
+      ],
+      "tags": [
+        "planning",
+        "agile",
+        "methodology",
+        "universal"
+      ],
+      "maturityFit": [
+        "greenfield",
+        "early",
+        "growing",
+        "mature"
+      ]
+    },
+    {
+      "name": "ccusage",
+      "repo": "ryoppippi/ccusage",
+      "category": "workflow",
+      "description": "Local JSONL-based Claude Code and Codex usage and cost analytics CLI — zero auth, reads session files.",
+      "authRequired": false,
+      "networkRequired": "none",
+      "installMethod": "npm-global",
+      "installCommands": [
+        "npm install -g ccusage"
+      ],
+      "prerequisites": [
+        "node>=18"
+      ],
+      "tags": [
+        "observability",
+        "cost",
+        "claude-code",
+        "cli",
+        "token-saving"
+      ],
+      "maturityFit": [
+        "greenfield",
+        "early",
+        "growing",
+        "mature"
+      ]
+    },
+    {
+      "name": "awesome-claude-code",
+      "repo": "hesreallyhim/awesome-claude-code",
+      "category": "skill",
+      "description": "Canonical curated list of Claude Code skills, hooks, slash commands, agents, and plugins.",
+      "authRequired": false,
+      "networkRequired": "none",
+      "installMethod": "git-clone",
+      "installCommands": [
+        "git clone https://github.com/hesreallyhim/awesome-claude-code.git"
+      ],
+      "prerequisites": [],
+      "tags": [
+        "awesome-list",
+        "reference",
+        "universal"
+      ],
+      "maturityFit": [
+        "greenfield",
+        "early",
+        "growing",
+        "mature"
+      ]
+    },
+    {
+      "name": "humanizer",
+      "repo": "blader/humanizer",
+      "category": "skill",
+      "description": "Skill that strips AI-generated writing tells from text — removes em-dashes, stock phrases, and over-formality.",
+      "authRequired": false,
+      "networkRequired": "none",
+      "installMethod": "git-clone",
+      "installCommands": [
+        "git clone https://github.com/blader/humanizer.git"
+      ],
+      "prerequisites": [],
+      "tags": [
+        "writing",
+        "content",
+        "skill",
+        "universal"
+      ],
+      "maturityFit": [
+        "greenfield",
+        "early",
+        "growing",
+        "mature"
+      ]
+    },
+    {
+      "name": "alirezarezvani/claude-skills",
+      "repo": "alirezarezvani/claude-skills",
+      "category": "skill",
+      "description": "232+ skills and agent plugins spanning engineering, PM, and compliance workflows.",
+      "authRequired": false,
+      "networkRequired": "none",
+      "installMethod": "git-clone",
+      "installCommands": [
+        "git clone https://github.com/alirezarezvani/claude-skills.git"
+      ],
+      "prerequisites": [],
+      "tags": [
+        "skill-collection",
+        "universal"
+      ],
+      "maturityFit": [
+        "growing",
+        "mature"
+      ]
+    },
+    {
+      "name": "mcp-mermaid",
+      "repo": "hustcc/mcp-mermaid",
+      "category": "plugin",
+      "description": "AI-driven Mermaid MCP — renders diagrams to SVG/PNG/base64 over stdio, SSE, or HTTP transports.",
+      "authRequired": false,
+      "networkRequired": "none",
+      "installMethod": "npx",
+      "installCommands": [
+        "npx mcp-mermaid"
+      ],
+      "prerequisites": [
+        "node>=18"
+      ],
+      "tags": [
+        "diagrams",
+        "mermaid",
+        "mcp",
+        "visualization"
+      ],
+      "maturityFit": [
+        "growing",
+        "mature"
+      ]
+    },
+    {
+      "name": "karanb192/claude-code-hooks",
+      "repo": "karanb192/claude-code-hooks",
+      "category": "hook",
+      "description": "Copy-paste library of useful Claude Code hooks — curated snippets for PreToolUse, PostToolUse, and Stop.",
+      "authRequired": false,
+      "networkRequired": "none",
+      "installMethod": "git-clone",
+      "installCommands": [
+        "git clone https://github.com/karanb192/claude-code-hooks.git"
+      ],
+      "prerequisites": [],
+      "tags": [
+        "hooks",
+        "claude-code",
+        "reference"
+      ],
+      "maturityFit": [
         "growing",
         "mature"
       ]
