@@ -169,9 +169,8 @@ export function executePlan(plan: RoutedPlan, opts: ExecOptions = {}): ExecResul
   }
 
   if (plan.action === 'git-clone-ref') {
-    mkdirSync(dirname(join(plan.commands[0]?.args[2] ?? '.', '_')), { recursive: true });
     const dest = plan.commands[0]?.args[2];
-    if (dest && existsSync(dest)) {
+    if (dest && existsSync(join(dest, '.git'))) {
       return {
         tool: plan.tool,
         plan,
@@ -179,6 +178,9 @@ export function executePlan(plan: RoutedPlan, opts: ExecOptions = {}): ExecResul
         output: `already cloned at ${dest} — skipped`,
       };
     }
+    // Pre-create only the parent; git clone creates `dest` itself and would
+    // fail if we pre-created an empty target directory.
+    if (dest) mkdirSync(dirname(dest), { recursive: true });
   }
 
   const outputs: string[] = [];

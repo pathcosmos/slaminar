@@ -1,4 +1,7 @@
 import { describe, it, expect } from 'vitest';
+import { mkdirSync, mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { routeInstall, executePlan } from '../../src/recommender/installer-router.js';
 import type { CatalogTool } from '../../src/types/index.js';
 
@@ -100,5 +103,41 @@ describe('executePlan', () => {
     const r = executePlan(plan);
     expect(r.success).toBe(false);
     expect(r.error).toMatch(/--target/);
+  });
+
+  describe('git-clone "already cloned" skip heuristic', () => {
+    it('treats a populated git repo as already cloned', () => {
+      const tmpBase = mkdtempSync(join(tmpdir(), 'slaminar-test-'));
+      try {
+        const refDir = join(tmpBase, 'refs');
+        mkdirSync(join(refDir, 'tool-x', '.git'), { recursive: true });
+
+        const plan = routeInstall(t({}), { refDir });
+        const r = executePlan(plan);
+
+        expect(r.success).toBe(true);
+        expect(r.output).toMatch(/already cloned/);
+      } finally {
+        rmSync(tmpBase, { recursive: true, force: true });
+      }
+    });
+
+    it('does NOT treat an empty husk dir as already cloned (regression: installer-router silent skip)', () => {
+      const tmpBase = mkdtempSync(join(tmpdir(), 'slaminar-test-'));
+      try {
+        const refDir = join(tmpBase, 'refs');
+        mkdirSync(join(refDir, 'tool-x'), { recursive: true });
+
+        const plan = routeInstall(
+          t({ installCommands: ['git clone https://example.invalid/noop.git'] }),
+          { refDir },
+        );
+        const r = executePlan(plan);
+
+        expect(r.output).not.toMatch(/already cloned/);
+      } finally {
+        rmSync(tmpBase, { recursive: true, force: true });
+      }
+    });
   });
 });
