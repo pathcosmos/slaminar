@@ -4,6 +4,12 @@ dist/
 .DS_Store
 
 catalog-audit.json
+
+# slaminar-on-self dogfooding artifacts — not meant to be committed in the
+# slaminar repo itself. Narrow entries below are now shadowed but kept as
+# documentation of what ends up inside each dir.
+.claude/
+.slaminar/
 .claude/settings.local.json
 .slaminar/reports/
 .slaminar/lockfile
