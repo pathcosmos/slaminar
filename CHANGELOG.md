@@ -5,6 +5,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.7] — 2026-04-20
+
+### Fixed — recommender clone-detection + dogfood hygiene
+
+Follow-ups surfaced while self-running slaminar against its own source tree after v0.9.6 shipped.
+
+**`recommender/installer-router` — retry-safe git-clone short-circuit:**
+- `executePlan`'s git-clone path previously treated any existing destination directory as "already cloned — skipped". A prior failed clone (network error, bad URL, etc.) could leave an empty husk directory that silently masked the failure and blocked every subsequent retry.
+- Fix: short-circuit only when `<dest>/.git` exists; pre-create only the parent directory so `git clone` can own creation of `dest` itself.
+- +2 regression tests in `tests/recommender/installer-router.test.ts` (populated-repo path is still treated as cloned; empty-husk dir is not).
+
+**`CLAUDE.md` marker sections — real project context:**
+- Rewrote the five slaminar-managed marker blocks (overview, commands, architecture, conventions, dependencies) with project context the local rules could not derive on their own — 7-phase pipeline, actual runtime/dev dependencies, `execFileSync` invariant, ownership-marker pattern, v0.9.x system-QA focus.
+- Pre-marker human prose and all marker fences preserved byte-for-byte; `slaminar check` reports 9/9.
+
+**`.gitignore` — ignore whole `.claude/` and `.slaminar/` dirs:**
+- Dogfooding slaminar on its own repo creates these trees and they are not meant to be committed to the slaminar source (risks a self-referential `.claude/plugins/slaminar-generated`). Existing narrow entries kept as inline documentation of what lives inside each dir.
+
+### Stats
+
+- Tests: 373 → 375 (+2 installer-router regression tests).
+- No catalog changes.
+
+[0.9.7]: https://github.com/pathcosmos/slaminar/compare/v0.9.6...v0.9.7
+
 ## [0.9.6] — 2026-04-20
 
 ### Fixed — catalog integrity audit + validator false positive
