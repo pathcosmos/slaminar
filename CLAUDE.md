@@ -62,81 +62,85 @@ Each phase produces a JSON-serializable IR passed to the next.
 - CHANGELOG entries stack per patch release; use the same release commit style: `chore(release): vX.Y.Z — <theme>`
 - `prepublishOnly` runs build+test automatically on `npm publish` — treat it as the safety gate, not a manual checklist
 <!-- slaminar:begin:overview -->
-## Overview (slaminar-managed)
+## Overview
 
-slaminar is a Claude Code-focused project analyzer and setup tool, published as the `slaminar` npm binary (`dist/cli.js`). It inspects a target repository, scores community tools from a catalog (46+ entries with federation support in v0.8), and generates a tailored `CLAUDE.md` + Claude Code plugin (`.claude/plugins/slaminar-generated/`) so that Claude Code can work productively in that repo.
+slaminar is a TypeScript ESM CLI (`npm` bin: `slaminar` → `dist/cli.js`, Node ≥18) that scans a target repo, scores community tools from a federation-capable catalog, and generates a tailored `CLAUDE.md` + a Claude Code plugin at `.claude/plugins/slaminar-generated/`. The package auto-deploys a `/slaminar` skill to `~/.claude/skills/slaminar/` via `postinstall`.
 
-- **Project type:** TypeScript ESM CLI (`commander`-based), Node ≥18
-- **Self-installing skill:** `postinstall` auto-deploys a `/slaminar` skill to `~/.claude/skills/slaminar/`
-- **Current focus (v0.9.x):** system QA — fault injection, rollback integrity, file locking, performance baselines
-- **Stage:** `growing` per analyzer (active, versioned, test-covered, but pre-1.0)
+- **Language:** typescript (ESM, `"type": "module"`)
+- **Pattern:** cli (commander-based, 7-phase pipeline)
+- **Maturity:** growing — active, versioned, test-covered, pre-1.0
+- **Current line:** v0.9.x system-QA series (fault injection, rollback integrity, file locking, performance baselines)
 <!-- slaminar:end:overview -->
 <!-- slaminar:begin:commands -->
-## Build & Development Commands (slaminar-managed)
+## Build & Development Commands
 
-Everyday workflows:
+Everyday:
 
-- `npm run build` — `tsc` + copy assets (via `scripts/copy-assets.mjs`)
-- `npm run dev` — run the CLI from source with `tsx` (e.g. `npm run dev -- init --dry-run .`)
+- `npm run build` — `tsc` + `scripts/copy-assets.mjs` (copies non-TS assets into `dist/`)
+- `npm run dev` — run CLI from source via `tsx` (e.g. `npm run dev -- init --dry-run .`)
 - `npm test` — unit tests (`vitest run`)
-- `npm run test:watch` — watch mode for TDD
-- `npm run test:e2e` — builds then runs vitest with `E2E=1`
+- `npm run test:watch` — watch mode (TDD loop)
+- `npm run test:e2e` — build, then `E2E=1 vitest run` (gates the e2e suites)
 - `npm run test:all` — unit + e2e in sequence
 
-Benchmarks & release:
+Release & benchmarks:
 
-- `npm run bench` — CLI + library benchmarks (`scripts/bench-*.mjs`)
-- `npm run release:patch` — `npm version patch` with tag + commit (per repo policy, patch-only is the default)
-- `prepublishOnly` auto-runs `build && test` on `npm publish`
+- `npm run bench` — `bench:cli` + `bench:lib` (`scripts/bench-*.mjs`)
+- `npm run verify:catalog` — catalog integrity audit (v0.9.6 addition)
+- `npm run release:patch` — `npm version patch` with tag + commit (**patch-only is the repo policy**; `release:minor`/`release:major` exist but require explicit user approval)
+- `prepublishOnly` (auto) — runs `build && test` on `npm publish` as the safety gate
+- `postinstall` (auto) — installs the `/slaminar` skill to `~/.claude/skills/slaminar/` (silent on failure)
 <!-- slaminar:end:commands -->
 <!-- slaminar:begin:architecture -->
-## Architecture (slaminar-managed)
+## Architecture
 
-Entry point: `src/cli.ts` (registered as the `slaminar` bin). The CLI dispatches to a 7-phase pipeline, each phase producing a JSON-serialisable IR passed to the next:
+Entry point: `src/cli.ts` → `dist/cli.js` (registered as the `slaminar` bin). The CLI dispatches to a 7-phase pipeline, each phase producing a JSON-serialisable IR passed to the next:
 
 ```
 scan → analyze → recommend → plan → generate → place → verify
 ```
 
-Notable top-level directories beyond the seven phases (see pre-marker "Key Directories" for the full breakdown):
+Top-level modules under `src/` (20 directories):
 
-- `src/core/` — shared pipeline plumbing and IR types
-- `src/planner/` — per-phase plan/IR assembly
-- `src/locking/` — `proper-lockfile`-based mutual exclusion for concurrent `slaminar init`/`update` (added in v0.9.3)
-- `src/auth/` — credential/config helpers for catalog federation
-- `src/runtime/` — prerequisite + runtime detector (Node / Python / uv / volta)
-- `src/skill/` — `/slaminar` Claude Code skill installer, auto-deployed via `postinstall`
-- `src/setup/` & `src/discover/` — first-run wizard and bulk project discovery
+- **Pipeline phases** — `scanner/`, `analyzer/`, `recommender/`, `planner/`, `generator/`, `placer/`, `validator/`
+- **Reporting & CI** — `reporter/` (chalk tables, markdown reports), `ci/` (exit-code-driven checks)
+- **Runtime & setup** — `runtime/` (prereq + runtime detector), `setup/` (`slaminar setup` wizard), `discover/` (bulk project discovery)
+- **Catalog ecosystem** — all in `recommender/` (catalog, catalog-resolver, catalog-cache, catalog-remote, catalog-diff, catalog-merger, catalog-sources federation, scorer, conflict-detector, installer)
+- **Skill self-install** — `skill/` (SKILL.md + installer.ts + post-install.ts auto-deploying `/slaminar` to `~/.claude/skills/slaminar/`)
+- **Safety & state** — `locking/` (`proper-lockfile` mutual exclusion, v0.9.3), `rollback/` (uninstaller, removeTool), `placer/backup` (obfuscated `.slaminar/.bk/{hex6}_{timestamp}.dat`)
+- **Config** — `team/` (team/local split), `auth/` (catalog federation credentials), `core/` (shared IR types)
+- **Meta** — `cli.ts`, `version.ts` (single source for `SLAMINAR_VERSION`), `types/index.ts` (centralised types)
 
-Tests live next to code under each module as `*.test.ts` and run under `vitest`. E2E suites are gated by the `E2E=1` env var.
+Tests live next to code as co-located `*.test.ts` under `vitest`. E2E suites are gated by the `E2E=1` env var (see `npm run test:e2e`).
 <!-- slaminar:end:architecture -->
 <!-- slaminar:begin:conventions -->
-## Conventions (slaminar-managed)
+## Conventions
 
-- **TypeScript ESM** — `"type": "module"` in `package.json`; import paths use `.js` extensions even for `.ts` sources
-- **Shell safety** — all external processes go through `execFileSync` with argv arrays; `execSync` with string commands is banned for injection safety
-- **Ownership markers** — every section slaminar writes is wrapped in paired `begin:`/`end:` HTML comments so `slaminar update` can merge only its own regions (everything outside the markers is user-owned)
-- **Obfuscated backups** — mutations to user files go through `src/placer/backup` which writes `.slaminar/.bk/{hex6}_{timestamp}.dat` to avoid accidental `git add .` of user content
-- **Config split** — team-level catalog config is committed, per-user local config is `.gitignore`d
-- **Testing** — `vitest` with co-located `*.test.ts`; prefer TDD for new rules in the scanner/analyzer/recommender layers
+- **TypeScript ESM** — `"type": "module"`; import paths use `.js` extensions even for `.ts` sources (ESM resolution requirement)
+- **Shell safety invariant** — all external processes go through `execFileSync` with argv arrays; `execSync` with string commands is banned (injection safety)
+- **Ownership markers** — every section slaminar writes is wrapped in paired `<!-- slaminar:begin:X -->` / `<!-- slaminar:end:X -->` HTML comments; everything outside them is user-owned and `slaminar update` won't touch it
+- **Obfuscated backups** — user-file mutations write `.slaminar/.bk/{hex6}_{timestamp}.dat` to avoid accidental `git add .` of user content
+- **Config split** — team-level catalog config is committed; per-user local config is `.gitignore`d
+- **Testing** — `vitest` with co-located `*.test.ts`; TDD preferred for new rules in scanner/analyzer/recommender
 - **Commits** — conventional commits; release commits are `chore(release): vX.Y.Z — <theme>`
-- **Docs** — narrative docs are Korean-first; user-facing CLI prompts are English-only (since v0.8.1)
+- **Docs language** — Korean-first for narrative docs; user-facing CLI prompts are English-only (since v0.8.1)
+- **Types** — centralised in `src/types/index.ts`; version string single-sourced from `src/version.ts`
 <!-- slaminar:end:conventions -->
 <!-- slaminar:begin:dependencies -->
-## Key Dependencies (slaminar-managed)
+## Key Dependencies
 
-Runtime:
+Runtime (`dependencies`):
 
-- **commander** — CLI argument parsing and subcommand routing (`init`, `update`, `check`, `doctor`, `skill`, `discover`, …)
-- **@inquirer/prompts** — interactive prompts for `slaminar setup` wizard and `slaminar init` approval flows
-- **chalk** + **cli-table3** — terminal colour + tabular output for the reporter
-- **proper-lockfile** — advisory file locks guarding concurrent mutations (v0.9.3 rollback-integrity work)
+- **commander** — CLI argv parsing and subcommand routing (`init`, `update`, `check`, `doctor`, `skill`, `discover`, `recommend`, `uninstall`, `status`, `setup`)
+- **@inquirer/prompts** — interactive prompts for the `setup` wizard and `init` approval flows
+- **chalk** + **cli-table3** — terminal colour + tabular output in the reporter
+- **proper-lockfile** — advisory file locks guarding concurrent `init`/`update` mutations (v0.9.3 rollback-integrity work)
 - **open** — launches the browser for OAuth / external catalog auth flows
 
-Development:
+Development (`devDependencies`):
 
-- **vitest** — unit + e2e test runner; E2E gated behind `E2E=1`
+- **vitest** — unit + e2e test runner (E2E gated by `E2E=1`)
 - **tsx** — ad-hoc TypeScript execution for `npm run dev`
 - **msw** — HTTP mocking for catalog federation tests
-- **@types/node**, **@types/proper-lockfile** — type shims for Node APIs and the lock library
+- **typescript**, **@types/node**, **@types/proper-lockfile** — type shims
 <!-- slaminar:end:dependencies -->
