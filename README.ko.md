@@ -100,18 +100,49 @@ scan → analyze → recommend → plan → generate → place → verify
 
 ### 지능적 도구 추천
 
-46개 Claude Code 생태계 도구를 포함한 온라인 카탈로그에서 프로젝트에 맞는 도구를 자동 선별합니다 (릴리즈와 독립적으로 업데이트 가능).
+**85개 Claude Code 생태계 도구**(catalog v2.3.0, 2026-04-20)를 포함한 온라인 카탈로그에서 프로젝트에 맞는 도구를 자동 선별합니다. 카탈로그는 `https://raw.githubusercontent.com/pathcosmos/slaminar/main/catalog/catalog.json`에서 서빙되며 **CLI 릴리즈와 독립적으로 업데이트**됩니다.
 
 **추천 로직:**
 - 다차원 스코어링 (언어/프레임워크 매칭, 성숙도 적합도, 태그 매칭)
 - 충돌/중복 감지 (caveman ↔ everything-claude-code 등)
 - 성숙도별 도구 수 제한 (greenfield: 2개, early: 3개, growing: 5개, mature: 7개)
+- 토큰 비용 티어(`conservative` / `smart` / `rich`)로 고비용 도구 필터링
 - 외부 인증 필요 도구 자동 제외
 - `--catalog <url>` 플래그로 사설/기업용 카탈로그 지원
 
-**카탈로그 포함 도구 (46개):**
+**카탈로그 포함 도구 (85개):**
 
-15개 카테고리에 걸쳐 46개 도구를 제공합니다. 토큰/성능, 계획, 프론트엔드, 테스트, 메모리, 보안, 품질, 팀 워크플로우, DevOps, 데이터베이스, 프레임워크별 스킬 등 — 전체 목록은 [동적 카탈로그](#카탈로그-도구-46개) 섹션 또는 `slaminar catalog list`로 확인할 수 있습니다.
+섹션별로 구성된 전체 85개 도구. 토큰/성능, 계획, 프론트엔드, 테스트, 메모리, 보안, 품질, 팀, DevOps, 데이터베이스, 프레임워크, 문서, 다이어그램, AI 인프라, 메타 등 — 전체 목록은 `slaminar catalog list` 또는 섹션별 상세 레퍼런스 [`docs/catalog-tools-reference.md`](docs/catalog-tools-reference.md)에서 확인.
+
+### 카탈로그 엔트리 작성 방식
+
+카탈로그의 각 도구는 작고 명확한 스키마의 JSON 객체입니다. 실제 등록된 `marp` 도구를 최소 예시로 보여드립니다:
+
+```json
+{
+  "name": "marp",
+  "repo": "marp-team/marp",
+  "category": "workflow",
+  "description": "Markdown 프레젠테이션 생태계 — VS Code 확장 + CLI.",
+  "authRequired": false,
+  "networkRequired": "none",
+  "installMethod": "npm-global",
+  "installCommands": ["npm install -g @marp-team/marp-cli"],
+  "prerequisites": ["node>=18"],
+  "tags": ["presentation", "slides", "markdown", "cli"],
+  "maturityFit": ["greenfield", "early", "growing", "mature"]
+}
+```
+
+주요 필드 규칙:
+- `installMethod`는 `marketplace | npx | git-clone | pip | npm-global | npm-dev | npm-init` 중 하나여야 함 (enum 강제)
+- `category`는 `plugin | skill | hook | agent | workflow` 중 하나
+- `maturityFit`는 `greenfield | early | growing | mature`의 부분집합
+- `tags`는 프로젝트의 언어/프레임워크와 매칭되어 추천 스코어에 기여
+
+**전체 스키마·작성 규칙·검증 워크플로**: [`docs/catalog-authoring-guide.md`](docs/catalog-authoring-guide.md)
+**섹션별 도구 상세 레퍼런스**: [`docs/catalog-tools-reference.md`](docs/catalog-tools-reference.md)
+**무인증·경량 설치 후보군(172개)**: [`docs/catalog-noauth-candidates-2026-04.md`](docs/catalog-noauth-candidates-2026-04.md)
 
 ### 안전한 파일 관리
 
@@ -636,7 +667,7 @@ package.json scripts에서 자동 추출
 
 slaminar의 도구 카탈로그는 CLI 릴리즈와 독립적으로 진화하도록 설계되었습니다:
 
-- **온라인 카탈로그**: 46개 도구를 GitHub에서 가져옴 (이 저장소의 `catalog/catalog.json`), slaminar 업그레이드 없이 업데이트 가능
+- **온라인 카탈로그**: 85개 도구를 GitHub에서 가져옴 (이 저장소의 `catalog/catalog.json`), slaminar 업그레이드 없이 업데이트 가능
 - **로컬 캐시**: `~/.config/slaminar/catalog-cache.json`에 24시간 TTL로 캐시 (파일 권한 `0600`)
 - **Fallback 체인**: 유효 캐시 → 원격 fetch → 만료 캐시 → 번들 폴백 (오프라인에서도 항상 동작)
 - **ETag 지원**: 조건부 HTTP 요청 — 원격 카탈로그가 변경되지 않았으면 서버가 `304 Not Modified`로 응답하여 데이터 전송 없음
@@ -662,7 +693,7 @@ slaminar catalog update (또는 init/recommend)
   └─ 4. 번들 카탈로그 사용 (14개 도구, 항상 사용 가능)
 ```
 
-### 카탈로그 도구 (46개)
+### 카탈로그 도구 (85개)
 
 | 카테고리 | 도구 |
 |----------|------|
@@ -808,7 +839,7 @@ slaminar catalog config --url https://security.company.com/approved.json --mode 
 slaminar recommend (extend 모드)
   │
   ├─ 1. 공식 카탈로그 resolve (fallback 체인)
-  │     → 46개 공식 도구
+  │     → 85개 공식 도구
   │
   ├─ 2. 커스텀 카탈로그 fetch
   │     → N개 커스텀 도구
@@ -1675,7 +1706,7 @@ CLAUDE.md 유효성 검증, plugin.json 스키마 검증, 터미널 컬러 테�
 | 테스트 파일 | 55개 |
 | 테스트 케이스 | 338개 |
 | CLI 명령어 | 28개 |
-| 카탈로그 도구 | 46개 (온라인) + 14개 (번들 폴백) |
+| 카탈로그 도구 | 85개 (온라인, catalog v2.3.0) + 0개 (번들 — v0.9.6부터 의도적 비어둠) |
 | 카탈로그 소스 레이어 | 6단계 (bundled → official → user → project → env → CLI, v0.8.0부터) |
 | AI 프로바이더 | 2개 (Cloudflare, Anthropic) |
 | Claude Code 통합 | 자동 배포되는 `/slaminar` 스킬 (v0.5.0부터) |

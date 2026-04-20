@@ -100,14 +100,45 @@ scan → analyze → recommend → plan → generate → place → verify
 
 ### Smart Tool Recommendations
 
-The tool catalog contains 46 Claude Code ecosystem tools (with an online catalog that can be updated independently of releases). slaminar automatically selects the right ones for your project.
+The tool catalog contains **85 Claude Code ecosystem tools** (catalog v2.3.0, 2026-04-20) served from an online source at `https://raw.githubusercontent.com/pathcosmos/slaminar/main/catalog/catalog.json` — updated independently of CLI releases. slaminar automatically selects the right ones for your project.
 
 **How it works:**
 - Multi-dimensional scoring (language/framework match, maturity fit, tag overlap)
 - Conflict and overlap detection (e.g., caveman vs. everything-claude-code)
 - Maturity-based limits (greenfield: 2, early: 3, growing: 5, mature: 7)
+- Token-cost tier filter (`conservative` / `smart` / `rich`) — gates high-cost tools
 - Tools requiring external authentication are automatically excluded
 - Custom catalog URL support via `--catalog <url>` for private/enterprise catalogs
+
+### Catalog Entry Format
+
+Each catalog tool is a JSON object with a small, well-defined schema. Here is a real entry for the `marp` tool as a minimal example:
+
+```json
+{
+  "name": "marp",
+  "repo": "marp-team/marp",
+  "category": "workflow",
+  "description": "Markdown presentation ecosystem with VS Code extension + CLI.",
+  "authRequired": false,
+  "networkRequired": "none",
+  "installMethod": "npm-global",
+  "installCommands": ["npm install -g @marp-team/marp-cli"],
+  "prerequisites": ["node>=18"],
+  "tags": ["presentation", "slides", "markdown", "cli"],
+  "maturityFit": ["greenfield", "early", "growing", "mature"]
+}
+```
+
+Key field rules:
+- `installMethod` must be one of `marketplace | npx | git-clone | pip | npm-global | npm-dev | npm-init`
+- `category` must be one of `plugin | skill | hook | agent | workflow`
+- `maturityFit` subset of `greenfield | early | growing | mature`
+- `tags` drive recommendation matching against project language/framework
+
+**Full schema, authoring rules, and verification workflow:** see [`docs/catalog-authoring-guide.md`](docs/catalog-authoring-guide.md).
+**Per-section curated tool reference:** see [`docs/catalog-tools-reference.md`](docs/catalog-tools-reference.md).
+**No-auth / lightweight-install subset (172 tools):** see [`docs/catalog-noauth-candidates-2026-04.md`](docs/catalog-noauth-candidates-2026-04.md).
 
 ### Safe File Management
 
@@ -589,7 +620,7 @@ These can be included in PRs for team review.
 
 slaminar's tool catalog is designed to evolve independently of CLI releases:
 
-- **Online catalog**: 46 tools fetched from GitHub (`catalog/catalog.json` in this repo), updated without upgrading slaminar
+- **Online catalog**: 85 tools fetched from GitHub (`catalog/catalog.json` in this repo), updated without upgrading slaminar
 - **Local cache**: `~/.config/slaminar/catalog-cache.json` with 24-hour TTL and file permission `0600`
 - **Fallback chain**: valid cache → remote fetch → stale cache → bundled fallback (always works offline)
 - **ETag support**: conditional HTTP requests — if the remote catalog hasn't changed, the server responds `304 Not Modified` and no data is transferred
@@ -615,7 +646,7 @@ slaminar catalog update (or init/recommend)
   └─ 4. Use bundled catalog (14 tools, always available)
 ```
 
-### Catalog Tools (46)
+### Catalog Tools (85)
 
 | Category | Tools |
 |----------|-------|
@@ -763,7 +794,7 @@ slaminar catalog config --url https://security.company.com/approved.json --mode 
 slaminar recommend (with extend mode)
   │
   ├─ 1. Resolve official catalog (fallback chain)
-  │     → 46 official tools
+  │     → 85 official tools
   │
   ├─ 2. Fetch custom catalog
   │     → N custom tools
@@ -1549,7 +1580,7 @@ See [`docs/superpowers/specs/2026-04-16-custom-catalog-plan.md`](./docs/superpow
 | Test files | 55 |
 | Test cases | 338 |
 | CLI commands | 28 |
-| Catalog tools | 46 (online) + 14 (bundled fallback) |
+| Catalog tools | 85 (online, catalog v2.3.0) + 0 (bundled — intentionally empty since v0.9.6) |
 | Catalog source layers | 6 (bundled → official → user → project → env → CLI, since v0.8.0) |
 | AI providers | 2 (Cloudflare Workers AI, Anthropic Claude) |
 | Claude Code integration | Auto-deployed `/slaminar` skill (since v0.5.0) |
